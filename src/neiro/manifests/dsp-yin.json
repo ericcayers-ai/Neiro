@@ -1,0 +1,14 @@
+{
+  "manifest_version": 2,
+  "id": "dsp-yin",
+  "task": "transcribe",
+  "display_name": "Melody tracker (YIN, DSP)",
+  "adapter": "neiro.adapters.dsp_transcriber:YinTranscriber",
+  "framework": "numpy",
+  "params": { "fmin": 60.0, "fmax": 1200.0 },
+  "audio": { "sample_rate": 16000, "channels": 1 },
+  "quality_class": "draft",
+  "vram": { "fp32_gb": 0.05, "supports_fp16": false },
+  "license": { "spdx": "MIT", "source": "builtin" },
+  "provenance": { "author": "neiro", "method": "YIN (de Cheveigne & Kawahara 2002), monophonic" }
+}

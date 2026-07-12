@@ -9,12 +9,12 @@ model downloads; neural backends (Demucs, RoFormer, …) plug in through manifes
 
 from __future__ import annotations
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 from neiro.engine.artifacts import (
-    AudioTensor,
     AnalysisReport,
     Artifact,
+    AudioTensor,
 )
 from neiro.engine.graph import Graph, Node, NodeResult
 

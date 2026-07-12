@@ -8,8 +8,8 @@ with bounded memory; they always pass admission control.
 
 from __future__ import annotations
 
-from neiro.engine.artifacts import AudioTensor
 from neiro.dsp import center_extract, harmonic_percussive
+from neiro.engine.artifacts import AudioTensor
 from neiro.nodes.base import ModelProfile
 
 __all__ = ["CenterSeparator", "HpssSeparator"]
@@ -35,9 +35,7 @@ class CenterSeparator:
         return None
 
     def separate(self, audio: AudioTensor) -> dict[str, AudioTensor]:
-        centre, sides = center_extract(
-            audio.samples, audio.sample_rate, strength=self.strength
-        )
+        centre, sides = center_extract(audio.samples, audio.sample_rate, strength=self.strength)
         return {
             "vocals": AudioTensor(centre, audio.sample_rate).with_provenance(self.profile.model_id),
             "instrumental": AudioTensor(sides, audio.sample_rate).with_provenance(
@@ -69,9 +67,7 @@ class HpssSeparator:
         return None
 
     def separate(self, audio: AudioTensor) -> dict[str, AudioTensor]:
-        harm, perc = harmonic_percussive(
-            audio.samples, audio.sample_rate, kernel=self.kernel
-        )
+        harm, perc = harmonic_percussive(audio.samples, audio.sample_rate, kernel=self.kernel)
         return {
             "harmonic": AudioTensor(harm, audio.sample_rate).with_provenance(self.profile.model_id),
             "percussive": AudioTensor(perc, audio.sample_rate).with_provenance(

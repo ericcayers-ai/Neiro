@@ -1,0 +1,14 @@
+{
+  "manifest_version": 2,
+  "id": "basic-pitch",
+  "task": "transcribe",
+  "display_name": "Basic Pitch (Spotify)",
+  "adapter": "neiro.adapters.basic_pitch_adapter:BasicPitchTranscriber",
+  "framework": "tensorflow/onnx",
+  "requires": ["basic_pitch"],
+  "audio": { "sample_rate": 22050, "channels": 1 },
+  "quality_class": "standard",
+  "vram": { "fp32_gb": 0.6, "supports_fp16": false },
+  "license": { "spdx": "Apache-2.0", "source": "https://github.com/spotify/basic-pitch" },
+  "provenance": { "author": "spotify", "polyphony": "polyphonic, instrument-agnostic" }
+}

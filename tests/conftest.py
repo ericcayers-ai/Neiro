@@ -22,9 +22,9 @@ def stereo_mix(sr):
     Amplitudes kept well below clipping.
     """
     seconds = 2.0
-    vocal = 0.4 * _sine(220.0, seconds, sr)          # centred
-    guitar = 0.3 * _sine(660.0, seconds, sr)         # panned left
-    perc = 0.15 * _sine(3000.0, seconds, sr)         # centred high (transient-ish)
+    vocal = 0.4 * _sine(220.0, seconds, sr)  # centred
+    guitar = 0.3 * _sine(660.0, seconds, sr)  # panned left
+    perc = 0.15 * _sine(3000.0, seconds, sr)  # centred high (transient-ish)
     left = vocal + guitar + perc
     right = vocal + perc
     return AudioTensor(np.stack([left, right]).astype(np.float32), sr)

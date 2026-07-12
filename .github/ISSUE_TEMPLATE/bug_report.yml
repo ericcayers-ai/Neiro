@@ -1,0 +1,59 @@
+name: Bug report
+description: Something didn't work as documented
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Neiro processes audio locally, so most bugs are
+        reproducible from a command and a file description — no need to share audio.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you expect, and what happened instead?
+      placeholder: "`neiro separate x.flac` wrote empty stems…"
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: The exact command(s), and a description of the input (format, sample rate, mono/stereo, duration).
+      placeholder: |
+        1. neiro analyze mix.wav
+        2. neiro separate mix.wav --preset 4stem
+        Input: 44.1 kHz stereo FLAC, 3:20
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Output / error
+      description: Paste the terminal output. For crashes, the full traceback.
+      render: shell
+  - type: input
+    id: version
+    attributes:
+      label: Neiro version
+      description: "`neiro --version`"
+      placeholder: "0.2.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options: [Windows, macOS, Linux]
+    validations:
+      required: true
+  - type: input
+    id: python
+    attributes:
+      label: Python version
+      placeholder: "3.12.7"
+  - type: input
+    id: accelerator
+    attributes:
+      label: GPU / accelerator (if relevant)
+      placeholder: "NVIDIA RTX 4070 8 GB / CPU only / Apple M2"

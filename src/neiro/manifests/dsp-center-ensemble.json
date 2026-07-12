@@ -1,0 +1,23 @@
+{
+  "manifest_version": 2,
+  "id": "dsp-center-ensemble",
+  "task": "separate",
+  "stems": ["vocals", "instrumental"],
+  "display_name": "Center ensemble + TTA (DSP)",
+  "adapter": "neiro.adapters.ensemble_separator:EnsembleSeparator",
+  "framework": "numpy",
+  "params": {
+    "mode": "mean",
+    "tta": true,
+    "members": [
+      { "adapter": "neiro.adapters.dsp_separators:CenterSeparator", "params": { "strength": 0.8 }, "weight": 0.8 },
+      { "adapter": "neiro.adapters.dsp_separators:CenterSeparator", "params": { "strength": 1.0 }, "weight": 1.0 },
+      { "adapter": "neiro.adapters.dsp_separators:CenterSeparator", "params": { "strength": 1.4 }, "weight": 0.8 }
+    ]
+  },
+  "audio": { "sample_rate": 44100, "channels": 2 },
+  "quality_class": "standard",
+  "vram": { "fp32_gb": 0.15, "supports_fp16": false },
+  "license": { "spdx": "MIT", "source": "builtin" },
+  "provenance": { "author": "neiro", "method": "3-member azimuth ensemble, spectral fusion, TTA" }
+}

@@ -1,0 +1,13 @@
+{
+  "manifest_version": 2,
+  "id": "dsp-denoise",
+  "task": "enhance",
+  "display_name": "Denoise (DSP)",
+  "adapter": "neiro.adapters.dsp_enhancers:DenoiseEnhancer",
+  "framework": "numpy",
+  "params": { "reduction_db": 18.0 },
+  "quality_class": "draft",
+  "vram": { "fp32_gb": 0.05, "supports_fp16": false },
+  "license": { "spdx": "MIT", "source": "builtin" },
+  "provenance": { "author": "neiro", "method": "spectral gating with smoothed soft mask" }
+}

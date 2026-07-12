@@ -12,7 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
-from neiro.engine.artifacts import AudioTensor, AnalysisReport, NoteStream
+from neiro.engine.artifacts import AnalysisReport, AudioTensor, NoteStream
 
 __all__ = [
     "ModelProfile",

@@ -3,11 +3,11 @@ import pytest
 
 from neiro.engine.artifacts import AudioTensor
 from neiro.engine.cache import ArtifactCache, cache_key
-from neiro.engine.graph import Graph, Node, ExecutionContext
-from neiro.engine.vram import VRAMManager, Device
-
+from neiro.engine.graph import ExecutionContext, Graph, Node
+from neiro.engine.vram import Device, VRAMManager
 
 # --- artifacts -------------------------------------------------------------
+
 
 def test_audiotensor_normalizes_mono():
     a = AudioTensor(np.zeros(1000, dtype=np.float32), 44100)
@@ -22,6 +22,7 @@ def test_content_key_changes_with_content(stereo_mix):
 
 
 # --- cache -----------------------------------------------------------------
+
 
 def test_cache_memoises():
     cache = ArtifactCache()
@@ -39,6 +40,7 @@ def test_cache_memoises():
 
 
 # --- graph -----------------------------------------------------------------
+
 
 class _Const(Node):
     def __init__(self, node_id, value):
@@ -90,6 +92,7 @@ def test_graph_partial_execution_only_runs_ancestors():
 
 
 # --- vram ------------------------------------------------------------------
+
 
 def _cpu_only():
     return VRAMManager(devices=[Device("CPU", "cpu", 16.0)])

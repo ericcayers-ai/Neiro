@@ -22,6 +22,7 @@ __all__ = [
     "AnalysisReport",
     "NoteEvent",
     "NoteStream",
+    "Timeline",
 ]
 
 
@@ -38,7 +39,7 @@ class Artifact:
     def content_key(self) -> str:  # pragma: no cover - overridden
         raise NotImplementedError
 
-    def with_provenance(self, **entries: Any) -> "Artifact":  # pragma: no cover
+    def with_provenance(self, **entries: Any) -> Artifact:  # pragma: no cover
         raise NotImplementedError
 
 
@@ -84,13 +85,13 @@ class AudioTensor(Artifact):
         rms = float(np.sqrt(np.mean(np.square(self.samples))))
         return 20.0 * np.log10(rms + 1e-12)
 
-    def to_mono(self) -> "AudioTensor":
+    def to_mono(self) -> AudioTensor:
         if self.channels == 1:
             return self
         mono = np.mean(self.samples, axis=0, keepdims=True)
         return replace(self, samples=mono.astype(np.float32))
 
-    def with_provenance(self, entry: str) -> "AudioTensor":
+    def with_provenance(self, entry: str) -> AudioTensor:
         return replace(self, provenance=self.provenance + (entry,))
 
     def content_key(self) -> str:
@@ -172,3 +173,37 @@ class NoteStream(Artifact):
             f"{e.onset:.4f},{e.offset:.4f},{e.pitch},{e.velocity}" for e in self.events
         )
         return _hash_bytes(payload.encode(), str(self.tempo_bpm).encode())
+
+
+@dataclass(frozen=True)
+class Timeline(Artifact):
+    """Compiled multi-track symbolic output (roadmap §8.2).
+
+    ``tracks`` maps track names to note streams on one shared absolute clock.
+    ``micro_offsets`` preserves the pre-quantization onset deviations per track
+    (same order as that track's events), making quantization reversible — the
+    grid for notation, the offsets for playback realism.
+    """
+
+    tracks: tuple[tuple[str, NoteStream], ...]
+    tempo_bpm: float = 120.0
+    micro_offsets: tuple[tuple[str, tuple[float, ...]], ...] = ()
+
+    def track_names(self) -> list[str]:
+        return [name for name, _ in self.tracks]
+
+    def get(self, name: str) -> NoteStream | None:
+        for n, s in self.tracks:
+            if n == name:
+                return s
+        return None
+
+    def total_events(self) -> int:
+        return sum(len(s.events) for _, s in self.tracks)
+
+    def content_key(self) -> str:
+        parts = [f"{self.tempo_bpm:.3f}"]
+        for name, stream in self.tracks:
+            parts.append(name)
+            parts.append(stream.content_key())
+        return _hash_bytes("|".join(parts).encode())

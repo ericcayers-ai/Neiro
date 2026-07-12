@@ -13,8 +13,9 @@ names instead of a fake percentage. Cancellation is cooperative: a node checks
 from __future__ import annotations
 
 import time
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Iterable
+from typing import Any
 
 from neiro.engine.artifacts import Artifact
 from neiro.engine.cache import ArtifactCache, cache_key
@@ -67,7 +68,9 @@ class Node:
 
     node_id: str = "node"
 
-    def __init__(self, node_id: str | None = None, inputs: dict[str, tuple[str, str]] | None = None):
+    def __init__(
+        self, node_id: str | None = None, inputs: dict[str, tuple[str, str]] | None = None
+    ):
         if node_id is not None:
             self.node_id = node_id
         self.inputs: dict[str, tuple[str, str]] = inputs or {}
@@ -102,7 +105,7 @@ class Graph:
         return self._nodes.values()
 
     def topological_order(self) -> list[Node]:
-        indeg: dict[str, int] = {nid: 0 for nid in self._nodes}
+        indeg: dict[str, int] = dict.fromkeys(self._nodes, 0)
         deps: dict[str, set[str]] = {nid: set() for nid in self._nodes}
         for nid, node in self._nodes.items():
             for _, (up, _port) in node.inputs.items():
@@ -128,7 +131,9 @@ class Graph:
             raise ValueError("graph contains a cycle")
         return [self._nodes[nid] for nid in order]
 
-    def execute(self, ctx: ExecutionContext, targets: list[str] | None = None) -> dict[str, dict[str, Artifact]]:
+    def execute(
+        self, ctx: ExecutionContext, targets: list[str] | None = None
+    ) -> dict[str, dict[str, Artifact]]:
         """Run the graph, returning ``{node_id: {port: artifact}}``.
 
         If ``targets`` is given, only those nodes and their transitive
@@ -170,7 +175,7 @@ class Graph:
                 node.node_id,
                 "done",
                 1.0,
-                f"{'cached' if from_cache else 'computed'} in {elapsed*1000:.0f} ms",
+                f"{'cached' if from_cache else 'computed'} in {elapsed * 1000:.0f} ms",
             )
 
         return results

@@ -1,0 +1,80 @@
+"""A Separator built from other separators (roadmap §5.3).
+
+Members are declared in the manifest as adapter import paths with parameters and
+weights — an ensemble is itself just a manifest, no core changes. Each member
+runs (optionally with TTA) and the outputs are fused on complex spectrograms.
+"""
+
+from __future__ import annotations
+
+import importlib
+
+import numpy as np
+
+from neiro.dsp.ensemble import fuse_stems, tta_separate
+from neiro.engine.artifacts import AudioTensor
+from neiro.nodes.base import ModelProfile
+
+__all__ = ["EnsembleSeparator"]
+
+
+def _instantiate(spec: dict):
+    module_name, _, class_name = spec["adapter"].partition(":")
+    cls = getattr(importlib.import_module(module_name), class_name)
+    params = dict(spec.get("params", {}))
+    return cls(**params)
+
+
+class EnsembleSeparator:
+    def __init__(
+        self,
+        model_id: str = "ensemble",
+        members: list[dict] | None = None,
+        mode: str = "mean",
+        tta: bool = True,
+        **_: object,
+    ):
+        if not members:
+            raise ValueError("ensemble requires at least one member spec")
+        self.members = [_instantiate(m) for m in members]
+        self.weights = [float(m.get("weight", 1.0)) for m in members]
+        self.mode = mode
+        self.tta = bool(tta)
+
+        stems = self.members[0].profile.stems
+        for m in self.members[1:]:
+            if m.profile.stems != stems:
+                raise ValueError("ensemble members must share a stem set")
+        self.profile = ModelProfile(
+            model_id=model_id,
+            task="separate",
+            stems=stems,
+            fp32_gb=sum(m.profile.fp32_gb for m in self.members),
+            sample_rate=self.members[0].profile.sample_rate,
+            quality_class="standard",
+            license_spdx="MIT",
+            extras={
+                "members": [m.profile.model_id for m in self.members],
+                "mode": mode,
+                "tta": self.tta,
+            },
+        )
+
+    def load(self, device: str, precision: str) -> None:
+        for m in self.members:
+            m.load(device, precision)
+
+    def separate(self, audio: AudioTensor) -> dict[str, AudioTensor]:
+        member_outputs: list[dict[str, np.ndarray]] = []
+        for m in self.members:
+            stems = tta_separate(m, audio) if self.tta else m.separate(audio)
+            member_outputs.append({k: v.samples for k, v in stems.items()})
+        fused = fuse_stems(member_outputs, audio.sample_rate, weights=self.weights, mode=self.mode)
+        return {
+            name: AudioTensor(arr, audio.sample_rate).with_provenance(self.profile.model_id)
+            for name, arr in fused.items()
+        }
+
+    def unload(self) -> None:
+        for m in self.members:
+            m.unload()

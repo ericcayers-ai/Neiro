@@ -1,0 +1,39 @@
+name: Release
+
+# Builds distribution artifacts and attaches them to the GitHub Release when a
+# version tag is pushed. No external index (PyPI) is published from CI; this
+# keeps release provenance in-repo and auditable.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build sdist and wheel
+        run: |
+          pip install build
+          python -m build
+      - name: Verify the wheel imports
+        run: |
+          pip install dist/*.whl
+          python -c "import neiro; print('neiro', neiro.__version__)"
+          neiro models
+      - name: Attach artifacts to the release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
+          generate_release_notes: true

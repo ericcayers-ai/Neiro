@@ -23,8 +23,8 @@ from __future__ import annotations
 import math
 
 import numpy as np
-from scipy.signal import get_window
 from scipy.ndimage import median_filter
+from scipy.signal import get_window
 
 __all__ = ["stft", "istft", "center_extract", "harmonic_percussive", "residual"]
 
@@ -59,7 +59,7 @@ def istft(
     for i in range(n_frames):
         start = i * hop
         out[start : start + n_fft] += frames[i] * win
-        wsum[start : start + n_fft] += win ** 2
+        wsum[start : start + n_fft] += win**2
     nonzero = wsum > 1e-8
     out[nonzero] /= wsum[nonzero]
     if length is not None:
@@ -130,12 +130,13 @@ def harmonic_percussive(
     for ch in range(samples.shape[0]):
         S = stft(samples[ch], n_fft, hop)
         mag = np.abs(S)
-        phase = np.exp(1j * np.angle(S))
+        # Soft masks are applied to the complex STFT directly, so the original
+        # phase is carried through without needing to extract it separately.
         # Horizontal median -> harmonic; vertical median -> percussive.
         H = median_filter(mag, size=(1, kernel))
         P = median_filter(mag, size=(kernel, 1))
-        Hp = H ** power
-        Pp = P ** power
+        Hp = H**power
+        Pp = P**power
         denom = Hp + Pp + 1e-8
         mask_h = Hp / denom
         mask_p = Pp / denom

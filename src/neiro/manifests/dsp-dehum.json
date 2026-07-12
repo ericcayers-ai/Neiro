@@ -1,0 +1,13 @@
+{
+  "manifest_version": 2,
+  "id": "dsp-dehum",
+  "task": "enhance",
+  "display_name": "Hum removal (DSP)",
+  "adapter": "neiro.adapters.dsp_enhancers:DehumEnhancer",
+  "framework": "numpy",
+  "params": { "fundamental": 60.0, "harmonics": 8 },
+  "quality_class": "draft",
+  "vram": { "fp32_gb": 0.02, "supports_fp16": false },
+  "license": { "spdx": "MIT", "source": "builtin" },
+  "provenance": { "author": "neiro", "method": "zero-phase harmonic notch cascade" }
+}

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "neiro"
-version = "0.1.0"
+version = "0.2.0"
 description = "Local source separation, restoration, and symbolic transcription."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -27,6 +27,7 @@ dependencies = [
 [project.optional-dependencies]
 # Heavy neural backends are opt-in; the core engine runs on pure DSP without them.
 demucs = ["demucs>=4.0", "torch>=2.1"]
+basicpitch = ["basic-pitch>=0.4"]
 dev = ["pytest>=7.4", "pytest-cov>=4.1"]
 
 [project.scripts]
@@ -40,8 +41,39 @@ Roadmap = "https://github.com/ericcayers-ai/Neiro/blob/main/roadmap.md"
 where = ["src"]
 
 [tool.setuptools.package-data]
-neiro = ["manifests/*.json"]
+neiro = ["manifests/*.json", "ui/*.html"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+
+[tool.coverage.run]
+source = ["neiro"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM"]
+ignore = [
+    "E501",   # line length is handled by the formatter, not enforced hard
+    "B008",   # function calls in argument defaults (argparse patterns)
+    "SIM108", # ternary-vs-if is a readability judgement call
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B011", "E741"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["neiro"]

@@ -1,6 +1,6 @@
 import numpy as np
 
-from neiro.dsp import center_extract, harmonic_percussive, residual, stft, istft
+from neiro.dsp import center_extract, harmonic_percussive, istft, residual, stft
 
 
 def test_stft_istft_roundtrip_interior(mono_tone):
@@ -24,6 +24,7 @@ def test_center_extract_reconstructs(stereo_mix):
 
 def test_center_captures_centred_energy(stereo_mix):
     centre, sides = center_extract(stereo_mix.samples, stereo_mix.sample_rate)
+
     # The panned-left 660 Hz tone should end up more in 'sides' than 'centre'.
     def band_energy(sig, sr, f):
         S = np.abs(stft(sig.mean(axis=0), 4096, 1024))

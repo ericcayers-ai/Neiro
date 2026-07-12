@@ -13,7 +13,7 @@ budget so the rest of the engine behaves identically on machines without a GPU.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Literal
 
 __all__ = ["Device", "VRAMManager", "Reservation", "AdmissionResult"]
@@ -53,9 +53,7 @@ def detect_devices() -> list[Device]:
         if torch.cuda.is_available():
             for i in range(torch.cuda.device_count()):
                 props = torch.cuda.get_device_properties(i)
-                devices.append(
-                    Device(props.name, "cuda", props.total_memory / 1e9, index=i)
-                )
+                devices.append(Device(props.name, "cuda", props.total_memory / 1e9, index=i))
         if getattr(torch.backends, "mps", None) is not None and torch.backends.mps.is_available():
             devices.append(Device("Apple GPU (MPS)", "mps", 8.0))
     except Exception:
@@ -131,11 +129,15 @@ class VRAMManager:
             self._evict_until(device, need + self.SAFETY_MARGIN_GB, downgrades)
 
         # 2) Try lower precision.
-        if device.kind != "cpu" and need + self.SAFETY_MARGIN_GB > free_on(device):
-            if supports_fp16 and fp16_gb is not None:
-                precision = "fp16"
-                need = fp16_gb
-                downgrades.append("precision->fp16")
+        if (
+            device.kind != "cpu"
+            and need + self.SAFETY_MARGIN_GB > free_on(device)
+            and supports_fp16
+            and fp16_gb is not None
+        ):
+            precision = "fp16"
+            need = fp16_gb
+            downgrades.append("precision->fp16")
 
         # 3) Shrink chunk size within the allowed range.
         if device.kind != "cpu" and need + self.SAFETY_MARGIN_GB > free_on(device):

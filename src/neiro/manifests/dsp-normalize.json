@@ -1,0 +1,13 @@
+{
+  "manifest_version": 2,
+  "id": "dsp-normalize",
+  "task": "enhance",
+  "display_name": "Normalize (DSP)",
+  "adapter": "neiro.adapters.dsp_enhancers:NormalizeEnhancer",
+  "framework": "numpy",
+  "params": { "target_dbfs": -1.0 },
+  "quality_class": "draft",
+  "vram": { "fp32_gb": 0.01, "supports_fp16": false },
+  "license": { "spdx": "MIT", "source": "builtin" },
+  "provenance": { "author": "neiro", "method": "peak normalization" }
+}

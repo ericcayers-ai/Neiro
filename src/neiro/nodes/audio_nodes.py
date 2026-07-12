@@ -11,11 +11,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from neiro.engine.artifacts import Artifact, AudioTensor
-from neiro.engine.graph import Node, ExecutionContext
-from neiro.engine.vram import VRAMManager
-from neiro.dsp import residual as dsp_residual
 from neiro.analysis import analyze as run_analysis
+from neiro.dsp import residual as dsp_residual
+from neiro.engine.artifacts import Artifact, AudioTensor
+from neiro.engine.graph import ExecutionContext, Node
+from neiro.engine.vram import VRAMManager
 
 __all__ = [
     "IngestNode",
@@ -23,6 +23,9 @@ __all__ = [
     "AnalyzeNode",
     "SeparateNode",
     "ResidualNode",
+    "EnhanceNode",
+    "TranscribeNode",
+    "CompileNode",
 ]
 
 
@@ -119,7 +122,109 @@ class SeparateNode(Node):
             self.separator.unload()
             self.vram.release(profile.model_id)
 
-        return {name: stem for name, stem in stems.items()}
+        # Each stem becomes an output port on this node.
+        return dict(stems)
+
+
+class EnhanceNode(Node):
+    """Runs an Enhancer adapter: audio in, conditioned audio out (roadmap §6)."""
+
+    def __init__(self, node_id: str, source: tuple[str, str], enhancer: Any, vram: VRAMManager):
+        super().__init__(node_id, inputs={"audio": source})
+        self.enhancer = enhancer
+        self.vram = vram
+
+    def config_repr(self) -> str:
+        p = self.enhancer.profile
+        return f"Enhance({p.model_id},{sorted(p.extras.items())})"
+
+    def run(self, ctx: ExecutionContext, inputs: dict[str, Artifact]) -> dict[str, Artifact]:
+        audio = inputs["audio"]
+        assert isinstance(audio, AudioTensor)
+        profile = self.enhancer.profile
+        admission = self.vram.reserve(profile.model_id, fp32_gb=profile.fp32_gb)
+        try:
+            self.enhancer.load(admission.reservation.device.kind, admission.reservation.precision)
+            ctx.report(self.node_id, "enhance", 0.3, f"running {profile.model_id}")
+            out = self.enhancer.enhance(audio)
+        finally:
+            self.enhancer.unload()
+            self.vram.release(profile.model_id)
+        return {"audio": out}
+
+
+class TranscribeNode(Node):
+    """Runs a Transcriber adapter: audio in, NoteStream out (roadmap §7)."""
+
+    def __init__(self, node_id: str, source: tuple[str, str], transcriber: Any, vram: VRAMManager):
+        super().__init__(node_id, inputs={"audio": source})
+        self.transcriber = transcriber
+        self.vram = vram
+
+    def config_repr(self) -> str:
+        return f"Transcribe({self.transcriber.profile.model_id})"
+
+    def run(self, ctx: ExecutionContext, inputs: dict[str, Artifact]) -> dict[str, Artifact]:
+        audio = inputs["audio"]
+        assert isinstance(audio, AudioTensor)
+        profile = self.transcriber.profile
+        admission = self.vram.reserve(profile.model_id, fp32_gb=profile.fp32_gb)
+        try:
+            self.transcriber.load(
+                admission.reservation.device.kind, admission.reservation.precision
+            )
+            ctx.report(self.node_id, "transcribe", 0.3, f"running {profile.model_id}")
+            notes = self.transcriber.transcribe(audio)
+        finally:
+            self.transcriber.unload()
+            self.vram.release(profile.model_id)
+        return {"notes": notes}
+
+
+class CompileNode(Node):
+    """Timeline compiler (roadmap §8.2): NoteStreams + analysis -> Timeline."""
+
+    def __init__(
+        self,
+        node_id: str,
+        streams: dict[str, tuple[str, str]],
+        report: tuple[str, str] | None = None,
+        *,
+        quantize: bool = True,
+        division: int = 4,
+        strength: float = 1.0,
+    ):
+        inputs: dict[str, tuple[str, str]] = {f"stream_{k}": v for k, v in streams.items()}
+        if report is not None:
+            inputs["__report__"] = report
+        super().__init__(node_id, inputs=inputs)
+        self.quantize = quantize
+        self.division = division
+        self.strength = strength
+
+    def config_repr(self) -> str:
+        return f"Compile(q={self.quantize},div={self.division},s={self.strength})"
+
+    def run(self, ctx: ExecutionContext, inputs: dict[str, Artifact]) -> dict[str, Artifact]:
+        from neiro.symbolic import compile_timeline
+
+        bpm = None
+        report = inputs.get("__report__")
+        if report is not None and getattr(report, "estimated_bpm", None):
+            bpm = float(report.estimated_bpm)
+        named = {
+            name.removeprefix("stream_"): art
+            for name, art in inputs.items()
+            if name != "__report__"
+        }
+        timeline = compile_timeline(
+            named,
+            bpm=bpm,
+            quantize=self.quantize,
+            division=self.division,
+            strength=self.strength,
+        )
+        return {"timeline": timeline}
 
 
 class ResidualNode(Node):

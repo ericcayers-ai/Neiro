@@ -36,6 +36,7 @@ def test_analysis_report_is_sane(stereo_mix):
 def test_mono_detection(mono_tone):
     # Duplicate a mono tone into two channels -> effectively mono.
     import numpy as np
+
     from neiro.engine.artifacts import AudioTensor
 
     dup = AudioTensor(np.repeat(mono_tone.samples, 2, axis=0), mono_tone.sample_rate)

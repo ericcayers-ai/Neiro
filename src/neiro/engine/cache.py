@@ -12,9 +12,8 @@ from __future__ import annotations
 
 import hashlib
 from collections import OrderedDict
-from typing import Any, Callable
-
-from neiro.engine.artifacts import Artifact
+from collections.abc import Callable
+from typing import Any
 
 __all__ = ["ArtifactCache", "cache_key"]
 
@@ -32,7 +31,7 @@ def cache_key(node_id: str, config_repr: str, input_keys: list[str]) -> str:
 
 class ArtifactCache:
     def __init__(self, max_entries: int = 256) -> None:
-        self._store: "OrderedDict[str, Any]" = OrderedDict()
+        self._store: OrderedDict[str, Any] = OrderedDict()
         self._max = max_entries
         self.hits = 0
         self.misses = 0

@@ -1,5 +1,55 @@
 # Changelog
 
+## 0.2.0 — separation ensembles, restoration, transcription, editor (2026-07-12)
+
+A large expansion across every roadmap phase, plus a full repository-health pass.
+All additions are tested (74 tests, ~84% coverage) and run with no model downloads.
+
+### Added — engine capabilities
+- **Ensemble separation & TTA** (`neiro.dsp.ensemble`): weighted complex-spectrogram
+  fusion (`mean`/`median`/`max`/`min`) with phase from the top-weighted member, and
+  test-time augmentation (polarity/channel-swap). Ensembles are themselves manifests
+  (`EnsembleSeparator`) — the `vocals-ensemble` preset ships a 3-member azimuth stack.
+- **Restoration engine** (`neiro.dsp.enhance`): cubic-spline de-clip, zero-phase
+  harmonic hum-notch cascade, spectral-gate denoise, peak normalize — as an
+  `Enhancer` node family with a planner that builds **conditioning chains** from
+  detected conditions (roadmap §6.2).
+- **Transcription engine** (`neiro.dsp.pitch`): YIN f0 tracking (CMNDF + parabolic
+  interpolation), spectral-flux onsets, and note segmentation → `NoteStream`.
+- **Symbolic layer** (`neiro.symbolic`): timeline compiler with **reversible**
+  groove-preserving quantization (grid + stored micro-offsets), cross-stream
+  dedup/merge, and a dependency-free **Standard MIDI File** writer.
+- **Auto-split orchestration**: transcription separates the centre stem first on
+  wide-stereo material, then decodes the isolated stem (roadmap §8.1).
+- **Analysis upgrades**: mains-hum detection (50/60 Hz + harmonics) and discrete
+  echo/delay detection via envelope autocorrelation.
+- **Audio editor** (`neiro.dsp.edit`, `neiro.dsp.visual`): non-destructive trim,
+  delete, silence, fade, gain, normalize, reverse; per-pixel waveform peaks and a
+  quantised log-frequency spectrogram for the UI.
+
+### Added — interfaces
+- **Local web interface** (`neiro ui`): drag-and-drop Simple mode on `127.0.0.1`
+  with analysis card, separate/transcribe/restore jobs, stem mixer, piano-roll, and
+  the waveform+spectrogram **editor** — all over the same engine as the CLI.
+- **CLI commands**: `transcribe`, `enhance`, `ui` (joining `analyze`, `separate`,
+  `models`); new `vocals-ensemble` preset.
+- **Optional backends**: Basic Pitch adapter (`neiro[basicpitch]`) for polyphonic
+  transcription.
+
+### Added — repository health
+- **CI** (GitHub Actions): lint + format + test matrix across Ubuntu/macOS/Windows
+  and Python 3.10–3.12 with coverage; a tag-triggered release workflow.
+- **Tooling**: Ruff lint + format config, coverage config, `py.typed` marker.
+- **Docs**: `docs/architecture.md`, `docs/adding-models.md`, `docs/performance.md`,
+  and a runnable `scripts/benchmark.py` (RTF measurements).
+- **Community & security**: `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`,
+  issue/PR templates, and Dependabot.
+
+### Changed
+- Availability probing now checks a manifest's declared `requires` via `find_spec`,
+  so backends missing their deps are listed but correctly marked unavailable and the
+  planner routes around them.
+
 ## 0.1.0 — M0: engine spine (2026-07-12)
 
 First tagged release. Implements milestone **M0 — Spine** from `roadmap.md`: a

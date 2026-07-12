@@ -1,0 +1,38 @@
+name: Feature request
+description: Propose a capability or a model to support
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The task or workflow, not the implementation. What's blocked today?
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Separation
+        - Transcription
+        - Restoration / enhancement
+        - Audio editor
+        - Analysis / auto-detect
+        - Interface
+        - Model support (a specific model)
+        - Engine / architecture
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: model
+    attributes:
+      label: If proposing a model
+      description: Link the repo/paper and its license. Recall that models plug in via a manifest — see docs/adding-models.md.
+      placeholder: "BS-RoFormer — https://… — license: …"
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: References, prior art, roadmap section this relates to.

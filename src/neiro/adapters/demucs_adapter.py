@@ -38,8 +38,8 @@ class DemucsSeparator:
         )
 
     def load(self, device: str, precision: str) -> None:
-        from demucs.pretrained import get_model  # type: ignore
         from demucs.apply import apply_model  # type: ignore
+        from demucs.pretrained import get_model  # type: ignore
 
         self._model = get_model(self.variant)
         self._model.to("cuda" if device == "cuda" else "cpu")
@@ -57,10 +57,12 @@ class DemucsSeparator:
         ref = wav.mean(0)
         wav = (wav - ref.mean()) / (ref.std() + 1e-8)
         with torch.no_grad():
-            sources = self._apply_model(self._model, wav[None], device=next(self._model.parameters()).device)[0]
+            sources = self._apply_model(
+                self._model, wav[None], device=next(self._model.parameters()).device
+            )[0]
         sources = sources * ref.std() + ref.mean()
         out: dict[str, AudioTensor] = {}
-        for name, arr in zip(self._model.sources, sources.cpu().numpy()):
+        for name, arr in zip(self._model.sources, sources.cpu().numpy(), strict=True):
             out[name] = AudioTensor(arr.astype(np.float32), audio.sample_rate).with_provenance(
                 self.profile.model_id
             )

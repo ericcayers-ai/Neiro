@@ -13,12 +13,12 @@ from __future__ import annotations
 import shutil
 import subprocess
 import tempfile
+from math import gcd
 from pathlib import Path
 
 import numpy as np
 import soundfile as sf
 from scipy.signal import resample_poly
-from math import gcd
 
 from neiro.engine.artifacts import AudioTensor
 
@@ -37,10 +37,17 @@ def _decode_with_ffmpeg(path: Path) -> tuple[np.ndarray, int]:
     with tempfile.TemporaryDirectory() as tmp:
         wav_path = Path(tmp) / "decoded.wav"
         cmd = [
-            "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
-            "-i", str(path),
-            "-map", "a:0",
-            "-c:a", "pcm_f32le",
+            "ffmpeg",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-i",
+            str(path),
+            "-map",
+            "a:0",
+            "-c:a",
+            "pcm_f32le",
             str(wav_path),
         ]
         subprocess.run(cmd, check=True)
@@ -61,9 +68,7 @@ def load_audio(path: str | Path) -> AudioTensor:
     return AudioTensor(samples, sr, provenance=(f"ingest:{path.name}",))
 
 
-def make_lane(
-    audio: AudioTensor, target_sr: int, *, mono: bool = False
-) -> AudioTensor:
+def make_lane(audio: AudioTensor, target_sr: int, *, mono: bool = False) -> AudioTensor:
     """Resample (and optionally downmix) to produce a processing lane."""
     samples = audio.samples
     if mono and samples.shape[0] > 1:
