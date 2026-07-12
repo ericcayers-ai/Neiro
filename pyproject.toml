@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "neiro"
+version = "0.1.0"
+description = "Local source separation, restoration, and symbolic transcription."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Neiro contributors" }]
+keywords = ["audio", "source-separation", "transcription", "music", "dsp"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Multimedia :: Sound/Audio :: Analysis",
+]
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "soundfile>=0.12",
+]
+
+[project.optional-dependencies]
+# Heavy neural backends are opt-in; the core engine runs on pure DSP without them.
+demucs = ["demucs>=4.0", "torch>=2.1"]
+dev = ["pytest>=7.4", "pytest-cov>=4.1"]
+
+[project.scripts]
+neiro = "neiro.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/ericcayers-ai/Neiro"
+Roadmap = "https://github.com/ericcayers-ai/Neiro/blob/main/roadmap.md"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+neiro = ["manifests/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

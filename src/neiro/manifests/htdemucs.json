@@ -1,0 +1,17 @@
+{
+  "manifest_version": 2,
+  "id": "htdemucs",
+  "task": "separate",
+  "stems": ["drums", "bass", "other", "vocals"],
+  "display_name": "HTDemucs v4 (fast lane)",
+  "adapter": "neiro.adapters.demucs_adapter:DemucsSeparator",
+  "framework": "torch>=2.1",
+  "requires": ["torch", "demucs"],
+  "params": { "variant": "htdemucs" },
+  "audio": { "sample_rate": 44100, "channels": 2, "train_loudness_lufs": -14.0 },
+  "chunking": { "seconds": 7.8, "overlap": 0.25 },
+  "quality_class": "standard",
+  "vram": { "fp32_gb": 4.0, "fp16_gb": 2.2, "supports_fp16": true },
+  "license": { "spdx": "MIT", "source": "https://github.com/facebookresearch/demucs" },
+  "provenance": { "author": "facebookresearch", "trained_on": ["musdb18hq", "extra"] }
+}

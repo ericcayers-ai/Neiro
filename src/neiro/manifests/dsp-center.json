@@ -1,0 +1,15 @@
+{
+  "manifest_version": 2,
+  "id": "dsp-center",
+  "task": "separate",
+  "stems": ["vocals", "instrumental"],
+  "display_name": "Center-channel (DSP)",
+  "adapter": "neiro.adapters.dsp_separators:CenterSeparator",
+  "framework": "numpy",
+  "params": { "strength": 1.0 },
+  "audio": { "sample_rate": 44100, "channels": 2 },
+  "quality_class": "draft",
+  "vram": { "fp32_gb": 0.05, "supports_fp16": false },
+  "license": { "spdx": "MIT", "source": "builtin" },
+  "provenance": { "author": "neiro", "method": "frequency-domain azimuth masking" }
+}

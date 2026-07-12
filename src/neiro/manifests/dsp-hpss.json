@@ -1,0 +1,15 @@
+{
+  "manifest_version": 2,
+  "id": "dsp-hpss",
+  "task": "separate",
+  "stems": ["harmonic", "percussive"],
+  "display_name": "Harmonic / percussive (DSP)",
+  "adapter": "neiro.adapters.dsp_separators:HpssSeparator",
+  "framework": "numpy",
+  "params": { "kernel": 31 },
+  "audio": { "sample_rate": 44100, "channels": 2 },
+  "quality_class": "draft",
+  "vram": { "fp32_gb": 0.05, "supports_fp16": false },
+  "license": { "spdx": "MIT", "source": "builtin" },
+  "provenance": { "author": "neiro", "method": "median-filtering HPSS (Fitzgerald 2010)" }
+}

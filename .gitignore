@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+env/
+
+# Model weights & caches (never commit multi-GB downloads)
+models/**/*.ckpt
+models/**/*.pt
+models/**/*.pth
+models/**/*.safetensors
+models/**/*.onnx
+*.weights
+
+# Scratch / local outputs
+scratch_*/
+scratch_*.wav
+*.stem.wav
+/stems/
+/out/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Local Claude Code settings
+.claude/
