@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=83.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -19,16 +19,16 @@ classifiers = [
     "Topic :: Multimedia :: Sound/Audio :: Analysis",
 ]
 dependencies = [
-    "numpy>=1.24",
-    "scipy>=1.10",
-    "soundfile>=0.12",
+    "numpy>=2.2.6",
+    "scipy>=1.15.3",
+    "soundfile>=0.14.0",
 ]
 
 [project.optional-dependencies]
 # Heavy neural backends are opt-in; the core engine runs on pure DSP without them.
-demucs = ["demucs>=4.0", "torch>=2.1"]
+demucs = ["demucs>=4.1.0", "torch>=2.13.0"]
 basicpitch = ["basic-pitch>=0.4"]
-dev = ["pytest>=7.4", "pytest-cov>=4.1"]
+dev = ["pytest>=9.1.1", "pytest-cov>=7.1.0"]
 
 [project.scripts]
 neiro = "neiro.cli:main"
