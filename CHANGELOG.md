@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.3.1 — alpha roadmap completion, launcher fix (2026-07-14)
+
+Patch release closing the remaining alpha roadmap gaps and fixing one-click
+launcher bootstrap when a `.venv` already exists without Neiro installed.
+87 tests pass; core DSP still runs with no model downloads.
+
+### Fixed
+- **Launcher bootstrap**: Windows `.bat` and Unix shell launchers now install
+  Neiro from the bundled wheel when the venv exists but `import neiro` fails
+  (previously skipped install after venv creation).
+
+### Added
+- **Chunked separation** (`neiro.dsp.chunking`): VRAM-aware overlap-add with
+  `chunk_scale` wired through the planner and graph runtime.
+- **Instrument detection** in analysis reports (heuristic bass/drums/guitar/piano
+  hints with confidence and status).
+- **Neural vocals ensemble** manifest (`sep-vocals-neural-ensemble.json`).
+- **Disk cache** layer on the content-addressed artifact cache.
+- **Export metadata sidecars** (`.meta.json`) alongside written stems.
+- **UI parity**: job cancel API, stem mixer A/B and null audition in the local
+  interface; honest alpha completion ledger in `roadmap.md`.
+
 ## 0.3.0 — neural model expansion, downloader, packaging (2026-07-13)
 
 Major expansion of the neural backend layer: state-of-the-art separation,

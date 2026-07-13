@@ -94,7 +94,9 @@ def test_export_metadata_sidecar(tmp_path, stereo_mix):
     from neiro.io import write_audio, write_export_metadata
 
     p = write_audio(stereo_mix, tmp_path / "stem.wav", fmt="wav", bit_depth=16)
-    meta = write_export_metadata(p, model_id="dsp-center", license_spdx="MIT", provenance=("dsp-center",))
+    meta = write_export_metadata(
+        p, model_id="dsp-center", license_spdx="MIT", provenance=("dsp-center",)
+    )
     assert meta.is_file()
     assert "dsp-center" in meta.read_text()
 

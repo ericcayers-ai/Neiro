@@ -9,9 +9,7 @@ def test_separate_chunked_matches_whole_file(mono_tone):
     def identity(chunk: AudioTensor) -> dict[str, AudioTensor]:
         return {"dry": chunk}
 
-    out = separate_chunked(
-        identity, mono_tone, chunk_seconds=0.25, overlap=0.25, chunk_scale=0.5
-    )
+    out = separate_chunked(identity, mono_tone, chunk_seconds=0.25, overlap=0.25, chunk_scale=0.5)
     assert "dry" in out
     assert out["dry"].frames == mono_tone.frames
     err = np.sqrt(np.mean((out["dry"].samples - mono_tone.samples) ** 2))
