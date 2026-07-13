@@ -139,7 +139,9 @@ def _run_separation(state: _State, job_id: str, file_id: str, preset: str) -> No
         state.jobs[job_id].update(status="done", result=result)
 
 
-def _run_transcription(state: _State, job_id: str, file_id: str, mode: str, model: str | None) -> None:
+def _run_transcription(
+    state: _State, job_id: str, file_id: str, mode: str, model: str | None
+) -> None:
     from neiro.engine.planner import plan_transcription
     from neiro.symbolic import write_midi
 

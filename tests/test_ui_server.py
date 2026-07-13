@@ -147,9 +147,7 @@ def test_transcription_job(server):
         w.setframerate(sr)
         w.writeframes(b"".join(parts))
     fid = _upload(base, buf.getvalue())["file_id"]
-    status = _run_job(
-        base, "transcribe", {"file_id": fid, "mode": "direct", "model": "dsp-yin"}
-    )
+    status = _run_job(base, "transcribe", {"file_id": fid, "mode": "direct", "model": "dsp-yin"})
     assert status["status"] == "done"
     assert status["result"]["event_count"] >= 1
     assert status["result"]["midi_url"].endswith(".mid")
