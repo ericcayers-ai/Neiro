@@ -141,15 +141,16 @@ core changes ([guide](docs/adding-models.md)).
 | Ingest + sample-rate lanes, DAG runtime, content cache | ✅ |
 | VRAM manager with downgrade ladder | ✅ |
 | Registry + JSON manifests + availability probing | ✅ |
-| Analysis (loudness, tempo, key, clipping, bandwidth, hum, echo) | ✅ |
+| Analysis (loudness, tempo, key, clipping, bandwidth, hum, echo, heuristic instruments) | ✅ |
 | Separation — DSP (centre, HPSS) + ensembles + TTA + residual | ✅ no downloads |
-| Separation — neural (HTDemucs) | ✅ adapter, needs `neiro[demucs]` |
+| Separation — neural (HTDemucs, RoFormer, …) | ✅ adapters + `vocals-neural-ensemble` manifest |
 | Restoration — declip, dehum, denoise, normalize + conditioning chains | ✅ |
 | Transcription — YIN (mono) + timeline compiler + MIDI export | ✅ no downloads |
-| Transcription — neural (Basic Pitch) | ✅ adapter, needs `neiro[basicpitch]` |
+| Transcription — neural (Basic Pitch, piano) | ✅ adapters |
 | Audio editor — waveform + spectrogram + edits | ✅ |
-| Local interface (Simple mode) | ✅ |
-| Ensembles of neural models, sheet-music engraving, learn mode | ⏳ roadmap |
+| Local interface (Simple mode, cancel, A/B, null audition) | ✅ |
+| Disk-backed artifact cache, export license sidecars | ✅ |
+| Sheet-music engraving, learn mode, Tauri desktop shell | ⏳ deferred (roadmap) |
 
 ## Licensing note
 

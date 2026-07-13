@@ -1,6 +1,21 @@
 import numpy as np
 
 from neiro.dsp import center_extract, harmonic_percussive, istft, residual, stft
+from neiro.dsp.chunking import separate_chunked
+from neiro.engine.artifacts import AudioTensor
+
+
+def test_separate_chunked_matches_whole_file(mono_tone):
+    def identity(chunk: AudioTensor) -> dict[str, AudioTensor]:
+        return {"dry": chunk}
+
+    out = separate_chunked(
+        identity, mono_tone, chunk_seconds=0.25, overlap=0.25, chunk_scale=0.5
+    )
+    assert "dry" in out
+    assert out["dry"].frames == mono_tone.frames
+    err = np.sqrt(np.mean((out["dry"].samples - mono_tone.samples) ** 2))
+    assert err < 2e-4
 
 
 def test_stft_istft_roundtrip_interior(mono_tone):

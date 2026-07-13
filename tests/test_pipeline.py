@@ -11,7 +11,7 @@ from neiro.engine.vram import VRAMManager
 def test_registry_loads_builtin_models():
     reg = default_registry()
     ids = {e.id for e in reg.all()}
-    assert {"dsp-center", "dsp-hpss"}.issubset(ids)
+    assert {"dsp-center", "dsp-hpss", "vocals-neural-ensemble"}.issubset(ids)
     # DSP separators are always available (no heavy deps).
     assert reg.get("dsp-center").available()
 
@@ -44,6 +44,13 @@ def test_mono_detection(mono_tone):
     assert report.is_effectively_mono
 
 
+def test_analysis_detects_instruments(stereo_mix):
+    report = analyze(stereo_mix)
+    assert isinstance(report.instruments, tuple)
+    for hint in report.instruments:
+        assert "instrument" in hint and "confidence" in hint and "status" in hint
+
+
 def test_end_to_end_separation(tmp_path, stereo_mix):
     # Write the fixture to a WAV so the ingest path is exercised too.
     import soundfile as sf
@@ -69,6 +76,27 @@ def test_end_to_end_separation(tmp_path, stereo_mix):
 
     # Provenance survived the pipeline.
     assert any("dsp-center" in p for p in stems["vocals"].provenance)
+
+
+def test_disk_cache_persists(tmp_path):
+    from neiro.engine.cache import ArtifactCache, cache_key
+
+    disk = tmp_path / "cache"
+    c1 = ArtifactCache(max_entries=8, disk_dir=disk)
+    key = cache_key("n", "cfg", ["in"])
+    assert c1.get_or_compute(key, lambda: {"v": 1}) == {"v": 1}
+    c2 = ArtifactCache(max_entries=8, disk_dir=disk)
+    assert c2.get_or_compute(key, lambda: {"v": 99}) == {"v": 1}
+    assert c2.hits == 1
+
+
+def test_export_metadata_sidecar(tmp_path, stereo_mix):
+    from neiro.io import write_audio, write_export_metadata
+
+    p = write_audio(stereo_mix, tmp_path / "stem.wav", fmt="wav", bit_depth=16)
+    meta = write_export_metadata(p, model_id="dsp-center", license_spdx="MIT", provenance=("dsp-center",))
+    assert meta.is_file()
+    assert "dsp-center" in meta.read_text()
 
 
 def test_cache_reuse_across_runs(tmp_path, stereo_mix):

@@ -92,7 +92,8 @@ class SeparateNode(Node):
 
     def config_repr(self) -> str:
         p = self.separator.profile
-        return f"Separate({p.model_id},stems={','.join(p.stems)})"
+        scale = getattr(self.separator, "_chunk_scale", 1.0)
+        return f"Separate({p.model_id},stems={','.join(p.stems)},chunk={scale:.2f})"
 
     def run(self, ctx: ExecutionContext, inputs: dict[str, Artifact]) -> dict[str, Artifact]:
         audio = inputs["audio"]
@@ -106,6 +107,7 @@ class SeparateNode(Node):
             fp16_gb=profile.fp16_gb,
         )
         res = admission.reservation
+        self.separator._chunk_scale = res.chunk_scale  # noqa: SLF001
         if admission.downgrades:
             ctx.report(
                 self.node_id,
@@ -117,7 +119,18 @@ class SeparateNode(Node):
         try:
             self.separator.load(res.device.kind, res.precision)
             ctx.report(self.node_id, "separate", 0.3, f"running {profile.model_id}")
-            stems = self.separator.separate(audio)
+            from neiro.dsp.chunking import separate_chunked
+
+            def _run(chunk: AudioTensor) -> dict[str, AudioTensor]:
+                return self.separator.separate(chunk)
+
+            stems = separate_chunked(
+                _run,
+                audio,
+                chunk_seconds=profile.chunk_seconds,
+                overlap=profile.overlap,
+                chunk_scale=res.chunk_scale,
+            )
         finally:
             self.separator.unload()
             self.vram.release(profile.model_id)

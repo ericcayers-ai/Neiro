@@ -29,7 +29,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from neiro.engine.cache import ArtifactCache
-from neiro.engine.graph import ExecutionContext, Progress
+from neiro.engine.graph import CancelledError, ExecutionContext, Progress
 from neiro.engine.registry import default_registry
 from neiro.engine.vram import VRAMManager
 
@@ -53,6 +53,7 @@ class _State:
         self.files: dict[str, Path] = {}
         self.parents: dict[str, str] = {}  # edited file_id -> file_id it derived from
         self.jobs: dict[str, dict] = {}
+        self.job_contexts: dict[str, ExecutionContext] = {}
         self.lock = threading.Lock()
 
     def load(self, file_id: str):
@@ -90,18 +91,44 @@ def _run_separation(state: _State, job_id: str, file_id: str, preset: str) -> No
     import numpy as np
 
     from neiro.engine.planner import plan_separation
-    from neiro.io import write_audio
+    from neiro.io import write_audio, write_export_metadata
 
     job_dir = state.workspace / "jobs" / job_id
     plan = plan_separation(state.files[file_id], preset, state.registry, state.vram)
     ctx = ExecutionContext(cache=state.cache, progress=_job_progress(state, job_id))
-    outputs = plan.graph.execute(ctx, targets=[plan.residual_node or plan.separate_node])
+    with state.lock:
+        state.job_contexts[job_id] = ctx
+    try:
+        outputs = plan.graph.execute(ctx, targets=[plan.residual_node or plan.separate_node])
+    finally:
+        with state.lock:
+            state.job_contexts.pop(job_id, None)
 
+    entry = state.registry.get(plan.model_id)
     files = []
     for name, art in outputs[plan.separate_node].items():
         p = write_audio(art, job_dir / f"{name}.wav", fmt="wav", bit_depth=16)
-        files.append({"name": name, "url": f"/files/jobs/{job_id}/{p.name}"})
-    result = {"model": plan.model_id, "files": files, "notes": plan.notes}
+        meta = write_export_metadata(
+            p,
+            model_id=plan.model_id,
+            license_spdx=entry.license_spdx,
+            license_note=entry.license_note,
+            provenance=art.provenance,
+        )
+        files.append(
+            {
+                "name": name,
+                "url": f"/files/jobs/{job_id}/{p.name}",
+                "meta_url": f"/files/jobs/{job_id}/{meta.name}",
+            }
+        )
+    rel = state.files[file_id].relative_to(state.workspace)
+    result = {
+        "model": plan.model_id,
+        "files": files,
+        "notes": plan.notes,
+        "source_url": f"/files/{rel.as_posix()}",
+    }
     if plan.residual_node:
         resid = outputs[plan.residual_node]["residual"]
         p = write_audio(resid, job_dir / "residual.wav", fmt="wav", bit_depth=16)
@@ -118,7 +145,13 @@ def _run_transcription(state: _State, job_id: str, file_id: str, mode: str) -> N
     job_dir = state.workspace / "jobs" / job_id
     plan = plan_transcription(state.files[file_id], state.registry, state.vram, mode=mode)
     ctx = ExecutionContext(cache=state.cache, progress=_job_progress(state, job_id))
-    outputs = plan.graph.execute(ctx, targets=[plan.compile_node])
+    with state.lock:
+        state.job_contexts[job_id] = ctx
+    try:
+        outputs = plan.graph.execute(ctx, targets=[plan.compile_node])
+    finally:
+        with state.lock:
+            state.job_contexts.pop(job_id, None)
     timeline = outputs[plan.compile_node]["timeline"]
 
     midi_path = write_midi(timeline, job_dir / "transcription.mid")
@@ -150,16 +183,22 @@ def _run_transcription(state: _State, job_id: str, file_id: str, mode: str) -> N
         )
 
 
-def _run_enhancement(state: _State, job_id: str, file_id: str) -> None:
+def _run_enhancement(state: _State, job_id: str, file_id: str, chain: list[str] | None) -> None:
     from neiro.engine.planner import plan_enhancement
     from neiro.io import write_audio
 
     job_dir = state.workspace / "jobs" / job_id
-    plan = plan_enhancement(state.files[file_id], state.registry, state.vram, chain=None)
+    plan = plan_enhancement(state.files[file_id], state.registry, state.vram, chain=chain)
     result: dict = {"chain": plan.chain, "notes": plan.notes}
     if plan.chain:
         ctx = ExecutionContext(cache=state.cache, progress=_job_progress(state, job_id))
-        outputs = plan.graph.execute(ctx, targets=[plan.output_node])
+        with state.lock:
+            state.job_contexts[job_id] = ctx
+        try:
+            outputs = plan.graph.execute(ctx, targets=[plan.output_node])
+        finally:
+            with state.lock:
+                state.job_contexts.pop(job_id, None)
         p = write_audio(
             outputs[plan.output_node]["audio"], job_dir / "restored.wav", fmt="wav", bit_depth=16
         )
@@ -173,6 +212,14 @@ _RUNNERS = {
     "transcribe": _run_transcription,
     "enhance": _run_enhancement,
 }
+
+
+def _parse_enhance_chain(raw) -> list[str] | None:
+    if raw is None or raw == "" or raw == "auto":
+        return None
+    if isinstance(raw, list):
+        return raw
+    return [s.strip() for s in str(raw).split(",") if s.strip()]
 
 
 def _make_handler(state: _State):
@@ -218,7 +265,7 @@ def _make_handler(state: _State):
                 self._handle_spectrogram()
                 return
             if self.path.startswith("/api/job/"):
-                job_id = self.path.rsplit("/", 1)[-1]
+                job_id = self.path.rstrip("/").rsplit("/", 1)[-1]
                 with state.lock:
                     job = state.jobs.get(job_id)
                     payload = (
@@ -258,12 +305,29 @@ def _make_handler(state: _State):
                     self._handle_upload()
                 elif self.path == "/api/edit":
                     self._handle_edit()
+                elif self.path.startswith("/api/job/") and self.path.endswith("/cancel"):
+                    job_id = self.path.rstrip("/").rsplit("/", 2)[-2]
+                    self._handle_cancel(job_id)
                 elif self.path in ("/api/separate", "/api/transcribe", "/api/enhance"):
                     self._handle_job(self.path.rsplit("/", 1)[-1])
                 else:
                     self._error(404, "not found")
             except Exception as exc:  # surface, don't crash the server
                 self._error(500, str(exc))
+
+        def _handle_cancel(self, job_id: str) -> None:
+            with state.lock:
+                ctx = state.job_contexts.get(job_id)
+                job = state.jobs.get(job_id)
+            if job is None:
+                self._error(404, "unknown job")
+                return
+            if ctx is not None:
+                ctx.cancel()
+            with state.lock:
+                if job.get("status") == "running":
+                    state.jobs[job_id].update(status="cancelled", error="cancelled by user")
+            self._json({"job_id": job_id, "status": "cancelled"})
 
         def _handle_waveform(self) -> None:
             from neiro.dsp import waveform_peaks
@@ -373,15 +437,20 @@ def _make_handler(state: _State):
             args = {
                 "separate": (body.get("preset", "vocals"),),
                 "transcribe": (body.get("mode", "auto"),),
-                "enhance": (),
+                "enhance": (_parse_enhance_chain(body.get("chain")),),
             }[kind]
 
             def _work() -> None:
                 try:
                     _RUNNERS[kind](state, job_id, file_id, *args)
+                except CancelledError:
+                    with state.lock:
+                        if state.jobs[job_id].get("status") == "running":
+                            state.jobs[job_id].update(status="cancelled", error="cancelled")
                 except Exception as exc:
                     with state.lock:
-                        state.jobs[job_id].update(status="error", error=str(exc))
+                        if state.jobs[job_id].get("status") != "cancelled":
+                            state.jobs[job_id].update(status="error", error=str(exc))
 
             threading.Thread(target=_work, daemon=True).start()
             self._json({"job_id": job_id})

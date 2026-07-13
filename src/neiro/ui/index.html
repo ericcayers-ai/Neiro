@@ -79,7 +79,8 @@
             border-left: 1px solid var(--accent); border-right: 1px solid var(--accent);
             pointer-events: none; display: none; }
   .ed-transport { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
-  footer { margin-top: 48px; color: var(--muted); font-size: 12.5px; }
+  .mixer-tools { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; align-items: center; }
+  .mixer-tools button.active { border-color: var(--accent); color: var(--accent); }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
@@ -106,9 +107,14 @@
         <button id="btnSeparate">Separate</button>
         <select id="sepPreset" aria-label="Separation preset">
           <option value="vocals">vocals + instrumental</option>
-          <option value="vocals-ensemble">vocals + instrumental (ensemble)</option>
+          <option value="vocals-ensemble">vocals (DSP ensemble + TTA)</option>
+          <option value="vocals-neural-ensemble">vocals (neural ensemble)</option>
+          <option value="vocals-best">vocals (best available)</option>
+          <option value="karaoke">karaoke / lead vocal</option>
           <option value="harmonic">harmonic + percussive</option>
           <option value="4stem">4 stems (needs demucs)</option>
+          <option value="6stem">6 stems (needs demucs)</option>
+          <option value="drums">drum kit (needs drumsep)</option>
         </select>
       </div>
       <div class="action">
@@ -119,7 +125,16 @@
           <option value="split">split first</option>
         </select>
       </div>
-      <div class="action"><button id="btnEnhance">Restore</button></div>
+      <div class="action">
+        <button id="btnEnhance">Restore</button>
+        <select id="enhChain" aria-label="Restoration chain">
+          <option value="auto">auto (from analysis)</option>
+          <option value="declip,dehum,normalize">declip + dehum + normalize</option>
+          <option value="denoise">denoise (neural if installed)</option>
+          <option value="dereverb">dereverb (neural if installed)</option>
+          <option value="superres">super-resolution (AudioSR)</option>
+        </select>
+      </div>
       <div class="action"><button id="btnEdit">Edit audio</button></div>
     </div>
   </div>
@@ -158,7 +173,12 @@
 
 <section id="working" class="hidden">
   <h2>Working</h2>
-  <div class="card"><div id="progress"></div></div>
+  <div class="card">
+    <div class="actions" style="margin-bottom:10px">
+      <button id="btnCancel" type="button">Cancel</button>
+    </div>
+    <div id="progress"></div>
+  </div>
 </section>
 
 <section id="results" class="hidden">
@@ -227,6 +247,13 @@ function renderReport(data) {
     ["Key", r.estimated_key || "not detected"],
     ["Bandwidth", r.bandwidth_hz ? (r.bandwidth_hz / 1000).toFixed(1) + " kHz" : "—"],
   ];
+  if (r.instruments && r.instruments.length) {
+    const det = r.instruments.filter((h) => h.status === "asserted").map((h) => h.instrument);
+    const tent = r.instruments.filter((h) => h.status === "tentative").map((h) => h.instrument);
+    let line = det.length ? "Detected: " + det.join(", ") : "";
+    if (tent.length) line += (line ? ". " : "") + "possibly: " + tent.join(", ");
+    rows.push(["Instruments", line || "—"]);
+  }
   $("reportTable").innerHTML = rows.map(
     ([k, v]) => "<tr><td>" + k + "</td><td>" + v + "</td></tr>").join("");
   $("flags").innerHTML = (r.notes || []).map((n) => "<div>&#9888; " + esc(n) + "</div>").join("");
@@ -241,10 +268,20 @@ $("btnSeparate").addEventListener("click", () =>
   startJob("separate", { preset: $("sepPreset").value }));
 $("btnTranscribe").addEventListener("click", () =>
   startJob("transcribe", { mode: $("trMode").value }));
-$("btnEnhance").addEventListener("click", () => startJob("enhance", {}));
+$("btnEnhance").addEventListener("click", () =>
+  startJob("enhance", { chain: $("enhChain").value }));
+
+let activeJobId = null;
+$("btnCancel").addEventListener("click", async () => {
+  if (!activeJobId) return;
+  try {
+    await fetch("/api/job/" + activeJobId + "/cancel", { method: "POST" });
+  } catch (_) { /* best effort */ }
+});
 
 function setButtons(disabled) {
   for (const id of ["btnSeparate", "btnTranscribe", "btnEnhance"]) $(id).disabled = disabled;
+  $("btnCancel").disabled = !disabled;
 }
 
 async function startJob(kind, params) {
@@ -260,10 +297,12 @@ async function startJob(kind, params) {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || res.statusText);
+    activeJobId = data.job_id;
     await poll(data.job_id, kind);
   } catch (err) {
     $("progress").innerHTML = '<span class="error">' + esc(err.message) + "</span>";
   } finally {
+    activeJobId = null;
     setButtons(false);
   }
 }
@@ -277,21 +316,44 @@ async function poll(jobId, kind) {
       $("progress").innerHTML += '\n<span class="error">Failed: ' + esc(job.error) + "</span>";
       return;
     }
+    if (job.status === "cancelled") {
+      $("progress").innerHTML += '\n<span class="error">Cancelled.</span>';
+      return;
+    }
     if (job.status === "done") { renderResult(kind, job.result); return; }
     await new Promise((r) => setTimeout(r, 400));
   }
 }
 
 // ---------- results ----------
+let stemMixer = { sourceUrl: null, stems: [], abMode: "stems", nullAudio: null };
+
 function renderResult(kind, result) {
   const card = $("resultsCard");
   $("results").classList.remove("hidden");
   if (kind === "separate") {
     $("resultsTitle").textContent = "Stems — " + result.model;
-    card.innerHTML = result.files.map((f) =>
-      '<div class="stem"><div class="name"><span class="swatch" style="background:' +
-      color(f.name) + '"></span>' + esc(f.name) + "</div><audio controls src=\"" + f.url +
+    stemMixer = {
+      sourceUrl: result.source_url || $("sourceAudio").src,
+      stems: result.files.filter((f) => f.name !== "residual"),
+      abMode: "stems",
+      nullAudio: result.files.find((f) => f.name === "residual"),
+    };
+    const tools =
+      '<div class="mixer-tools">' +
+      '<button type="button" id="btnAB" title="Toggle original vs stems">A/B: stems</button>' +
+      (stemMixer.nullAudio
+        ? '<button type="button" id="btnNull" title="Audition null-test residual">Null test</button>'
+        : "") +
+      "</div>";
+    card.innerHTML = tools + result.files.map((f) =>
+      '<div class="stem" data-stem="' + esc(f.name) + '"><div class="name"><span class="swatch" style="background:' +
+      color(f.name) + '"></span>' + esc(f.name) + "</div><audio controls data-stem-player src=\"" + f.url +
       '"></audio><a class="dl" href="' + f.url + '" download>download</a></div>').join("");
+    const ab = $("btnAB");
+    if (ab) ab.addEventListener("click", toggleAB);
+    const nb = $("btnNull");
+    if (nb) nb.addEventListener("click", playNull);
     let meta = [];
     if (typeof result.null_test_db === "number")
       meta.push("Null test: residual peak " + result.null_test_db + " dBFS (lower = more of the mix accounted for).");
@@ -318,6 +380,27 @@ function renderResult(kind, result) {
       card.innerHTML = '<div class="meta">' + (result.notes || ["Nothing to repair."]).map(esc).join("<br>") + "</div>";
     }
   }
+}
+
+function toggleAB() {
+  const btn = $("btnAB");
+  stemMixer.abMode = stemMixer.abMode === "stems" ? "original" : "stems";
+  btn.textContent = stemMixer.abMode === "stems" ? "A/B: stems" : "A/B: original";
+  btn.classList.toggle("active", stemMixer.abMode === "original");
+  document.querySelectorAll("[data-stem-player]").forEach((el) => {
+    if (stemMixer.abMode === "original") {
+      el.dataset.prev = el.src;
+      el.src = stemMixer.sourceUrl;
+    } else if (el.dataset.prev) {
+      el.src = el.dataset.prev;
+    }
+  });
+}
+
+function playNull() {
+  if (!stemMixer.nullAudio) return;
+  const a = new Audio(stemMixer.nullAudio.url);
+  a.play();
 }
 
 // ---------- piano roll ----------

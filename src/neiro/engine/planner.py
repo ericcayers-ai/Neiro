@@ -49,12 +49,18 @@ PRESETS: dict[str, dict[str, Any]] = {
         "quality": "standard",
         "prefer": ["dsp-center-ensemble"],
     },
+    "vocals-neural-ensemble": {
+        "stems": {"vocals", "instrumental"},
+        "quality": "reference",
+        "prefer": ["vocals-neural-ensemble", "dsp-center-ensemble"],
+    },
     "harmonic": {"stems": {"harmonic", "percussive"}, "quality": "draft", "prefer": ["dsp-hpss"]},
     # Neural presets — best current models first, DSP floor last as a safety net.
     "vocals-best": {
         "stems": {"vocals", "instrumental"},
         "quality": "reference",
         "prefer": [
+            "vocals-neural-ensemble",
             "bs-roformer-1297",
             "mel-roformer-inst",
             "mdx23c-instvoc",

@@ -10,6 +10,8 @@ registry ``analyze``-task models; this is the always-available floor.
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 
 from neiro.dsp import stft
@@ -209,6 +211,87 @@ def _echo_detect(samples: np.ndarray, sample_rate: int) -> float | None:
     return None
 
 
+def _band_energy(samples: np.ndarray, sample_rate: int, lo: float, hi: float) -> float:
+    """Mean magnitude in a frequency band (mono)."""
+    mono = samples.mean(axis=0)
+    n = min(mono.size, sample_rate * 30)
+    spec = np.abs(np.fft.rfft(mono[:n]))
+    freqs = np.fft.rfftfreq(n, 1 / sample_rate)
+    mask = (freqs >= lo) & (freqs < hi)
+    if not mask.any():
+        return 0.0
+    return float(spec[mask].mean())
+
+
+def _onset_density(samples: np.ndarray, sample_rate: int) -> float:
+    """Onsets per second from spectral-flux peaks (proxy for drum activity)."""
+    mono = samples.mean(axis=0)
+    n_fft, hop = 2048, 512
+    if mono.size < n_fft * 4:
+        return 0.0
+    S = np.abs(stft(mono, n_fft=n_fft, hop=hop))
+    flux = np.maximum(0.0, np.diff(S, axis=1)).sum(axis=0)
+    if flux.size < 8:
+        return 0.0
+    thr = flux.mean() + flux.std()
+    onsets = int((flux > thr).sum())
+    seconds = mono.size / sample_rate
+    return onsets / max(seconds, 0.1)
+
+
+def _detect_instruments(samples: np.ndarray, sample_rate: int) -> tuple[dict[str, Any], ...]:
+    """Heuristic instrument hints (roadmap §4.1 floor — no neural tagger).
+
+    Returns ``{instrument, confidence, status}`` entries. ``status`` is
+    ``asserted`` (high confidence) or ``tentative`` (possible).
+    """
+    sub = _band_energy(samples, sample_rate, 20, 80)
+    bass = _band_energy(samples, sample_rate, 80, 250)
+    low_mid = _band_energy(samples, sample_rate, 250, 800)
+    mid = _band_energy(samples, sample_rate, 800, 3000)
+    upper = _band_energy(samples, sample_rate, 3000, 8000)
+    air = _band_energy(samples, sample_rate, 8000, 16000)
+    total = sub + bass + low_mid + mid + upper + air + 1e-12
+    onset = _onset_density(samples, sample_rate)
+
+    hints: list[dict[str, Any]] = []
+
+    def add(name: str, score: float, *, asserted_at: float = 0.55, tentative_at: float = 0.35):
+        if score >= asserted_at:
+            hints.append({"instrument": name, "confidence": round(score, 2), "status": "asserted"})
+        elif score >= tentative_at:
+            hints.append({"instrument": name, "confidence": round(score, 2), "status": "tentative"})
+
+    drum_score = min(1.0, onset / 6.0) * (0.4 + 0.6 * (upper + mid) / total)
+    add("drums", drum_score)
+
+    bass_score = min(1.0, (sub + bass * 1.5) / total * 2.5)
+    add("bass", bass_score)
+
+    vocal_score = min(1.0, mid / total * 2.2 + low_mid / total * 0.5)
+    if samples.shape[0] > 1:
+        L, R = samples[0], samples[1]
+        center = (L + R) * 0.5
+        side = (L - R) * 0.5
+        center_e = float(np.sqrt(np.mean(center**2) + 1e-12))
+        side_e = float(np.sqrt(np.mean(side**2) + 1e-12))
+        vocal_score *= min(1.2, 0.7 + center_e / (side_e + center_e + 1e-12))
+    add("vocals", vocal_score)
+
+    keys_score = min(1.0, (mid + upper * 0.6) / total * 1.8) * (1.0 - drum_score * 0.3)
+    add("piano", keys_score * 0.85)
+    add("keys", keys_score * 0.7, asserted_at=0.6)
+
+    guitar_score = min(1.0, (mid + upper) / total * 1.6) * (1.0 - keys_score * 0.2)
+    add("electric guitar", guitar_score * 0.75)
+
+    strings_score = min(1.0, (upper + air * 0.5) / total * 2.0)
+    add("strings", strings_score * 0.6, asserted_at=0.5)
+
+    hints.sort(key=lambda h: h["confidence"], reverse=True)
+    return tuple(hints[:8])
+
+
 def _noise_floor_dbfs(samples: np.ndarray) -> float:
     mono = samples.mean(axis=0)
     frame = 2048
@@ -258,6 +341,12 @@ def analyze(audio: AudioTensor) -> AnalysisReport:
     if echo_s is not None:
         conditions["echo_delay_s"] = round(echo_s, 3)
 
+    instruments = _detect_instruments(samples, sr)
+    if instruments:
+        asserted = [h["instrument"] for h in instruments if h["status"] == "asserted"]
+        if asserted:
+            notes.append("detected: " + ", ".join(asserted[:6]))
+
     return AnalysisReport(
         duration_seconds=audio.duration_seconds,
         sample_rate=sr,
@@ -270,6 +359,7 @@ def analyze(audio: AudioTensor) -> AnalysisReport:
         bandwidth_hz=bandwidth,
         clipping_ratio=clip,
         noise_floor_dbfs=_noise_floor_dbfs(samples),
+        instruments=instruments,
         vocal_conditions=conditions,
         notes=tuple(notes),
     )

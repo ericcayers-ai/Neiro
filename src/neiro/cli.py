@@ -168,7 +168,7 @@ def cmd_download(args: argparse.Namespace) -> int:
 
 def cmd_separate(args: argparse.Namespace) -> int:
     from neiro.engine.planner import plan_separation
-    from neiro.io import write_audio
+    from neiro.io import write_audio, write_export_metadata
 
     registry = default_registry()
     vram = VRAMManager()
@@ -180,6 +180,7 @@ def cmd_separate(args: argparse.Namespace) -> int:
         auto_download=not args.no_download,
         progress=_download_printer(args.quiet),
     )
+    entry = registry.get(plan.model_id)
 
     print(f"Model: {plan.model_id}", file=sys.stderr)
     for note in plan.notes:
@@ -198,6 +199,13 @@ def cmd_separate(args: argparse.Namespace) -> int:
     for name, art in stem_outputs.items():
         path = out_dir / f"{name}.{args.format}"
         write_audio(art, path, fmt=args.format, bit_depth=args.bit_depth)
+        write_export_metadata(
+            path,
+            model_id=plan.model_id,
+            license_spdx=entry.license_spdx,
+            license_note=entry.license_note,
+            provenance=art.provenance,
+        )
         written.append(path)
         stem_arrays.append(art)
 
@@ -331,6 +339,7 @@ def build_parser() -> argparse.ArgumentParser:
     sep_presets = [
         "vocals",
         "vocals-ensemble",
+        "vocals-neural-ensemble",
         "vocals-best",
         "karaoke",
         "harmonic",

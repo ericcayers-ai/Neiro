@@ -558,4 +558,50 @@ Each milestone ships as a usable build; nothing waits for 1.0 to be touchable.
 
 ---
 
+## Alpha completion status (v0.3.0, 2026-07-13)
+
+This section records what is **complete for the current alpha scope** versus what
+remains **intentionally deferred** to later milestones. The full vision above is
+unchanged; this is an honest shipping ledger.
+
+### Phase summary
+
+| Phase | Alpha status | Notes |
+|-------|--------------|-------|
+| **1 — Core foundations** | **Complete (alpha)** | Ingest, lanes, DAG, in-memory + optional disk cache, VRAM ladder with chunked separation, cooperative cancel, residual/null test. Deferred: mmap tensors, job resume, WebSocket transport. |
+| **2 — Analysis pass** | **Floor complete** | Loudness, tempo, key, clipping, bandwidth, hum, echo, heuristic instrument hints. Deferred: neural taggers, vocal-condition RT60, chords/structure. |
+| **3 — Separation** | **Complete (alpha)** | DSP floor + ensembles + TTA + neural manifests + reference neural ensemble manifest + CLI/UI preset parity + export metadata sidecars. Deferred: bleed suppression, detect-all cascade, full model zoo. |
+| **4 — Enhancement** | **Complete (alpha)** | DSP auto-chains + explicit neural steps (CLI/UI) + manifests. Deferred: Apollo, auto neural pre-separation restore. |
+| **5 — Transcription** | **Complete (alpha floor)** | YIN/Basic Pitch/piano adapters, timeline compiler, MIDI, piano-roll view. Deferred: Transkun, drums, lyrics, editing, MusicXML/PDF. |
+| **6 — Auto-split & compiler** | **Partial (alpha)** | Single-stream auto-split + merge/dedup/quantize. Deferred: multi-instrument orchestration, hybrid voting. |
+| **7 — Frontend** | **Simple mode complete (alpha)** | Local HTTP UI, editor, stem mixer A/B + null audition, job cancel, restore chain picker. Deferred: Tauri/React, Advanced mode, learn mode, sheet music. |
+| **8 — Manifests & plugins** | **Complete (alpha)** | Protocols, manifest v2, registry, downloader, ensembles-as-manifests, license surfacing, export provenance. Deferred: signed index, custom Python plugins, session pinning. |
+| **9 — Performance** | **Foundations** | Device ladder, chunked inference, benchmark script. Deferred: torch.compile, ONNX/DirectML, perf CI gates. |
+| **10 — Quality & testing** | **Engineering tests** | 80+ unit/integration tests, measurable DSP assertions. Deferred: MUSDB/mir_eval harness, golden corpus, a11y audit. |
+
+### Milestone summary
+
+| Milestone | Status |
+|-----------|--------|
+| **M0 — Spine** | **Met (alpha)** — Python engine + CLI + local UI; no Tauri shell |
+| **M1 — Separation MVP** | **Met (alpha)** — Simple UI, neural registry, export, null test, download CLI |
+| **M2 — Intelligence** | **Not met** — heuristic instruments only; no reference-tier productized benchmarks |
+| **M3 — Transcription MVP** | **Partial** — MIDI + piano roll view; no roll editing / F1 harness |
+| **M4 — Full symbolic** | **Deferred** |
+| **M5 — Restoration** | **Partial (alpha)** — DSP + opt-in neural chains |
+| **M6 — Openness** | **Partial (alpha)** — manifest path works; no Advanced mode / watch folders |
+| **M7 — 1.0** | **Deferred** |
+
+### Intentionally deferred (not alpha scope)
+
+- **Tauri 2 + React + WebGL2** desktop shell and Arrow IPC bulk transport
+- **Full neural roster** (SCNet-XL, Medley Vox, Apollo, Transkun, MIROS, Whisper lyrics, …)
+- **Sheet music / Verovio / learn mode / WebMIDI**
+- **Advanced mode** pipeline editor and per-stem condition UI
+- **Signed model index**, custom plugin sandbox, session reproduce-exactly format
+- **Evaluation program** (MUSDB, MAESTRO golden corpus, release-blocking perf/a11y CI)
+- **Watch-folder daemon**, DAWproject export, Matchering on stem bus
+
+---
+
 *This document is the single source of truth for scope. Changes to it are changes to the product.*
