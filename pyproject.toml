@@ -64,6 +64,9 @@ neiro = ["manifests/*.json", "ui/*.html"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+markers = [
+    "slow: optional live neural inference (weights must be cached)",
+]
 
 [tool.coverage.run]
 source = ["neiro"]
