@@ -9,6 +9,8 @@ REM (tick "Add Python to PATH" during install).
 setlocal
 cd /d "%~dp0"
 
+set "VENV_PY=%CD%\.venv\Scripts\python.exe"
+
 where python >nul 2>nul
 if errorlevel 1 (
   echo Python was not found on PATH.
@@ -17,17 +19,41 @@ if errorlevel 1 (
   exit /b 1
 )
 
-if not exist ".venv\Scripts\python.exe" (
-  echo First-time setup: creating environment and installing Neiro...
+if not exist "%VENV_PY%" (
+  echo First-time setup: creating environment...
   python -m venv .venv
-  call .venv\Scripts\activate.bat
-  python -m pip install --upgrade pip
-  REM Install the bundled wheel with the full neural stack.
-  for %%f in (wheels\neiro-*.whl) do python -m pip install "%%f[all]"
-) else (
-  call .venv\Scripts\activate.bat
+  if errorlevel 1 (
+    echo Failed to create the virtual environment.
+    pause
+    exit /b 1
+  )
+  "%VENV_PY%" -m pip install --upgrade pip
+  if errorlevel 1 (
+    echo Failed to upgrade pip.
+    pause
+    exit /b 1
+  )
+)
+
+"%VENV_PY%" -c "import neiro" >nul 2>nul
+if errorlevel 1 (
+  set "NEIRO_WHL="
+  for %%f in (wheels\neiro-*.whl) do set "NEIRO_WHL=%%f"
+  if not defined NEIRO_WHL (
+    echo No Neiro wheel found in wheels\ folder.
+    pause
+    exit /b 1
+  )
+  echo Installing Neiro from bundled wheel...
+  "%VENV_PY%" -m pip install "%NEIRO_WHL%[all]"
+  if errorlevel 1 (
+    echo.
+    echo Neiro install failed. Use Python 3.10, 3.11, or 3.12 and check your network.
+    pause
+    exit /b 1
+  )
 )
 
 echo Starting Neiro interface (a browser tab will open)...
-python -m neiro.cli ui
-pause
+"%VENV_PY%" -m neiro.cli ui
+if errorlevel 1 pause

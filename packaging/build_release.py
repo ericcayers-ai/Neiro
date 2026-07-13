@@ -114,11 +114,24 @@ def assemble_zip(version: str, exe_dir: Path | None) -> Path:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--exe", action="store_true", help="also build the standalone executable")
+    ap.add_argument(
+        "--zip-only",
+        action="store_true",
+        help="re-assemble the release zip from existing dist/ artifacts",
+    )
     args = ap.parse_args()
 
     DIST.mkdir(exist_ok=True)
     version = _version()
     print(f"Neiro release {version}")
+
+    if args.zip_only:
+        exe_dir = DIST / "neiro" if (DIST / "neiro").exists() else None
+        zip_path = assemble_zip(version, exe_dir)
+        print("\nRelease artifacts:")
+        for p in sorted(DIST.glob("neiro-*")) + [zip_path]:
+            print(f"  {p.name}")
+        return 0
 
     build_wheel()
     exe_dir = build_exe() if args.exe else None
