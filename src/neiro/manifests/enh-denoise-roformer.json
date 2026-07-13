@@ -1,0 +1,20 @@
+{
+  "manifest_version": 2,
+  "id": "denoise-roformer",
+  "task": "enhance",
+  "display_name": "Denoise (Mel-RoFormer, SDR 27.99)",
+  "adapter": "neiro.adapters.audio_separator_adapter:AudioSeparatorEnhancer",
+  "requires": ["audio_separator"],
+  "params": {
+    "model_filename": "denoise_mel_band_roformer_aufr33_sdr_27.9959.ckpt",
+    "target_stem": "dry",
+    "stem_labels": {"dry": "dry", "other": "other"},
+    "quality_class": "reference",
+    "license_spdx": "MIT",
+    "license_note": "credit aufr33; verify commercial terms"
+  },
+  "weights": [{"kind": "managed", "cache_param": "model_file_dir"}],
+  "quality_class": "reference",
+  "license": {"spdx": "MIT", "note": "credit aufr33; verify commercial terms"},
+  "provenance": {"author": "aufr33", "fixes": "broadband noise", "leaderboard_sdr": 27.99}
+}

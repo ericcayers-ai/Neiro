@@ -1,0 +1,21 @@
+{
+  "manifest_version": 2,
+  "id": "mel-roformer-inst",
+  "task": "separate",
+  "stems": ["vocals", "instrumental"],
+  "display_name": "Mel-Band RoFormer (instrumental v2)",
+  "adapter": "neiro.adapters.audio_separator_adapter:AudioSeparatorModel",
+  "requires": ["audio_separator"],
+  "params": {
+    "model_filename": "melband_roformer_inst_v2.ckpt",
+    "stems": ["vocals", "instrumental"],
+    "stem_labels": {"vocals": "Vocals", "instrumental": "Instrumental"},
+    "quality_class": "reference",
+    "license_spdx": "MIT",
+    "license_note": "credit UVR; verify commercial terms"
+  },
+  "weights": [{"kind": "managed", "cache_param": "model_file_dir"}],
+  "quality_class": "reference",
+  "license": {"spdx": "MIT", "note": "credit UVR; verify commercial terms", "source": "https://github.com/nomadkaraoke/python-audio-separator"},
+  "provenance": {"author": "UVR / becruily", "leaderboard_sdr": {"instrumental": 16.1, "vocals": 10.3}}
+}

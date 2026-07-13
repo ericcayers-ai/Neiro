@@ -1,0 +1,12 @@
+{
+  "manifest_version": 2,
+  "id": "matchering",
+  "task": "enhance",
+  "display_name": "Matchering (reference mastering)",
+  "adapter": "neiro.adapters.matchering_adapter:MatcheringEnhancer",
+  "requires": ["matchering"],
+  "params": {},
+  "quality_class": "reference",
+  "license": {"spdx": "GPL-3.0", "note": "copyleft — relevant for redistribution", "source": "https://github.com/sergree/matchering"},
+  "provenance": {"author": "sergree", "fixes": "match loudness/tone/width to a reference (needs a reference file)"}
+}

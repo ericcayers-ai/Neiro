@@ -9,7 +9,7 @@ model downloads; neural backends (Demucs, RoFormer, …) plug in through manifes
 
 from __future__ import annotations
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 from neiro.engine.artifacts import (
     AnalysisReport,

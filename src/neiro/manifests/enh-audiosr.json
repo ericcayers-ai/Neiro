@@ -1,0 +1,14 @@
+{
+  "manifest_version": 2,
+  "id": "audiosr",
+  "task": "enhance",
+  "display_name": "AudioSR (super-resolution to 48 kHz)",
+  "adapter": "neiro.adapters.audiosr_adapter:AudioSRAdapter",
+  "requires": ["audiosr"],
+  "params": {"model_name": "basic", "ddim_steps": 50},
+  "weights": [{"kind": "managed", "note": "checkpoint auto-downloads from Hugging Face Hub in build_model"}],
+  "quality_class": "reference",
+  "vram": {"fp32_gb": 3.5},
+  "license": {"spdx": "unknown", "note": "AudioSR weights research-oriented; verify terms. Package may not build on Python 3.12.", "source": "https://github.com/haoheliu/versatile_audio_super_resolution"},
+  "provenance": {"author": "haoheliu", "fixes": "bandwidth extension / super-resolution", "output_sr": 48000}
+}

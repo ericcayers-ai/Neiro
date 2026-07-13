@@ -32,7 +32,7 @@ def test_cli_models(tmp_path, capsys):
     assert main(["models"]) == 0
     out = capsys.readouterr().out
     assert "dsp-center" in out
-    assert "AVAILABLE" in out
+    assert "AVAIL" in out and "DOWNL" in out
 
 
 def test_cli_separate_writes_stems(tmp_path):

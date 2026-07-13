@@ -1,0 +1,19 @@
+{
+  "manifest_version": 2,
+  "id": "piano-transcription",
+  "task": "transcribe",
+  "display_name": "Piano Transcription (Kong, with pedal)",
+  "adapter": "neiro.adapters.piano_transcription_adapter:PianoTranscriptionAdapter",
+  "requires": ["piano_transcription_inference"],
+  "params": {"track": "piano"},
+  "weights": [{
+    "kind": "http",
+    "cache_param": "checkpoint_path",
+    "dest": "note_F1=0.9677_pedal_F1=0.9186.pth",
+    "url": "https://zenodo.org/record/4034264/files/CRNN_note_F1%3D0.9677_pedal_F1%3D0.9186.pth?download=1"
+  }],
+  "quality_class": "reference",
+  "vram": {"fp32_gb": 0.7},
+  "license": {"spdx": "unknown", "note": "upstream repo has NO LICENSE file — treat as all-rights-reserved; research use; verify before commercial use", "source": "https://github.com/qiuqiangkong/piano_transcription_inference"},
+  "provenance": {"author": "Kong / ByteDance", "polyphony": "polyphonic piano", "includes_pedal": true}
+}

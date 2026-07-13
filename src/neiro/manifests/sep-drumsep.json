@@ -1,0 +1,21 @@
+{
+  "manifest_version": 2,
+  "id": "mdx23c-drumsep",
+  "task": "separate",
+  "stems": ["kick", "snare", "toms", "hh", "ride", "crash"],
+  "display_name": "MDX23C DrumSep (6-piece kit)",
+  "adapter": "neiro.adapters.audio_separator_adapter:AudioSeparatorModel",
+  "requires": ["audio_separator"],
+  "params": {
+    "model_filename": "MDX23C-DrumSep-aufr33-jarredou.ckpt",
+    "stems": ["kick", "snare", "toms", "hh", "ride", "crash"],
+    "stem_labels": {"kick": "kick", "snare": "snare", "toms": "toms", "hh": "hh", "ride": "ride", "crash": "crash"},
+    "quality_class": "reference",
+    "license_spdx": "MIT",
+    "license_note": "credit aufr33 / jarredou; verify commercial terms"
+  },
+  "weights": [{"kind": "managed", "cache_param": "model_file_dir"}],
+  "quality_class": "reference",
+  "license": {"spdx": "MIT", "note": "credit aufr33/jarredou; verify commercial terms"},
+  "provenance": {"author": "aufr33 / jarredou", "purpose": "drum kit decomposition"}
+}

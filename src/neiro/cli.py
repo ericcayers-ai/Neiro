@@ -1,10 +1,11 @@
 """Neiro command-line interface.
 
     neiro analyze    <file>
-    neiro separate   <file> [--preset vocals|vocals-ensemble|harmonic|4stem] [--out DIR]
-    neiro transcribe <file> [--mode auto|direct|split] [--out FILE.mid] [--no-quantize]
-    neiro enhance    <file> [--chain declip,dehum,denoise,normalize] [--out FILE]
+    neiro separate   <file> [--preset vocals-best|karaoke|4stem|6stem|drums|...] [--out DIR]
+    neiro transcribe <file> [--mode auto|direct|split] [--model ID] [--out FILE.mid]
+    neiro enhance    <file> [--chain declip,dehum,denoise,dereverb,superres,master] [--out FILE]
     neiro models     [list]
+    neiro download   <model-id|--all|--task TASK>
     neiro ui         [--port N] [--no-browser]
 
 The CLI is a thin client over the same engine the GUI uses (roadmap §2.1): it
@@ -37,6 +38,30 @@ def _progress_printer(quiet: bool):
     return _p
 
 
+def _download_printer(quiet: bool):
+    """Progress callback for model downloads triggered during planning."""
+    last = {"v": -1}
+
+    def _p(prog) -> None:  # DownloadProgress
+        if quiet:
+            return
+        frac = getattr(prog, "fraction", None)
+        if frac is not None:
+            pct = int(frac * 100)
+            if pct != last["v"]:
+                last["v"] = pct
+                mb = prog.downloaded_bytes / 1e6
+                print(
+                    f"\r  downloading {prog.model_id}: {pct}% ({mb:.0f} MB)",
+                    end="" if prog.stage != "done" else "\n",
+                    file=sys.stderr,
+                )
+        elif prog.stage == "done":
+            print(f"\r  downloaded {prog.model_id}" + " " * 20, file=sys.stderr)
+
+    return _p
+
+
 def cmd_analyze(args: argparse.Namespace) -> int:
     from neiro.analysis import analyze
     from neiro.io import load_audio
@@ -54,14 +79,91 @@ def cmd_models(args: argparse.Namespace) -> int:
         print("No models registered.")
         return 0
     width = max(len(e.id) for e in entries)
-    print(f"{'MODEL':<{width}}  {'TASK':<10} {'QUALITY':<10} {'LICENSE':<12} AVAILABLE  STEMS")
+    header = (
+        f"{'MODEL':<{width}}  {'TASK':<10} {'QUALITY':<10} {'LICENSE':<12} "
+        f"{'AVAIL':<6} {'DOWNL':<6} STEMS"
+    )
+    print(header)
     for e in sorted(entries, key=lambda x: (x.task, x.id)):
         avail = "yes" if e.available() else "no"
+        try:
+            downl = "yes" if e.downloaded() else "no"
+        except Exception:
+            downl = "?"
         print(
             f"{e.id:<{width}}  {e.task:<10} {e.quality_class:<10} "
-            f"{e.license_spdx:<12} {avail:<9} {', '.join(e.stems)}"
+            f"{e.license_spdx:<12} {avail:<6} {downl:<6} {', '.join(e.stems)}"
         )
+    print(
+        "\nAVAIL = Python dependency installed · DOWNL = weights present locally.\n"
+        "Fetch weights with: neiro download <model-id>   (or --all / --task separate)",
+        file=sys.stderr,
+    )
     return 0
+
+
+def cmd_download(args: argparse.Namespace) -> int:
+    from neiro.engine.downloader import DownloadProgress
+
+    reg = default_registry()
+
+    if args.all:
+        targets = [e for e in reg.all() if e.available() and e.needs_download]
+    elif args.task:
+        targets = [e for e in reg.by_task(args.task) if e.available() and e.needs_download]
+    elif args.model_id:
+        try:
+            targets = [reg.get(args.model_id)]
+        except KeyError:
+            print(f"error: unknown model {args.model_id!r}", file=sys.stderr)
+            return 1
+    else:
+        print("error: specify a model id, --all, or --task TASK", file=sys.stderr)
+        return 1
+
+    if not targets:
+        print("Nothing to download (already present, or no matching available models).")
+        return 0
+
+    last_pct = {"v": -1}
+
+    def _prog(p: DownloadProgress) -> None:
+        if args.quiet:
+            return
+        frac = p.fraction
+        if frac is not None:
+            pct = int(frac * 100)
+            if pct != last_pct["v"]:
+                last_pct["v"] = pct
+                mb = p.downloaded_bytes / 1e6
+                print(f"\r  {p.model_id}: {p.stage} {pct}% ({mb:.0f} MB)", end="", file=sys.stderr)
+        else:
+            print(f"\r  {p.model_id}: {p.stage}...", end="", file=sys.stderr)
+
+    failed = 0
+    for e in targets:
+        if e.downloaded():
+            print(f"{e.id}: already downloaded")
+            continue
+        if not e.available():
+            print(
+                f"{e.id}: skipped (dependency not installed: "
+                f"{', '.join(e.manifest.get('requires', [])) or 'unknown'})"
+            )
+            continue
+        if e.license_spdx in ("unknown", "GPL-3.0") or e.license_note:
+            print(
+                f"{e.id}: license {e.license_spdx} — {e.license_note or 'verify terms before use'}"
+            )
+        last_pct["v"] = -1
+        try:
+            e.ensure_downloaded(progress=_prog)
+            print(f"\r{e.id}: downloaded" + " " * 30)
+        except Exception as exc:
+            failed += 1
+            print(f"\r{e.id}: FAILED — {exc}" + " " * 20, file=sys.stderr)
+
+    return 1 if failed else 0
 
 
 def cmd_separate(args: argparse.Namespace) -> int:
@@ -70,7 +172,14 @@ def cmd_separate(args: argparse.Namespace) -> int:
 
     registry = default_registry()
     vram = VRAMManager()
-    plan = plan_separation(args.input, args.preset, registry, vram)
+    plan = plan_separation(
+        args.input,
+        args.preset,
+        registry,
+        vram,
+        auto_download=not args.no_download,
+        progress=_download_printer(args.quiet),
+    )
 
     print(f"Model: {plan.model_id}", file=sys.stderr)
     for note in plan.notes:
@@ -123,6 +232,9 @@ def cmd_transcribe(args: argparse.Namespace) -> int:
         mode=args.mode,
         quantize=not args.no_quantize,
         division=args.division,
+        model=args.model,
+        auto_download=not args.no_download,
+        progress=_download_printer(args.quiet),
     )
     print(
         f"Model: {plan.model_id}" + (" (with auto-split)" if plan.used_split else ""),
@@ -173,7 +285,15 @@ def cmd_enhance(args: argparse.Namespace) -> int:
     registry = default_registry()
     vram = VRAMManager()
     chain = args.chain.split(",") if args.chain else None
-    plan = plan_enhancement(args.input, registry, vram, chain=chain)
+    plan = plan_enhancement(
+        args.input,
+        registry,
+        vram,
+        chain=chain,
+        auto_download=not args.no_download,
+        progress=_download_printer(args.quiet),
+        reference_path=args.reference,
+    )
     for note in plan.notes:
         print(f"Note: {note}", file=sys.stderr)
     if not plan.chain:
@@ -208,26 +328,43 @@ def build_parser() -> argparse.ArgumentParser:
     p_an.add_argument("input")
     p_an.set_defaults(func=cmd_analyze)
 
+    sep_presets = [
+        "vocals",
+        "vocals-ensemble",
+        "vocals-best",
+        "karaoke",
+        "harmonic",
+        "4stem",
+        "6stem",
+        "drums",
+    ]
     p_sep = sub.add_parser("separate", help="separate a file into stems")
     p_sep.add_argument("input")
-    p_sep.add_argument(
-        "--preset",
-        default="vocals",
-        choices=["vocals", "vocals-ensemble", "harmonic", "4stem"],
-    )
+    p_sep.add_argument("--preset", default="vocals", choices=sep_presets)
     p_sep.add_argument("--out", default=None, help="output directory (default: <input name>/)")
     p_sep.add_argument("--format", default="wav", choices=["wav", "flac"])
     p_sep.add_argument("--bit-depth", type=int, default=24, choices=[16, 24, 32])
+    p_sep.add_argument(
+        "--no-download",
+        action="store_true",
+        help="don't fetch neural weights; use the best already-available model",
+    )
     p_sep.add_argument("--quiet", action="store_true")
     p_sep.set_defaults(func=cmd_separate)
 
     p_tr = sub.add_parser("transcribe", help="transcribe a file to MIDI")
     p_tr.add_argument("input")
     p_tr.add_argument("--mode", default="auto", choices=["auto", "direct", "split"])
+    p_tr.add_argument(
+        "--model", default=None, help="force a transcriber id (e.g. piano-transcription)"
+    )
     p_tr.add_argument("--out", default=None, help="output MIDI path (default: <input>.mid)")
     p_tr.add_argument("--no-quantize", action="store_true", help="keep free (performance) timing")
     p_tr.add_argument(
         "--division", type=int, default=4, help="grid cells per beat (default 4 = 16ths)"
+    )
+    p_tr.add_argument(
+        "--no-download", action="store_true", help="use only already-available models"
     )
     p_tr.add_argument("--json", action="store_true", help="also print the timeline as JSON")
     p_tr.add_argument("--quiet", action="store_true")
@@ -238,16 +375,27 @@ def build_parser() -> argparse.ArgumentParser:
     p_en.add_argument(
         "--chain",
         default=None,
-        help="comma-separated steps (declip,dehum,denoise,normalize); default: auto from analysis",
+        help="steps: declip,dehum,denoise,dereverb,superres,master,normalize; default: auto",
     )
+    p_en.add_argument("--reference", default=None, help="reference audio for the 'master' step")
     p_en.add_argument("--out", default=None, help="output path (default: <input>.restored.wav)")
     p_en.add_argument("--bit-depth", type=int, default=24, choices=[16, 24, 32])
+    p_en.add_argument(
+        "--no-download", action="store_true", help="use only already-available models"
+    )
     p_en.add_argument("--quiet", action="store_true")
     p_en.set_defaults(func=cmd_enhance)
 
     p_mod = sub.add_parser("models", help="list registered models")
     p_mod.add_argument("action", nargs="?", default="list", choices=["list"])
     p_mod.set_defaults(func=cmd_models)
+
+    p_dl = sub.add_parser("download", help="download model weights")
+    p_dl.add_argument("model_id", nargs="?", default=None, help="model id to download")
+    p_dl.add_argument("--all", action="store_true", help="download all available models' weights")
+    p_dl.add_argument("--task", default=None, help="download all available models for a task")
+    p_dl.add_argument("--quiet", action="store_true")
+    p_dl.set_defaults(func=cmd_download)
 
     p_ui = sub.add_parser("ui", help="open the local interface in a browser")
     p_ui.add_argument("--port", type=int, default=8377)

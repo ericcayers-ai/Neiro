@@ -6,6 +6,13 @@ it on demand. If an adapter's optional dependencies are missing (e.g. a Demucs
 manifest on a machine without torch), the manifest is still listed but flagged
 ``available=False`` and instantiation raises a clear error — the app keeps
 running on whatever backends *are* available.
+
+A separate axis, ``downloaded``, tracks whether a model's weights are present
+locally (see :mod:`neiro.engine.downloader`). A model can be *available*
+(its Python dependency is installed) without being *downloaded* (its weights
+haven't been fetched yet) — the two are deliberately independent so the UI and
+CLI can say precisely "installed, not yet downloaded" rather than a single
+conflated status.
 """
 
 from __future__ import annotations
@@ -15,6 +22,8 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+from neiro.engine.downloader import ProgressFn, default_models_dir, fetch_hf_hub, fetch_http
 
 __all__ = ["ModelEntry", "Registry", "default_registry"]
 
@@ -48,6 +57,90 @@ class ModelEntry:
     def license_spdx(self) -> str:
         return self.manifest.get("license", {}).get("spdx", "unknown")
 
+    @property
+    def license_note(self) -> str:
+        return self.manifest.get("license", {}).get("note", "")
+
+    @property
+    def weights(self) -> list[dict[str, Any]]:
+        return list(self.manifest.get("weights", []))
+
+    @property
+    def needs_download(self) -> bool:
+        """False for weight-free models (pure DSP, algorithmic like matchering)."""
+        return len(self.weights) > 0
+
+    def _model_dir(self) -> Path:
+        d = default_models_dir() / self.id
+        d.mkdir(parents=True, exist_ok=True)
+        return d
+
+    def _marker_path(self) -> Path:
+        return default_models_dir() / ".fetched" / f"{self.id}.done"
+
+    def downloaded(self) -> bool:
+        """Whether this model's weights are present locally.
+
+        Weight-free models are trivially "downloaded". Otherwise this checks a
+        marker file written on a successful :meth:`ensure_downloaded` — cheap
+        and correct regardless of which underlying library actually manages the
+        cache directory, rather than trying to replicate each library's private
+        cache-path convention here.
+        """
+        if not self.needs_download:
+            return True
+        return self._marker_path().exists()
+
+    def ensure_downloaded(self, progress: ProgressFn | None = None) -> bool:
+        """Fetch this model's weights if not already present. Returns True on success."""
+        if self.downloaded():
+            return True
+        if not self.available():
+            raise RuntimeError(
+                f"{self.id}: dependencies not installed (requires: "
+                f"{', '.join(self.manifest.get('requires', [])) or 'unknown'})"
+            )
+
+        model_dir = self._model_dir()
+        for spec in self.weights:
+            kind = spec.get("kind")
+            if kind == "http":
+                dest = model_dir / spec["dest"]
+                fetch_http(
+                    spec["url"],
+                    dest,
+                    model_id=self.id,
+                    sha256=spec.get("sha256"),
+                    progress=progress,
+                )
+            elif kind == "hf_hub":
+                fetch_hf_hub(
+                    spec["repo_id"],
+                    spec["filename"],
+                    model_id=self.id,
+                    dest_dir=model_dir,
+                    revision=spec.get("revision"),
+                    progress=progress,
+                )
+            elif kind == "managed":
+                # The adapter's own load() triggers its library's normal
+                # download-and-cache path; we've pointed that path at our
+                # unified models directory via manifest params (see the
+                # adapter's __init__), so this becomes real, tracked download
+                # management rather than a scattered, invisible cache.
+                adapter = self.instantiate()
+                adapter.load("cpu", "fp32")
+                unload = getattr(adapter, "unload", None)
+                if callable(unload):
+                    unload()
+            else:
+                raise ValueError(f"{self.id}: unknown weight kind {kind!r}")
+
+        marker = self._marker_path()
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.write_text(self.id, encoding="utf-8")
+        return True
+
     def _adapter_class(self):
         spec = self.manifest["adapter"]
         module_name, _, class_name = spec.partition(":")
@@ -80,6 +173,20 @@ class ModelEntry:
         cls = self._adapter_class()
         params = dict(self.manifest.get("params", {}))
         params.setdefault("model_id", self.id)
+        # Point the adapter's own cache/checkpoint kwarg at our unified models
+        # directory so every model's weights land in one predictable,
+        # storage-budgeted place — never scattered across /tmp or a package's
+        # private cache. "managed" points at the shared directory (the
+        # adapter's library manages filenames within it); "http"/"hf_hub"
+        # point at the exact resolved file, letting an adapter that expects a
+        # single checkpoint path receive one Neiro has already fetched.
+        for spec in self.weights:
+            if "cache_param" not in spec:
+                continue
+            if spec.get("kind") == "managed":
+                params.setdefault(spec["cache_param"], str(self._model_dir()))
+            elif spec.get("kind") == "http":
+                params.setdefault(spec["cache_param"], str(self._model_dir() / spec["dest"]))
         return cls(**params)
 
 

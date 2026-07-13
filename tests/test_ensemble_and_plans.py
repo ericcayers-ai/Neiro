@@ -94,7 +94,9 @@ def _write_melody_wav(tmp_path, stereo=False):
 
 def test_transcription_direct_mode(tmp_path):
     wav = _write_melody_wav(tmp_path)
-    plan = plan_transcription(wav, default_registry(), VRAMManager(), mode="direct")
+    plan = plan_transcription(
+        wav, default_registry(), VRAMManager(), mode="direct", model="dsp-yin", auto_download=False
+    )
     assert not plan.used_split
     ctx = ExecutionContext(cache=ArtifactCache())
     out = plan.graph.execute(ctx, targets=[plan.compile_node])
@@ -105,7 +107,9 @@ def test_transcription_direct_mode(tmp_path):
 
 def test_transcription_auto_splits_on_wide_stereo(tmp_path):
     wav = _write_melody_wav(tmp_path, stereo=True)
-    plan = plan_transcription(wav, default_registry(), VRAMManager(), mode="auto")
+    plan = plan_transcription(
+        wav, default_registry(), VRAMManager(), mode="auto", model="dsp-yin", auto_download=False
+    )
     assert plan.used_split  # stereo, not effectively mono -> split path
     ctx = ExecutionContext(cache=ArtifactCache())
     out = plan.graph.execute(ctx, targets=[plan.compile_node])
@@ -124,7 +128,7 @@ def test_enhancement_auto_detects_clipping(tmp_path):
     wav = tmp_path / "clipped.wav"
     sf.write(str(wav), clipped, sr, subtype="FLOAT")
 
-    plan = plan_enhancement(wav, default_registry(), VRAMManager(), chain=None)
+    plan = plan_enhancement(wav, default_registry(), VRAMManager(), chain=None, auto_download=False)
     assert "declip" in plan.chain
 
     ctx = ExecutionContext(cache=ArtifactCache())
@@ -138,7 +142,9 @@ def test_enhancement_explicit_chain(tmp_path):
     x = (0.3 * np.sin(2 * np.pi * 440 * np.arange(sr) / sr)).astype(np.float32)
     wav = tmp_path / "tone.wav"
     sf.write(str(wav), x, sr, subtype="FLOAT")
-    plan = plan_enhancement(wav, default_registry(), VRAMManager(), chain=["dehum", "normalize"])
+    plan = plan_enhancement(
+        wav, default_registry(), VRAMManager(), chain=["dehum", "normalize"], auto_download=False
+    )
     assert plan.chain == ["dehum", "normalize"]
     ctx = ExecutionContext(cache=ArtifactCache())
     out = plan.graph.execute(ctx, targets=[plan.output_node])

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "neiro"
-version = "0.2.0"
+version = "0.3.0"
 description = "Local source separation, restoration, and symbolic transcription."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -26,9 +26,27 @@ dependencies = [
 
 [project.optional-dependencies]
 # Heavy neural backends are opt-in; the core engine runs on pure DSP without them.
-demucs = ["demucs>=4.0", "torch>=2.1"]
-basicpitch = ["basic-pitch>=0.4"]
-dev = ["pytest>=7.4", "pytest-cov>=4.1"]
+# Each maps roadmap references to a real, actively-maintained pip package that
+# bundles/auto-downloads the pretrained weights (integrated via manifests +
+# adapters rather than reimplemented). See docs/models.md.
+separation = ["audio-separator>=0.44"]  # BS/Mel-RoFormer, MDX23C, HTDemucs, VR-Arch, karaoke, drumsep
+piano = ["piano_transcription_inference>=0.0.5"]  # Kong/ByteDance piano (with pedal)
+basicpitch = ["basic-pitch>=0.4"]  # Spotify polyphonic transcription
+restoration = ["matchering>=2.0"]  # reference mastering
+superres = ["audiosr>=0.0.7"]  # AudioSR bandwidth extension (Python <=3.11)
+loudness = ["pyloudnorm>=0.1"]  # ITU-R BS.1770 loudness in the analysis pass
+downloader = ["huggingface_hub>=0.20"]  # Hugging Face Hub weight downloads
+demucs = ["demucs>=4.0", "torch>=2.1"]  # direct Demucs backend (alternative to audio-separator)
+# Convenience bundle: everything that installs cleanly on Python 3.12.
+all = [
+    "audio-separator>=0.44",
+    "piano_transcription_inference>=0.0.5",
+    "basic-pitch>=0.4",
+    "matchering>=2.0",
+    "pyloudnorm>=0.1",
+    "huggingface_hub>=0.20",
+]
+dev = ["pytest>=7.4", "pytest-cov>=4.1", "ruff>=0.6"]
 
 [project.scripts]
 neiro = "neiro.cli:main"

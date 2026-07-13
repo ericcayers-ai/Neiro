@@ -1,0 +1,20 @@
+{
+  "manifest_version": 2,
+  "id": "dereverb-roformer",
+  "task": "enhance",
+  "display_name": "De-reverb (Mel-RoFormer, SDR 19.17)",
+  "adapter": "neiro.adapters.audio_separator_adapter:AudioSeparatorEnhancer",
+  "requires": ["audio_separator"],
+  "params": {
+    "model_filename": "dereverb_mel_band_roformer_anvuew_sdr_19.1729.ckpt",
+    "target_stem": "noreverb",
+    "stem_labels": {"noreverb": "noreverb", "reverb": "reverb"},
+    "quality_class": "reference",
+    "license_spdx": "MIT",
+    "license_note": "credit anvuew; verify commercial terms"
+  },
+  "weights": [{"kind": "managed", "cache_param": "model_file_dir"}],
+  "quality_class": "reference",
+  "license": {"spdx": "MIT", "note": "credit anvuew; verify commercial terms"},
+  "provenance": {"author": "anvuew", "fixes": "reverb", "leaderboard_sdr": 19.17}
+}

@@ -1,0 +1,21 @@
+{
+  "manifest_version": 2,
+  "id": "bs-roformer-1297",
+  "task": "separate",
+  "stems": ["vocals", "instrumental"],
+  "display_name": "BS-RoFormer (ep 317, SDR 12.98)",
+  "adapter": "neiro.adapters.audio_separator_adapter:AudioSeparatorModel",
+  "requires": ["audio_separator"],
+  "params": {
+    "model_filename": "model_bs_roformer_ep_317_sdr_12.9755.ckpt",
+    "stems": ["vocals", "instrumental"],
+    "stem_labels": {"vocals": "Vocals", "instrumental": "Instrumental"},
+    "quality_class": "reference",
+    "license_spdx": "MIT",
+    "license_note": "UVR/BS-RoFormer weights: credit UVR project; verify terms for commercial use"
+  },
+  "weights": [{"kind": "managed", "cache_param": "model_file_dir", "note": "downloaded on first load by audio-separator"}],
+  "quality_class": "reference",
+  "license": {"spdx": "MIT", "note": "credit UVR; verify commercial terms", "source": "https://github.com/nomadkaraoke/python-audio-separator"},
+  "provenance": {"author": "UVR / viperx", "leaderboard_sdr": {"vocals": 11.8, "instrumental": 16.5}}
+}

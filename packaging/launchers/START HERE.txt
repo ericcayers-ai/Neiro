@@ -1,0 +1,36 @@
+Neiro — local source separation, restoration, transcription, and audio editing.
+
+WHAT THIS IS
+  Everything runs on your machine. No audio ever leaves it. State-of-the-art
+  neural models (BS/Mel-RoFormer, MDX23C, HTDemucs, piano transcription, and
+  more) download on first use; a full pure-DSP feature set works with no
+  downloads at all.
+
+QUICK START (Windows)
+  1. Make sure Python 3.11 is installed (https://python.org — tick
+     "Add Python to PATH" during setup).
+  2. Double-click  "Neiro UI.bat"  to open the interface in your browser,
+     or     double-click  "Neiro CLI.bat"  for the command line.
+  The first launch sets things up (a few minutes, one time). Later launches
+  are instant.
+
+QUICK START (macOS / Linux)
+  1. Ensure Python 3.11 is installed.
+  2. In a terminal:   ./neiro-ui.sh     (interface)
+                or:    ./neiro-cli.sh    (command line)
+     (You may need to run:  chmod +x neiro-ui.sh neiro-cli.sh  first.)
+
+STANDALONE EXECUTABLE (no Python needed)
+  If a "neiro-core" folder is included, it contains a self-contained build of
+  the model-free engine — run "neiro-core/neiro" (or neiro.exe) with no Python
+  install. Neural models still require the Python launchers above.
+
+FOR COMPRESSED AUDIO (MP3/M4A/video)
+  Install ffmpeg (https://ffmpeg.org) and put it on PATH. WAV and FLAC work
+  without it.
+
+A NOTE ON MODELS & LICENSES
+  Models carry their own licenses — several are non-commercial or research-only.
+  Run "neiro models" to see each one's license, and check before commercial use.
+
+Docs & source: https://github.com/ericcayers-ai/Neiro

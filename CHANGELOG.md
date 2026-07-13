@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.3.0 — neural model expansion, downloader, packaging (2026-07-13)
+
+Major expansion of the neural backend layer: state-of-the-art separation,
+enhancement, and transcription models plug in through manifests and adapters,
+with a unified download manager and one-click release packaging. All additions
+are tested (83 tests) and the core engine still runs with no model downloads.
+
+### Added — neural backends & manifests
+- **Audio Separator adapter** (`neiro[separation]`): BS/Mel-RoFormer, MDX23C,
+  HTDemucs (6-stem + fine-tuned), karaoke, drumsep — each as a JSON manifest
+  with quality tiers and license metadata.
+- **Enhancement adapters**: Mel-Band RoFormer denoise/dereverb (`enh-denoise-roformer`,
+  `enh-dereverb-roformer`), AudioSR super-resolution (`neiro[superres]`),
+  Matchering reference mastering (`neiro[restoration]`).
+- **Piano transcription adapter** (`neiro[piano]`): Kong/ByteDance piano model
+  with pedal via `piano_transcription_inference`.
+- **Model downloader** (`neiro.engine.downloader`): HTTP (resume + SHA-256) and
+  Hugging Face Hub transports; unified `NEIRO_HOME` storage outside cloud-sync
+  folders; `managed` kind for libraries that self-cache on first load.
+- **CLI**: `neiro download` to fetch weights ahead of time; expanded `neiro models`
+  output with download status and license info.
+
+### Added — packaging
+- **Release builder** (`packaging/build_release.py`): wheel + sdist + launcher zip;
+  optional PyInstaller standalone exe (`--exe`) for the model-free core.
+- **One-click launchers** (`packaging/launchers/`): Windows `.bat` and Unix shell
+  scripts that bootstrap a local venv and install the wheel with the full neural
+  stack on first run.
+- **Optional dependency groups** in `pyproject.toml`: `separation`, `piano`,
+  `restoration`, `superres`, `downloader`, and an `all` bundle.
+
+### Changed
+- Registry and planner route neural manifests by availability and quality tier;
+  `htdemucs.json` replaced by granular `sep-htdemucs-*` manifests.
+- Analysis report and CLI updated for the expanded model catalog.
+
 ## 0.2.0 — separation ensembles, restoration, transcription, editor (2026-07-12)
 
 A large expansion across every roadmap phase, plus a full repository-health pass.

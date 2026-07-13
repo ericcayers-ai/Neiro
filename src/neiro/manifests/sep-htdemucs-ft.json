@@ -1,0 +1,21 @@
+{
+  "manifest_version": 2,
+  "id": "htdemucs-ft",
+  "task": "separate",
+  "stems": ["vocals", "drums", "bass", "other"],
+  "display_name": "HTDemucs 4-stem (fine-tuned)",
+  "adapter": "neiro.adapters.audio_separator_adapter:AudioSeparatorModel",
+  "requires": ["audio_separator"],
+  "params": {
+    "model_filename": "htdemucs_ft.yaml",
+    "stems": ["vocals", "drums", "bass", "other"],
+    "stem_labels": {"vocals": "Vocals", "drums": "Drums", "bass": "Bass", "other": "Other"},
+    "quality_class": "standard",
+    "license_spdx": "MIT",
+    "license_note": "Demucs MIT (facebookresearch)"
+  },
+  "weights": [{"kind": "managed", "cache_param": "model_file_dir"}],
+  "quality_class": "standard",
+  "license": {"spdx": "MIT", "source": "https://github.com/facebookresearch/demucs"},
+  "provenance": {"author": "facebookresearch", "leaderboard_sdr": {"vocals": 10.8, "drums": 10.0, "bass": 12.0}}
+}

@@ -23,7 +23,31 @@ _MINOR = np.array([6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3
 
 
 def _integrated_lufs(samples: np.ndarray, sample_rate: int) -> float:
-    """Approximate EBU R128 integrated loudness (K-weighting omitted for speed)."""
+    """Integrated loudness (LUFS).
+
+    Uses ``pyloudnorm``'s ITU-R BS.1770-4 meter (K-weighting + gating) when the
+    optional dependency is installed — the broadcast-standard measurement. Falls
+    back to a fast unweighted approximation otherwise, so the analysis pass never
+    hard-depends on it. Very short signals below the 0.4 s block size use the
+    approximation regardless (BS.1770 gating is undefined there).
+    """
+    block = int(0.4 * sample_rate)
+    if samples.shape[1] >= block:
+        try:
+            import pyloudnorm as pyln
+
+            meter = pyln.Meter(sample_rate)
+            # pyloudnorm expects (samples, channels).
+            loudness = meter.integrated_loudness(samples.T.astype(np.float64))
+            if np.isfinite(loudness):
+                return float(loudness)
+        except Exception:
+            pass  # fall through to the approximation
+    return _integrated_lufs_approx(samples, sample_rate)
+
+
+def _integrated_lufs_approx(samples: np.ndarray, sample_rate: int) -> float:
+    """Fast unweighted gated-loudness approximation (fallback for _integrated_lufs)."""
     mono = samples.mean(axis=0)
     block = int(0.4 * sample_rate)
     if block <= 0 or mono.size < block:

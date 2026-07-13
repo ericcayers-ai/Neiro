@@ -35,3 +35,7 @@ Thumbs.db
 
 # Local Claude Code settings
 .claude/
+
+# Local test artifacts / session transcripts (never commit)
+input_*.wav
+2026-07-13-*.txt

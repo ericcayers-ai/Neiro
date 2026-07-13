@@ -1,0 +1,21 @@
+{
+  "manifest_version": 2,
+  "id": "mel-roformer-karaoke",
+  "task": "separate",
+  "stems": ["vocals", "instrumental"],
+  "display_name": "Mel-RoFormer Karaoke (lead/backing)",
+  "adapter": "neiro.adapters.audio_separator_adapter:AudioSeparatorModel",
+  "requires": ["audio_separator"],
+  "params": {
+    "model_filename": "mel_band_roformer_karaoke_aufr33_viperx_sdr_10.1956.ckpt",
+    "stems": ["vocals", "instrumental"],
+    "stem_labels": {"vocals": "Vocals", "instrumental": "Instrumental"},
+    "quality_class": "reference",
+    "license_spdx": "MIT",
+    "license_note": "credit UVR / aufr33 / viperx; verify commercial terms"
+  },
+  "weights": [{"kind": "managed", "cache_param": "model_file_dir"}],
+  "quality_class": "reference",
+  "license": {"spdx": "MIT", "note": "credit UVR; verify commercial terms"},
+  "provenance": {"author": "aufr33 / viperx", "purpose": "karaoke lead vs backing vocals", "leaderboard_sdr": {"vocals": 8.4}}
+}
