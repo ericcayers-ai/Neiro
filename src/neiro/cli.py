@@ -1,9 +1,10 @@
 """Neiro command-line interface.
 
-    neiro analyze    <file>
-    neiro separate   <file> [--preset vocals-best|karaoke|4stem|6stem|drums|...] [--out DIR]
-    neiro transcribe <file> [--mode auto|direct|split] [--model ID] [--out FILE.mid]
-    neiro enhance    <file> [--chain declip,dehum,denoise,dereverb,superres,master] [--out FILE]
+    neiro analyze    <file|url>
+    neiro ingest     <url> [--out FILE]
+    neiro separate   <file|url> [--preset vocals-best|karaoke|4stem|6stem|drums|...] [--out DIR]
+    neiro transcribe <file|url> [--mode auto|direct|split] [--model ID] [--out FILE.mid]
+    neiro enhance    <file|url> [--chain declip,dehum,denoise,dereverb,superres,master] [--out FILE]
     neiro models     [list]
     neiro download   <model-id|--all|--task TASK>
     neiro ui         [--port N] [--no-browser]
@@ -38,6 +39,20 @@ def _progress_printer(quiet: bool):
     return _p
 
 
+def _resolve_input_arg(path_or_url: str, *, quiet: bool = False) -> str:
+    """Local path, or fetch a URL to cache first."""
+    from neiro.io.url_ingest import is_url, resolve_input
+
+    if not is_url(path_or_url):
+        return path_or_url
+    if not quiet:
+        print(f"Fetching audio from {path_or_url} …", file=sys.stderr)
+    local = resolve_input(path_or_url)
+    if not quiet:
+        print(f"Using {local}", file=sys.stderr)
+    return str(local)
+
+
 def _download_printer(quiet: bool):
     """Progress callback for model downloads triggered during planning."""
     last = {"v": -1}
@@ -62,11 +77,28 @@ def _download_printer(quiet: bool):
     return _p
 
 
+def cmd_ingest(args: argparse.Namespace) -> int:
+    import shutil
+
+    from neiro.io.url_ingest import fetch_url_audio, is_url
+
+    if not is_url(args.url):
+        raise ValueError("ingest requires an http(s) URL")
+    path = fetch_url_audio(args.url, force=args.force)
+    if args.out:
+        out = Path(args.out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(path, out)
+        path = out
+    print(path)
+    return 0
+
+
 def cmd_analyze(args: argparse.Namespace) -> int:
     from neiro.analysis import analyze
     from neiro.io import load_audio
 
-    audio = load_audio(args.input)
+    audio = load_audio(_resolve_input_arg(args.input, quiet=args.quiet))
     report = analyze(audio)
     print(json.dumps(report.as_dict(), indent=2))
     return 0
@@ -172,8 +204,9 @@ def cmd_separate(args: argparse.Namespace) -> int:
 
     registry = default_registry()
     vram = VRAMManager()
+    input_path = _resolve_input_arg(args.input, quiet=args.quiet)
     plan = plan_separation(
-        args.input,
+        input_path,
         args.preset,
         registry,
         vram,
@@ -189,7 +222,7 @@ def cmd_separate(args: argparse.Namespace) -> int:
     ctx = ExecutionContext(cache=ArtifactCache(), progress=_progress_printer(args.quiet))
     outputs = plan.graph.execute(ctx, targets=[plan.residual_node or plan.separate_node])
 
-    out_dir = Path(args.out) if args.out else Path(args.input).with_suffix("")
+    out_dir = Path(args.out) if args.out else Path(input_path).with_suffix("")
     out_dir = out_dir if out_dir.is_absolute() else Path.cwd() / out_dir
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -233,8 +266,9 @@ def cmd_transcribe(args: argparse.Namespace) -> int:
 
     registry = default_registry()
     vram = VRAMManager()
+    input_path = _resolve_input_arg(args.input, quiet=args.quiet)
     plan = plan_transcription(
-        args.input,
+        input_path,
         registry,
         vram,
         mode=args.mode,
@@ -255,7 +289,7 @@ def cmd_transcribe(args: argparse.Namespace) -> int:
     outputs = plan.graph.execute(ctx, targets=[plan.compile_node])
     timeline = outputs[plan.compile_node]["timeline"]
 
-    out_path = Path(args.out) if args.out else Path(args.input).with_suffix(".mid")
+    out_path = Path(args.out) if args.out else Path(input_path).with_suffix(".mid")
     write_midi(timeline, out_path)
 
     n = timeline.total_events()
@@ -293,8 +327,9 @@ def cmd_enhance(args: argparse.Namespace) -> int:
     registry = default_registry()
     vram = VRAMManager()
     chain = args.chain.split(",") if args.chain else None
+    input_path = _resolve_input_arg(args.input, quiet=args.quiet)
     plan = plan_enhancement(
-        args.input,
+        input_path,
         registry,
         vram,
         chain=chain,
@@ -313,7 +348,7 @@ def cmd_enhance(args: argparse.Namespace) -> int:
     outputs = plan.graph.execute(ctx, targets=[plan.output_node])
     audio = outputs[plan.output_node]["audio"]
 
-    src = Path(args.input)
+    src = Path(input_path)
     out_path = Path(args.out) if args.out else src.with_name(f"{src.stem}.restored.wav")
     fmt = "flac" if out_path.suffix.lower() == ".flac" else "wav"
     write_audio(audio, out_path, fmt=fmt, bit_depth=args.bit_depth)
@@ -332,9 +367,16 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="version", version=f"neiro {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    p_an = sub.add_parser("analyze", help="analyze a file and print its report as JSON")
+    p_an = sub.add_parser("analyze", help="analyze a file or URL and print its report as JSON")
     p_an.add_argument("input")
+    p_an.add_argument("--quiet", action="store_true")
     p_an.set_defaults(func=cmd_analyze)
+
+    p_ing = sub.add_parser("ingest", help="download audio from a URL (YouTube, etc.)")
+    p_ing.add_argument("url")
+    p_ing.add_argument("--out", default=None, help="copy downloaded audio to this path")
+    p_ing.add_argument("--force", action="store_true", help="re-download even if cached")
+    p_ing.set_defaults(func=cmd_ingest)
 
     sep_presets = [
         "vocals",

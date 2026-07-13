@@ -35,6 +35,11 @@
   #drop.over { border-color: var(--accent); background: var(--bg1); }
   #drop input { display: none; }
   #drop .hint { font-size: 13px; margin-top: 6px; }
+  .url-row { display: flex; gap: 8px; margin-top: 14px; align-items: center; }
+  .url-row input {
+    flex: 1; min-width: 0; background: var(--bg2); color: var(--text);
+    border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; font: inherit;
+  }
   table.report { width: 100%; border-collapse: collapse; font-size: 14px; }
   table.report td { padding: 3px 12px 3px 0; vertical-align: top; }
   table.report td:first-child { color: var(--muted); white-space: nowrap; width: 130px; }
@@ -93,6 +98,10 @@
 <div id="drop" class="card" tabindex="0" role="button" aria-label="Choose an audio file">
   <div>Drop an audio file, or click to choose</div>
   <div class="hint">WAV, FLAC, OGG directly; MP3/M4A/video via ffmpeg</div>
+  <div class="url-row" onclick="event.stopPropagation()">
+    <input type="url" id="urlInput" placeholder="Or paste a YouTube / URL" aria-label="Audio URL">
+    <button type="button" id="btnFetchUrl">Fetch</button>
+  </div>
   <input type="file" id="file" accept="audio/*,video/*">
 </div>
 
@@ -133,6 +142,7 @@
           <option value="denoise">denoise (neural if installed)</option>
           <option value="dereverb">dereverb (neural if installed)</option>
           <option value="superres">super-resolution (AudioSR)</option>
+          <option value="master">reference mastering (Matchering)</option>
         </select>
       </div>
       <div class="action"><button id="btnEdit">Edit audio</button></div>
@@ -211,6 +221,34 @@ drop.addEventListener("drop", (e) => {
   if (e.dataTransfer.files.length) upload(e.dataTransfer.files[0]);
 });
 fileInput.addEventListener("change", () => { if (fileInput.files.length) upload(fileInput.files[0]); });
+$("btnFetchUrl").addEventListener("click", (e) => { e.stopPropagation(); ingestUrl(); });
+$("urlInput").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); ingestUrl(); }
+});
+
+async function ingestUrl() {
+  const url = $("urlInput").value.trim();
+  if (!url) return;
+  drop.firstElementChild.textContent = "Fetching URL …";
+  try {
+    const res = await fetch("/api/ingest-url", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || res.statusText);
+    fileId = data.file_id;
+    rememberUrl(data.file_id, data.audio_url);
+    editor.baseName = data.name;
+    renderReport(data);
+    drop.firstElementChild.textContent = data.name + " — drop another file to replace";
+    $("results").classList.add("hidden");
+    $("working").classList.add("hidden");
+  } catch (err) {
+    drop.firstElementChild.textContent = "Couldn't fetch URL: " + err.message;
+  }
+}
 
 async function upload(file) {
   drop.firstElementChild.textContent = "Reading " + file.name + " …";

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "neiro"
-version = "0.3.1"
+version = "0.3.2"
 description = "Local source separation, restoration, and symbolic transcription."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -36,6 +36,7 @@ restoration = ["matchering>=2.0"]  # reference mastering
 superres = ["audiosr>=0.0.7"]  # AudioSR bandwidth extension (Python <=3.11)
 loudness = ["pyloudnorm>=0.1"]  # ITU-R BS.1770 loudness in the analysis pass
 downloader = ["huggingface_hub>=0.20"]  # Hugging Face Hub weight downloads
+youtube = ["yt-dlp>=2024.1"]  # URL ingest (YouTube and similar)
 demucs = ["demucs>=4.0", "torch>=2.1"]  # direct Demucs backend (alternative to audio-separator)
 # Convenience bundle: everything that installs cleanly on Python 3.12.
 all = [
@@ -45,6 +46,7 @@ all = [
     "matchering>=2.0",
     "pyloudnorm>=0.1",
     "huggingface_hub>=0.20",
+    "yt-dlp>=2024.1",
 ]
 dev = ["pytest>=7.4", "pytest-cov>=4.1", "ruff>=0.6"]
 

@@ -558,26 +558,49 @@ Each milestone ships as a usable build; nothing waits for 1.0 to be touchable.
 
 ---
 
-## Alpha completion status (v0.3.0, 2026-07-13)
+## Alpha completion status (v0.3.2, 2026-07-14)
 
 This section records what is **complete for the current alpha scope** versus what
 remains **intentionally deferred** to later milestones. The full vision above is
 unchanged; this is an honest shipping ledger.
 
+### Shipped model registry (manifest → adapter)
+
+Every row below is a JSON manifest under `src/neiro/manifests/` wired through
+the registry, planner presets, and `neiro models`. Neural entries need their
+optional extra installed and weights downloaded on first use.
+
+| Reference (roadmap) | Manifest id | Task | Alpha status |
+|---|---|---|---|
+| BS-RoFormer (viperx 1297) | `bs-roformer-1297` | separate (vocals) | **Shipped** — `neiro[separation]` |
+| Mel-RoFormer (instrumental) | `mel-roformer-inst` | separate | **Shipped** |
+| Mel-RoFormer Karaoke | `mel-roformer-karaoke` | separate (karaoke preset) | **Shipped** |
+| MDX23C inst/voc | `mdx23c-instvoc` | separate | **Shipped** |
+| MDX23C drumsep | `mdx23c-drumsep` | separate (drums preset) | **Shipped** |
+| HTDemucs v4 ft | `htdemucs-ft` | separate (4-stem preset) | **Shipped** — `neiro[separation]` or `neiro[demucs]` |
+| HTDemucs 6-stem | `htdemucs-6s` | separate (6-stem preset) | **Shipped** |
+| Neural vocals ensemble | `vocals-neural-ensemble` | separate (reference) | **Shipped** |
+| RoFormer denoise / dereverb | `denoise-roformer`, `dereverb-roformer` | enhance | **Shipped** — opt-in chain steps |
+| AudioSR | `audiosr` | enhance (superres) | **Shipped** — `neiro[superres]`, Python ≤3.11 |
+| Matchering | `matchering` | enhance (master) | **Shipped** — explicit `--chain master`; not auto on stem bus |
+| Basic Pitch | `basic-pitch` | transcribe | **Shipped** — `neiro[basicpitch]` |
+| Piano transcription (Kong) | `piano-transcription` | transcribe | **Shipped** — `neiro[piano]` |
+| DSP floor (center, HPSS, YIN, …) | `dsp-*` | separate / transcribe / enhance | **Shipped** — no downloads |
+
 ### Phase summary
 
 | Phase | Alpha status | Notes |
 |-------|--------------|-------|
-| **1 — Core foundations** | **Complete (alpha)** | Ingest, lanes, DAG, in-memory + optional disk cache, VRAM ladder with chunked separation, cooperative cancel, residual/null test. Deferred: mmap tensors, job resume, WebSocket transport. |
+| **1 — Core foundations** | **Complete (alpha)** | Ingest (files + optional URL via yt-dlp), lanes, DAG, in-memory + optional disk cache, VRAM ladder with chunked separation, cooperative cancel, residual/null test. Deferred: mmap tensors, job resume, WebSocket transport. |
 | **2 — Analysis pass** | **Floor complete** | Loudness, tempo, key, clipping, bandwidth, hum, echo, heuristic instrument hints. Deferred: neural taggers, vocal-condition RT60, chords/structure. |
-| **3 — Separation** | **Complete (alpha)** | DSP floor + ensembles + TTA + neural manifests + reference neural ensemble manifest + CLI/UI preset parity + export metadata sidecars. Deferred: bleed suppression, detect-all cascade, full model zoo. |
-| **4 — Enhancement** | **Complete (alpha)** | DSP auto-chains + explicit neural steps (CLI/UI) + manifests. Deferred: Apollo, auto neural pre-separation restore. |
+| **3 — Separation** | **Complete (alpha)** | DSP floor + ensembles + TTA + neural manifests listed above + CLI/UI preset parity + export metadata sidecars. Deferred: bleed suppression, detect-all cascade, SCNet/Medley Vox/full zoo. |
+| **4 — Enhancement** | **Complete (alpha)** | DSP auto-chains + explicit neural steps (denoise, dereverb, superres, master) in CLI/UI + manifests. Deferred: Apollo, auto neural pre-separation restore. |
 | **5 — Transcription** | **Complete (alpha floor)** | YIN/Basic Pitch/piano adapters, timeline compiler, MIDI, piano-roll view. Deferred: Transkun, drums, lyrics, editing, MusicXML/PDF. |
 | **6 — Auto-split & compiler** | **Partial (alpha)** | Single-stream auto-split + merge/dedup/quantize. Deferred: multi-instrument orchestration, hybrid voting. |
-| **7 — Frontend** | **Simple mode complete (alpha)** | Local HTTP UI, editor, stem mixer A/B + null audition, job cancel, restore chain picker. Deferred: Tauri/React, Advanced mode, learn mode, sheet music. |
+| **7 — Frontend** | **Simple mode complete (alpha)** | Local HTTP UI (file drop + URL fetch), editor, stem mixer A/B + null audition, job cancel, restore chain picker. Deferred: Tauri/React, Advanced mode, learn mode, sheet music. |
 | **8 — Manifests & plugins** | **Complete (alpha)** | Protocols, manifest v2, registry, downloader, ensembles-as-manifests, license surfacing, export provenance. Deferred: signed index, custom Python plugins, session pinning. |
 | **9 — Performance** | **Foundations** | Device ladder, chunked inference, benchmark script. Deferred: torch.compile, ONNX/DirectML, perf CI gates. |
-| **10 — Quality & testing** | **Engineering tests** | 80+ unit/integration tests, measurable DSP assertions. Deferred: MUSDB/mir_eval harness, golden corpus, a11y audit. |
+| **10 — Quality & testing** | **Engineering tests** | 90+ unit/integration tests, measurable DSP assertions, `scripts/verify_models.py`. Deferred: MUSDB/mir_eval harness, golden corpus, a11y audit. |
 
 ### Milestone summary
 
@@ -595,12 +618,12 @@ unchanged; this is an honest shipping ledger.
 ### Intentionally deferred (not alpha scope)
 
 - **Tauri 2 + React + WebGL2** desktop shell and Arrow IPC bulk transport
-- **Full neural roster** (SCNet-XL, Medley Vox, Apollo, Transkun, MIROS, Whisper lyrics, …)
+- **Full neural roster** (SCNet-XL, Medley Vox, Apollo, Transkun, MIROS, Whisper lyrics, …) — see shipped registry table above for what *is* wired
 - **Sheet music / Verovio / learn mode / WebMIDI**
 - **Advanced mode** pipeline editor and per-stem condition UI
 - **Signed model index**, custom plugin sandbox, session reproduce-exactly format
 - **Evaluation program** (MUSDB, MAESTRO golden corpus, release-blocking perf/a11y CI)
-- **Watch-folder daemon**, DAWproject export, Matchering on stem bus
+- **Watch-folder daemon**, DAWproject export, Matchering as automatic post-separation stem-bus node
 
 ---
 

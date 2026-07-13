@@ -96,6 +96,25 @@ def test_upload_returns_analysis(server):
     assert data["audio_url"].startswith("/files/uploads/")
 
 
+def test_ingest_url_mocked(server, monkeypatch, tmp_path):
+    base, state = server
+    wav = tmp_path / "cached.wav"
+    wav.write_bytes(_tone_wav_bytes())
+
+    monkeypatch.setattr(
+        "neiro.io.url_ingest.fetch_url_audio",
+        lambda url, **kw: wav,
+    )
+
+    data = _post(
+        base + "/api/ingest-url",
+        json.dumps({"url": "https://example.com/watch?v=1"}).encode(),
+        {"Content-Type": "application/json"},
+    )
+    assert data["file_id"] in state.files
+    assert data["report"]["sample_rate"] == 16000
+
+
 def test_separation_job_lifecycle(server):
     base, _ = server
     fid = _upload(base)["file_id"]
@@ -128,7 +147,9 @@ def test_transcription_job(server):
         w.setframerate(sr)
         w.writeframes(b"".join(parts))
     fid = _upload(base, buf.getvalue())["file_id"]
-    status = _run_job(base, "transcribe", {"file_id": fid, "mode": "direct"})
+    status = _run_job(
+        base, "transcribe", {"file_id": fid, "mode": "direct", "model": "dsp-yin"}
+    )
     assert status["status"] == "done"
     assert status["result"]["event_count"] >= 1
     assert status["result"]["midi_url"].endswith(".mid")

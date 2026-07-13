@@ -7,6 +7,7 @@ thin client over the same planner/graph engine as the CLI.
 Endpoints:
     GET  /                      the interface
     POST /api/upload            raw audio bytes (X-Filename header) -> analysis
+    POST /api/ingest-url        {url}               -> analysis (yt-dlp)
     POST /api/separate          {file_id, preset}   -> job id
     POST /api/transcribe        {file_id, mode}     -> job id
     POST /api/enhance           {file_id}           -> job id
@@ -138,12 +139,14 @@ def _run_separation(state: _State, job_id: str, file_id: str, preset: str) -> No
         state.jobs[job_id].update(status="done", result=result)
 
 
-def _run_transcription(state: _State, job_id: str, file_id: str, mode: str) -> None:
+def _run_transcription(state: _State, job_id: str, file_id: str, mode: str, model: str | None) -> None:
     from neiro.engine.planner import plan_transcription
     from neiro.symbolic import write_midi
 
     job_dir = state.workspace / "jobs" / job_id
-    plan = plan_transcription(state.files[file_id], state.registry, state.vram, mode=mode)
+    plan = plan_transcription(
+        state.files[file_id], state.registry, state.vram, mode=mode, model=model
+    )
     ctx = ExecutionContext(cache=state.cache, progress=_job_progress(state, job_id))
     with state.lock:
         state.job_contexts[job_id] = ctx
@@ -303,6 +306,8 @@ def _make_handler(state: _State):
             try:
                 if self.path == "/api/upload":
                     self._handle_upload()
+                elif self.path == "/api/ingest-url":
+                    self._handle_ingest_url()
                 elif self.path == "/api/edit":
                     self._handle_edit()
                 elif self.path.startswith("/api/job/") and self.path.endswith("/cancel"):
@@ -396,8 +401,46 @@ def _make_handler(state: _State):
                 }
             )
 
-        def _handle_upload(self) -> None:
+        def _register_analyzed(self, dest: Path, display_name: str) -> dict:
             from neiro.analysis import analyze
+            from neiro.io import load_audio
+
+            audio = load_audio(dest)
+            report = analyze(audio)
+            file_id = uuid.uuid4().hex[:12]
+            state.files[file_id] = dest
+            return {
+                "file_id": file_id,
+                "name": display_name,
+                "audio_url": f"/files/{dest.relative_to(state.workspace).as_posix()}",
+                "report": report.as_dict(),
+            }
+
+        def _handle_ingest_url(self) -> None:
+            body = json.loads(self._read_body() or b"{}")
+            url = (body.get("url") or "").strip()
+            if not url:
+                self._error(400, "url is required")
+                return
+            try:
+                from neiro.io.url_ingest import fetch_url_audio, is_url
+
+                if not is_url(url):
+                    self._error(400, "url must start with http:// or https://")
+                    return
+                cached = fetch_url_audio(url)
+                file_id = uuid.uuid4().hex[:12]
+                name = _safe_name(cached.stem + ".wav")
+                dest = state.workspace / "uploads" / file_id / name
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                dest.write_bytes(cached.read_bytes())
+                self._json(self._register_analyzed(dest, name))
+            except RuntimeError as exc:
+                self._error(422, str(exc))
+            except ValueError as exc:
+                self._error(400, str(exc))
+
+        def _handle_upload(self) -> None:
             from neiro.io import load_audio
 
             name = _safe_name(self.headers.get("X-Filename", "upload.wav"))
@@ -410,20 +453,11 @@ def _make_handler(state: _State):
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.write_bytes(data)
             try:
-                audio = load_audio(dest)
+                load_audio(dest)
             except Exception as exc:
                 self._error(422, f"couldn't decode {name}: {exc}")
                 return
-            report = analyze(audio)
-            state.files[file_id] = dest
-            self._json(
-                {
-                    "file_id": file_id,
-                    "name": name,
-                    "audio_url": f"/files/uploads/{file_id}/{name}",
-                    "report": report.as_dict(),
-                }
-            )
+            self._json(self._register_analyzed(dest, name))
 
         def _handle_job(self, kind: str) -> None:
             body = json.loads(self._read_body() or b"{}")
@@ -436,7 +470,7 @@ def _make_handler(state: _State):
                 state.jobs[job_id] = {"status": "running", "kind": kind, "progress": []}
             args = {
                 "separate": (body.get("preset", "vocals"),),
-                "transcribe": (body.get("mode", "auto"),),
+                "transcribe": (body.get("mode", "auto"), body.get("model")),
                 "enhance": (_parse_enhance_chain(body.get("chain")),),
             }[kind]
 

@@ -6,7 +6,7 @@
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Ruff](https://img.shields.io/badge/lint-ruff-261230)](https://github.com/astral-sh/ruff)
-[![Tests](https://img.shields.io/badge/tests-74%20passing-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/tests-90%2B%20passing-brightgreen)](tests/)
 
 *Neiro* (音色) is Japanese for **timbre** — the color of a sound. Telling timbres
 apart and drawing them out of a mix is the whole job of this software. Everything
@@ -41,19 +41,20 @@ Basic Pitch, Apollo, …) plug in through JSON manifests.
   effective-mono detection, mains-hum and echo/delay detection.
 - **Edit** — a basic waveform + spectrogram editor (trim, delete, silence, fade,
   gain, normalize, reverse) with non-destructive undo, in the browser.
-- **Local interface** — drag-and-drop Simple mode served on `127.0.0.1`, plus a
+- **Local interface** — drag-and-drop or paste a URL Simple mode served on `127.0.0.1`, plus a
   full CLI. Both are thin clients over the same engine.
 
 ## Install
 
-Requires Python ≥ 3.10 and [ffmpeg](https://ffmpeg.org) on `PATH` (only for
-compressed/video inputs; WAV/FLAC work without it).
+Requires Python ≥ 3.10 and [ffmpeg](https://ffmpeg.org) on `PATH` (for compressed/video
+inputs and URL ingest; WAV/FLAC work without it).
 
 ```bash
 pip install -e .
-# optional neural backends:
+# optional backends:
 pip install -e ".[demucs]"       # HTDemucs 4-stem
 pip install -e ".[basicpitch]"   # Spotify Basic Pitch (polyphonic transcription)
+pip install -e ".[youtube]"      # YouTube / URL ingest (yt-dlp)
 pip install -e ".[dev]"          # tests + linting
 ```
 
@@ -62,7 +63,9 @@ pip install -e ".[dev]"          # tests + linting
 ```bash
 neiro ui                                   # open the local interface in a browser
 
+neiro ingest "https://youtu.be/…"          # download audio to local cache (needs [youtube])
 neiro analyze song.flac                    # tempo, key, loudness, conditions (JSON)
+neiro analyze "https://youtu.be/…"         # same, after fetching the URL
 
 neiro separate song.flac --preset vocals   # vocals + instrumental (+ residual)
 neiro separate song.wav  --preset vocals-ensemble   # 3-member ensemble + TTA

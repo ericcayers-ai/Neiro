@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.3.2 — roadmap parity, URL ingest (2026-07-14)
+
+Patch release aligning the roadmap ledger with shipped functionality, tightening
+CLI/UI parity, and adding optional YouTube/URL ingest via yt-dlp.
+
+### Added
+- **URL ingest** (`neiro[youtube]`): `neiro ingest <url>` downloads audio with
+  yt-dlp; `analyze`, `separate`, `transcribe`, and `enhance` accept URLs directly.
+  Local UI has a paste-and-fetch field (`POST /api/ingest-url`). Cached under
+  `NEIRO_HOME/url-ingest`.
+- **Restore UI parity**: Matchering reference mastering option in the local UI
+  restore chain (already available in CLI as `master`).
+
+### Changed
+- **Roadmap ledger** updated to v0.3.2: honest status for every alpha-shipped
+  model manifest (BS-RoFormer, MDX23C, HTDemucs, Mel-RoFormer, karaoke, drumsep,
+  denoise/dereverb RoFormer, AudioSR, Matchering, Basic Pitch, piano
+  transcription) versus intentionally deferred research targets (Apollo, Transkun,
+  SCNet-XL, MIROS, …).
+
 ## 0.3.1 — alpha roadmap completion, launcher fix (2026-07-14)
 
 Patch release closing the remaining alpha roadmap gaps and fixing one-click
