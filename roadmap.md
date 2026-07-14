@@ -558,7 +558,7 @@ Each milestone ships as a usable build; nothing waits for 1.0 to be touchable.
 
 ---
 
-## Alpha completion status (v0.3.2, 2026-07-14)
+## Alpha completion status (v0.3.3, 2026-07-14)
 
 This section records what is **complete for the current alpha scope** versus what
 remains **intentionally deferred** to later milestones. The full vision above is

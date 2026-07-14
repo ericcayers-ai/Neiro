@@ -17,7 +17,8 @@ if [ ! -x "$VENV_PY" ]; then
 fi
 
 if ! "$VENV_PY" -c "import neiro" 2>/dev/null; then
-  WHEEL="$(ls wheels/neiro-*.whl 2>/dev/null | head -n1)"
+  # Prefer an absolute path so pip extras resolve unambiguously.
+  WHEEL="$(ls -1 "$PWD"/wheels/neiro-*.whl 2>/dev/null | head -n1 || true)"
   if [ -z "$WHEEL" ]; then
     echo "No Neiro wheel found in wheels/."
     exit 1

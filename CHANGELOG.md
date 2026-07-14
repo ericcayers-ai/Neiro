@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.3.3 — Windows launcher wheel install fix (2026-07-14)
+
+Critical fix for the one-click Windows launchers in the release zip: first-run
+`pip install` of the bundled wheel with extras no longer expands to a bare
+`[all]` requirement.
+
+### Fixed
+- **Windows launcher install**: `Neiro UI.bat` / `Neiro CLI.bat` install the
+  wheel from inside the `for` loop via `%%~ff[all]` (absolute path). Previously,
+  `%NEIRO_WHL%` was expanded at parse time inside an `if` block and was empty,
+  so pip saw only `[all]` and failed with `Invalid requirement`.
+
+### Changed
+- Unix launchers resolve the wheel with an absolute `$PWD` path before
+  `pip install …[all]`.
+- Release zip assembly fails clearly if no `neiro-*.whl` is present in `dist/`.
+
 ## 0.3.2 — roadmap parity, URL ingest (2026-07-14)
 
 Patch release aligning the roadmap ledger with shipped functionality, tightening

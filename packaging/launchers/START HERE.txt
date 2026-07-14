@@ -25,9 +25,10 @@ STANDALONE EXECUTABLE (no Python needed)
   the model-free engine — run "neiro-core/neiro" (or neiro.exe) with no Python
   install. Neural models still require the Python launchers above.
 
-FOR COMPRESSED AUDIO (MP3/M4A/video)
+FOR COMPRESSED AUDIO (MP3/M4A/video) AND URL INGEST
   Install ffmpeg (https://ffmpeg.org) and put it on PATH. WAV and FLAC work
-  without it.
+  without it. URL paste / `neiro ingest <url>` also needs ffmpeg for many sites;
+  the launchers already install yt-dlp with the bundled package extras.
 
 A NOTE ON MODELS & LICENSES
   Models carry their own licenses — several are non-commercial or research-only.

@@ -36,24 +36,26 @@ if not exist "%VENV_PY%" (
 )
 
 "%VENV_PY%" -c "import neiro" >nul 2>nul
-if errorlevel 1 (
-  set "NEIRO_WHL="
-  for %%f in (wheels\neiro-*.whl) do set "NEIRO_WHL=%%f"
-  if not defined NEIRO_WHL (
-    echo No Neiro wheel found in wheels\ folder.
-    pause
-    exit /b 1
-  )
+if not errorlevel 1 goto :neiro_ready
+
+REM Install from the first matching wheel using the for-loop variable
+REM (%%~ff) so the path is never empty from parse-time %% expansion inside if.
+for %%f in ("%CD%\wheels\neiro-*.whl") do (
   echo Installing Neiro from bundled wheel...
-  "%VENV_PY%" -m pip install "%NEIRO_WHL%[all]"
+  "%VENV_PY%" -m pip install "%%~ff[all]"
   if errorlevel 1 (
     echo.
     echo Neiro install failed. Use Python 3.10, 3.11, or 3.12 and check your network.
     pause
     exit /b 1
   )
+  goto :neiro_ready
 )
+echo No Neiro wheel found in wheels\ folder.
+pause
+exit /b 1
 
+:neiro_ready
 echo Starting Neiro interface (a browser tab will open)...
 "%VENV_PY%" -m neiro.cli ui
 if errorlevel 1 pause
