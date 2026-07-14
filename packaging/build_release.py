@@ -90,10 +90,11 @@ def assemble_zip(version: str, exe_dir: Path | None) -> Path:
     # The wheel the launchers install from.
     wheels = staging / "wheels"
     wheels.mkdir()
-    whl_files = sorted(DIST.glob("neiro-*.whl"))
+    # Only the current release wheel — dist/ may still hold older builds.
+    whl_files = sorted(DIST.glob(f"neiro-{version}-*.whl"))
     if not whl_files:
         raise FileNotFoundError(
-            f"No neiro-*.whl found in {DIST}; build the wheel first "
+            f"No neiro-{version}-*.whl found in {DIST}; build the wheel first "
             "(omit --zip-only, or run `python -m build`)."
         )
     for whl in whl_files:
