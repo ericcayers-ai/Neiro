@@ -14,14 +14,18 @@ first-run `pip install` of the bundled wheel no longer expands to a bare
 - **Python 3.12 `[all]` install**: `basic-pitch` removed from the `all` optional
   dependency group. It pins `tensorflow<2.15.1` (not published for 3.12), which
   aborted `pip install …[all]` on 3.12. Use `neiro[basicpitch]` on Python ≤3.11.
+- **Windows torch script race** (`WinError 2` on `torchfrtrace.exe.deleteme`):
+  launchers now run `install_neiro.py`, which installs torch first with
+  `--no-cache-dir`, uses a local `%LOCALAPPDATA%\neiro-pip-tmp`, retries on
+  file-lock failures, and only then installs `neiro[all]`.
 
 ### Changed
 - Unix launchers resolve the wheel with an absolute `$PWD` path before
   `pip install …[all]`.
 - Release zip assembly fails clearly if no `neiro-*.whl` is present in `dist/`,
   and only packs the current-version wheel (avoids bundling older wheels).
-- Docs / START HERE note Python 3.10–3.12 launcher support; Basic Pitch remains
-  opt-in via `neiro[basicpitch]` on ≤3.11.
+- Docs / START HERE: extract to `C:\Neiro`, delete `.venv` on failed setup;
+  Basic Pitch remains opt-in via `neiro[basicpitch]` on ≤3.11.
 
 ## 0.3.2 — roadmap parity, URL ingest (2026-07-14)
 

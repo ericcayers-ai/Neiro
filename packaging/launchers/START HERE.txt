@@ -9,10 +9,12 @@ WHAT THIS IS
 QUICK START (Windows)
   1. Make sure Python 3.10, 3.11, or 3.12 is installed (https://python.org —
      tick "Add Python to PATH" during setup). 3.11 is a good default.
-  2. Double-click  "Neiro UI.bat"  to open the interface in your browser,
+  2. Prefer extracting this folder to C:\Neiro (not OneDrive / Desktop sync).
+  3. Double-click  "Neiro UI.bat"  to open the interface in your browser,
      or     double-click  "Neiro CLI.bat"  for the command line.
-  The first launch sets things up (a few minutes, one time). Later launches
-  are instant.
+  The first launch sets things up (a few minutes, one time; installs torch
+  first with retries for Windows file locks). Later launches are instant.
+  If install fails mid-way: delete the .venv folder and run the bat again.
 
 QUICK START (macOS / Linux)
   1. Ensure Python 3.10, 3.11, or 3.12 is installed (3.11 recommended).

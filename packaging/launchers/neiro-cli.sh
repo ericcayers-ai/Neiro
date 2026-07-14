@@ -17,14 +17,12 @@ if [ ! -x "$VENV_PY" ]; then
 fi
 
 if ! "$VENV_PY" -c "import neiro" 2>/dev/null; then
-  # Prefer an absolute path so pip extras resolve unambiguously.
-  WHEEL="$(ls -1 "$PWD"/wheels/neiro-*.whl 2>/dev/null | head -n1 || true)"
-  if [ -z "$WHEEL" ]; then
-    echo "No Neiro wheel found in wheels/."
+  if [ ! -f "$PWD/install_neiro.py" ]; then
+    echo "Missing install_neiro.py next to this launcher."
     exit 1
   fi
-  echo "Installing Neiro from bundled wheel..."
-  "$VENV_PY" -m pip install "${WHEEL}[all]"
+  echo "Installing Neiro from bundled wheel (torch first, with retries)..."
+  "$VENV_PY" "$PWD/install_neiro.py"
 fi
 
 cat <<'EOF'
