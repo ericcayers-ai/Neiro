@@ -38,11 +38,12 @@ loudness = ["pyloudnorm>=0.1"]  # ITU-R BS.1770 loudness in the analysis pass
 downloader = ["huggingface_hub>=0.20"]  # Hugging Face Hub weight downloads
 youtube = ["yt-dlp>=2024.1"]  # URL ingest (YouTube and similar)
 demucs = ["demucs>=4.0", "torch>=2.1"]  # direct Demucs backend (alternative to audio-separator)
-# Convenience bundle: everything that installs cleanly on Python 3.12.
+# Convenience bundle: packages that install cleanly on Python 3.12.
+# Excludes basicpitch (needs TensorFlow <2.15.1 — not published for 3.12) and
+# superres (AudioSR, Python ≤3.11). Install those extras on 3.10/3.11 only.
 all = [
     "audio-separator>=0.44",
     "piano_transcription_inference>=0.0.5",
-    "basic-pitch>=0.4",
     "matchering>=2.0",
     "pyloudnorm>=0.1",
     "huggingface_hub>=0.20",

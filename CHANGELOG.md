@@ -1,21 +1,27 @@
 # Changelog
 
-## 0.3.3 — Windows launcher wheel install fix (2026-07-14)
+## 0.3.3 — Windows launcher + Python 3.12 extras (2026-07-14)
 
-Critical fix for the one-click Windows launchers in the release zip: first-run
-`pip install` of the bundled wheel with extras no longer expands to a bare
-`[all]` requirement.
+Critical fixes for the one-click Windows launchers and for Python 3.12 users:
+first-run `pip install` of the bundled wheel no longer expands to a bare
+`[all]` requirement, and `[all]` no longer pulls TensorFlow via `basic-pitch`.
 
 ### Fixed
 - **Windows launcher install**: `Neiro UI.bat` / `Neiro CLI.bat` install the
   wheel from inside the `for` loop via `%%~ff[all]` (absolute path). Previously,
   `%NEIRO_WHL%` was expanded at parse time inside an `if` block and was empty,
   so pip saw only `[all]` and failed with `Invalid requirement`.
+- **Python 3.12 `[all]` install**: `basic-pitch` removed from the `all` optional
+  dependency group. It pins `tensorflow<2.15.1` (not published for 3.12), which
+  aborted `pip install …[all]` on 3.12. Use `neiro[basicpitch]` on Python ≤3.11.
 
 ### Changed
 - Unix launchers resolve the wheel with an absolute `$PWD` path before
   `pip install …[all]`.
-- Release zip assembly fails clearly if no `neiro-*.whl` is present in `dist/`.
+- Release zip assembly fails clearly if no `neiro-*.whl` is present in `dist/`,
+  and only packs the current-version wheel (avoids bundling older wheels).
+- Docs / START HERE note Python 3.10–3.12 launcher support; Basic Pitch remains
+  opt-in via `neiro[basicpitch]` on ≤3.11.
 
 ## 0.3.2 — roadmap parity, URL ingest (2026-07-14)
 

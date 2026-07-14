@@ -46,17 +46,23 @@ Basic Pitch, Apollo, …) plug in through JSON manifests.
 
 ## Install
 
-Requires Python ≥ 3.10 and [ffmpeg](https://ffmpeg.org) on `PATH` (for compressed/video
-inputs and URL ingest; WAV/FLAC work without it).
+Requires Python ≥ 3.10 (3.10–3.12 supported for the core and `[all]` extras) and
+[ffmpeg](https://ffmpeg.org) on `PATH` (for compressed/video inputs and URL ingest;
+WAV/FLAC work without it).
 
 ```bash
 pip install -e .
 # optional backends:
+pip install -e ".[all]"          # separation, piano, restoration, loudness, HF hub, yt-dlp
 pip install -e ".[demucs]"       # HTDemucs 4-stem
-pip install -e ".[basicpitch]"   # Spotify Basic Pitch (polyphonic transcription)
+pip install -e ".[basicpitch]"   # Spotify Basic Pitch — Python ≤3.11 only (needs TensorFlow <2.15.1)
+pip install -e ".[superres]"     # AudioSR — Python ≤3.11 only
 pip install -e ".[youtube]"      # YouTube / URL ingest (yt-dlp)
 pip install -e ".[dev]"          # tests + linting
 ```
+
+`[all]` intentionally omits `basicpitch` and `superres` so one-click / wheel
+installs succeed on Python 3.12. Install those extras separately on 3.10 or 3.11.
 
 ## Usage
 

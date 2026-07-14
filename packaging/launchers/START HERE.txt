@@ -7,15 +7,15 @@ WHAT THIS IS
   downloads at all.
 
 QUICK START (Windows)
-  1. Make sure Python 3.11 is installed (https://python.org — tick
-     "Add Python to PATH" during setup).
+  1. Make sure Python 3.10, 3.11, or 3.12 is installed (https://python.org —
+     tick "Add Python to PATH" during setup). 3.11 is a good default.
   2. Double-click  "Neiro UI.bat"  to open the interface in your browser,
      or     double-click  "Neiro CLI.bat"  for the command line.
   The first launch sets things up (a few minutes, one time). Later launches
   are instant.
 
 QUICK START (macOS / Linux)
-  1. Ensure Python 3.11 is installed.
+  1. Ensure Python 3.10, 3.11, or 3.12 is installed (3.11 recommended).
   2. In a terminal:   ./neiro-ui.sh     (interface)
                 or:    ./neiro-cli.sh    (command line)
      (You may need to run:  chmod +x neiro-ui.sh neiro-cli.sh  first.)
@@ -33,5 +33,10 @@ FOR COMPRESSED AUDIO (MP3/M4A/video) AND URL INGEST
 A NOTE ON MODELS & LICENSES
   Models carry their own licenses — several are non-commercial or research-only.
   Run "neiro models" to see each one's license, and check before commercial use.
+
+PYTHON 3.12 AND BASIC PITCH
+  The launchers install the bundled wheel with the [all] extras, which work on
+  3.12. Spotify Basic Pitch (neiro[basicpitch]) and AudioSR (neiro[superres])
+  need Python 3.10 or 3.11 — install those extras yourself if you need them.
 
 Docs & source: https://github.com/ericcayers-ai/Neiro

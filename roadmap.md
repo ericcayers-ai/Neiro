@@ -583,7 +583,7 @@ optional extra installed and weights downloaded on first use.
 | RoFormer denoise / dereverb | `denoise-roformer`, `dereverb-roformer` | enhance | **Shipped** — opt-in chain steps |
 | AudioSR | `audiosr` | enhance (superres) | **Shipped** — `neiro[superres]`, Python ≤3.11 |
 | Matchering | `matchering` | enhance (master) | **Shipped** — explicit `--chain master`; not auto on stem bus |
-| Basic Pitch | `basic-pitch` | transcribe | **Shipped** — `neiro[basicpitch]` |
+| Basic Pitch | `basic-pitch` | transcribe | **Shipped** — `neiro[basicpitch]`, Python ≤3.11 (not in `[all]`) |
 | Piano transcription (Kong) | `piano-transcription` | transcribe | **Shipped** — `neiro[piano]` |
 | DSP floor (center, HPSS, YIN, …) | `dsp-*` | separate / transcribe / enhance | **Shipped** — no downloads |
 
