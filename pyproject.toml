@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=83.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -19,9 +19,9 @@ classifiers = [
     "Topic :: Multimedia :: Sound/Audio :: Analysis",
 ]
 dependencies = [
-    "numpy>=1.24",
-    "scipy>=1.10",
-    "soundfile>=0.12",
+    "numpy>=2.2.6",
+    "scipy>=1.15.3",
+    "soundfile>=0.14.0",
 ]
 
 [project.optional-dependencies]
@@ -29,36 +29,36 @@ dependencies = [
 # Each maps roadmap references to a real, actively-maintained pip package that
 # bundles/auto-downloads the pretrained weights (integrated via manifests +
 # adapters rather than reimplemented). See docs/models.md.
-separation = ["audio-separator>=0.44"]  # BS/Mel-RoFormer, MDX23C, HTDemucs, VR-Arch, karaoke, drumsep
-piano = ["piano_transcription_inference>=0.0.5"]  # Kong/ByteDance piano (with pedal)
+separation = ["audio-separator>=0.44.3"]  # BS/Mel-RoFormer, MDX23C, HTDemucs, VR-Arch, karaoke, drumsep
+piano = ["piano_transcription_inference>=0.0.6"]  # Kong/ByteDance piano (with pedal)
 basicpitch = ["basic-pitch>=0.4"]  # Spotify polyphonic transcription
-restoration = ["matchering>=2.0"]  # reference mastering
+restoration = ["matchering>=2.0.6"]  # reference mastering
 superres = ["audiosr>=0.0.7"]  # AudioSR bandwidth extension (Python <=3.11)
-loudness = ["pyloudnorm>=0.1"]  # ITU-R BS.1770 loudness in the analysis pass
-downloader = ["huggingface_hub>=0.20"]  # Hugging Face Hub weight downloads
-youtube = ["yt-dlp>=2024.1"]  # URL ingest (YouTube and similar)
-demucs = ["demucs>=4.0", "torch>=2.1"]  # direct Demucs backend (alternative to audio-separator)
-lyrics = ["openai-whisper>=20231117"]
+loudness = ["pyloudnorm>=0.2.0"]  # ITU-R BS.1770 loudness in the analysis pass
+downloader = ["huggingface_hub>=1.23.0"]  # Hugging Face Hub weight downloads
+youtube = ["yt-dlp>=2026.7.4"]  # URL ingest (YouTube and similar)
+demucs = ["demucs>=4.1.0", "torch>=2.13.0"]  # direct Demucs backend (alternative to audio-separator)
+lyrics = ["openai-whisper>=20250625"]
 deepfilternet = ["deepfilternet>=0.5.6"]
 # Opt-in extras: adapters probe for these modules; weights/checkpoints are user-supplied.
-apollo = ["numpy>=1.24"]
-scnet = ["numpy>=1.24"]
-medley_vox = ["numpy>=1.24"]
-sonicmaster = ["numpy>=1.24"]
-transkun = ["numpy>=1.24"]
-omnizart = ["numpy>=1.24"]
+apollo = ["numpy>=2.2.6"]
+scnet = ["numpy>=2.2.6"]
+medley_vox = ["numpy>=2.2.6"]
+sonicmaster = ["numpy>=2.2.6"]
+transkun = ["numpy>=2.2.6"]
+omnizart = ["numpy>=2.2.6"]
 # Convenience bundle: packages that install cleanly on Python 3.12.
 # Excludes basicpitch (needs TensorFlow <2.15.1 — not published for 3.12) and
 # superres (AudioSR, Python ≤3.11). Install those extras on 3.10/3.11 only.
 all = [
-    "audio-separator>=0.44",
-    "piano_transcription_inference>=0.0.5",
-    "matchering>=2.0",
-    "pyloudnorm>=0.1",
-    "huggingface_hub>=0.20",
-    "yt-dlp>=2024.1",
+    "audio-separator>=0.44.3",
+    "piano_transcription_inference>=0.0.6",
+    "matchering>=2.0.6",
+    "pyloudnorm>=0.2.0",
+    "huggingface_hub>=1.23.0",
+    "yt-dlp>=2026.7.4",
 ]
-dev = ["pytest>=7.4", "pytest-cov>=4.1", "ruff>=0.6"]
+dev = ["pytest>=9.1.1", "pytest-cov>=7.1.0", "ruff>=0.15.21"]
 
 [project.scripts]
 neiro = "neiro.cli:main"
