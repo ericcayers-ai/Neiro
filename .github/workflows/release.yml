@@ -31,7 +31,7 @@ jobs:
           python -c "import neiro; print('neiro', neiro.__version__)"
           neiro models
       - name: Upload Python artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: python-dist
           path: |
@@ -87,7 +87,7 @@ jobs:
           # Suppress interactive prompts / missing signing keys in CI.
           TAURI_SIGNING_PRIVATE_KEY: ""
       - name: Upload desktop artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: desktop-${{ matrix.os }}
           path: |
