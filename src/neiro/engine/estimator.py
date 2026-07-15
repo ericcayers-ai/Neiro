@@ -66,9 +66,7 @@ class TimeEstimator:
     def _save(self) -> None:
         try:
             self.path.parent.mkdir(parents=True, exist_ok=True)
-            self.path.write_text(
-                json.dumps(self._data, indent=2, sort_keys=True), encoding="utf-8"
-            )
+            self.path.write_text(json.dumps(self._data, indent=2, sort_keys=True), encoding="utf-8")
         except OSError:
             pass  # calibration is best-effort; never fail the job over it
 

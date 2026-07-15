@@ -34,7 +34,9 @@ __all__ = ["ApolloRestorer", "DeepFilterNetDenoiser", "SonicMasterRestorer"]
 class ApolloRestorer:
     """Apollo-class restoration: lossy-codec artefact repair / bandwidth recovery."""
 
-    def __init__(self, model_id: str = "apollo", checkpoint_path: str | None = None, **_: object) -> None:
+    def __init__(
+        self, model_id: str = "apollo", checkpoint_path: str | None = None, **_: object
+    ) -> None:
         self.checkpoint_path = checkpoint_path
         self._model = None
         self.profile = ModelProfile(
@@ -136,7 +138,9 @@ class DeepFilterNetDenoiser:
 class SonicMasterRestorer:
     """SonicMaster-class all-in-one restoration + mastering (arXiv 2508.03448)."""
 
-    def __init__(self, model_id: str = "sonicmaster", checkpoint_path: str | None = None, **_: object) -> None:
+    def __init__(
+        self, model_id: str = "sonicmaster", checkpoint_path: str | None = None, **_: object
+    ) -> None:
         self.checkpoint_path = checkpoint_path
         self._model = None
         self.profile = ModelProfile(

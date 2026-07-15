@@ -78,11 +78,7 @@ jobs:
       - name: Unit / contract tests
         working-directory: frontend
         run: npm run test --if-present
-      - name: Copy SPA into package static
-        run: |
-          rm -rf src/neiro/ui/static
-          mkdir -p src/neiro/ui/static
-          cp -a frontend/dist/. src/neiro/ui/static/
+      # Vite outDir is ../src/neiro/ui/static (see frontend/vite.config.ts).
       - name: Assert generated SPA present
         run: test -f src/neiro/ui/static/index.html
 
@@ -122,9 +118,7 @@ jobs:
         run: |
           npm --prefix frontend ci
           npm --prefix frontend run build
-          rm -rf src/neiro/ui/static
-          mkdir -p src/neiro/ui/static
-          cp -a frontend/dist/. src/neiro/ui/static/
+          test -f src/neiro/ui/static/index.html
       - name: Build wheel
         run: |
           pip install build

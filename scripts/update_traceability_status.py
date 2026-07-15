@@ -11,15 +11,39 @@ text = path.read_text(encoding="utf-8")
 # Heuristic: any open row whose requirement text matches known shipped keywords
 # gets pointed at concrete modules. Remaining MUSDB/MAESTRO/hardware rows stay open.
 KEYWORDS = {
-    "session": ("src/neiro/engine/session.py", "tests/test_session_and_bleed.py", "docs/session.md"),
-    "checkpoint": ("src/neiro/engine/checkpoint.py", "tests/test_checkpoint_daw_ws.py", "docs/session.md"),
+    "session": (
+        "src/neiro/engine/session.py",
+        "tests/test_session_and_bleed.py",
+        "docs/session.md",
+    ),
+    "checkpoint": (
+        "src/neiro/engine/checkpoint.py",
+        "tests/test_checkpoint_daw_ws.py",
+        "docs/session.md",
+    ),
     "bleed": ("src/neiro/dsp/bleed.py", "tests/test_session_and_bleed.py", "docs/architecture.md"),
-    "WebSocket": ("src/neiro/ui/ws_rpc.py", "tests/test_checkpoint_daw_ws.py", "docs/architecture.md"),
+    "WebSocket": (
+        "src/neiro/ui/ws_rpc.py",
+        "tests/test_checkpoint_daw_ws.py",
+        "docs/architecture.md",
+    ),
     "mmap": ("src/neiro/io/mmap_audio.py", "tests/", "docs/architecture.md"),
     "watch": ("src/neiro/io/watch.py", "tests/", "docs/architecture.md"),
-    "MusicXML": ("src/neiro/symbolic/musicxml.py", "tests/test_symbolic_exports.py", "docs/architecture.md"),
-    "tablature": ("src/neiro/symbolic/tablature.py", "tests/test_symbolic_exports.py", "docs/architecture.md"),
-    "DAWproject": ("src/neiro/io/dawproject.py", "tests/test_checkpoint_daw_ws.py", "docs/architecture.md"),
+    "MusicXML": (
+        "src/neiro/symbolic/musicxml.py",
+        "tests/test_symbolic_exports.py",
+        "docs/architecture.md",
+    ),
+    "tablature": (
+        "src/neiro/symbolic/tablature.py",
+        "tests/test_symbolic_exports.py",
+        "docs/architecture.md",
+    ),
+    "DAWproject": (
+        "src/neiro/io/dawproject.py",
+        "tests/test_checkpoint_daw_ws.py",
+        "docs/architecture.md",
+    ),
     "SCNet": ("src/neiro/adapters/scnet_adapter.py", "tests/", "docs/models.md"),
     "Medley": ("src/neiro/adapters/medleyvox_adapter.py", "tests/", "docs/models.md"),
     "Apollo": ("src/neiro/adapters/restoration_adapters.py", "tests/", "docs/models.md"),
@@ -32,9 +56,17 @@ KEYWORDS = {
     "signed": ("src/neiro/engine/signing.py", "tests/test_signing.py", "docs/plugins.md"),
     "DirectML": ("src/neiro/engine/backends.py", "tests/test_backends.py", "docs/performance.md"),
     "ONNX": ("src/neiro/engine/backends.py", "tests/test_backends.py", "docs/performance.md"),
-    "golden": ("tests/test_eval_synthetic.py", "tests/test_eval_synthetic.py", "docs/evaluation.md"),
+    "golden": (
+        "tests/test_eval_synthetic.py",
+        "tests/test_eval_synthetic.py",
+        "docs/evaluation.md",
+    ),
     "MUSDB": ("tests/test_eval_synthetic.py", "tests/test_eval_synthetic.py", "docs/evaluation.md"),
-    "MAESTRO": ("tests/test_eval_synthetic.py", "tests/test_eval_synthetic.py", "docs/evaluation.md"),
+    "MAESTRO": (
+        "tests/test_eval_synthetic.py",
+        "tests/test_eval_synthetic.py",
+        "docs/evaluation.md",
+    ),
 }
 
 BLOCKERS = ("MUSDB", "MAESTRO", "Moises", "24 GB", "TensorRT")

@@ -54,7 +54,7 @@ def write_musicxml(timeline: Any, path: str | Path) -> Path:
     tempo = float(getattr(timeline, "tempo_bpm", None) or 120.0)
     divisions = 4
 
-    for i, (name, events) in enumerate(tracks.items(), start=1):
+    for i, (_name, events) in enumerate(tracks.items(), start=1):
         part = ET.SubElement(score, "part", id=f"P{i}")
         measure = ET.SubElement(part, "measure", number="1")
         attrs = ET.SubElement(measure, "attributes")

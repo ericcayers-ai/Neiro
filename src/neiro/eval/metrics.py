@@ -91,7 +91,10 @@ class ResidualLoudness:
     rms_dbfs: float
 
     def as_dict(self) -> dict[str, float]:
-        return {"peak_dbfs": float(round(self.peak_dbfs, 2)), "rms_dbfs": float(round(self.rms_dbfs, 2))}
+        return {
+            "peak_dbfs": float(round(self.peak_dbfs, 2)),
+            "rms_dbfs": float(round(self.rms_dbfs, 2)),
+        }
 
 
 def residual_loudness(source: np.ndarray, stems: list[np.ndarray]) -> ResidualLoudness:
@@ -239,6 +242,7 @@ def _log_mel_vector(mono: np.ndarray, sample_rate: int, n_mels: int = 40) -> np.
         mags.append(np.abs(np.fft.rfft(frame)))
     mag = np.mean(np.stack(mags), axis=0) + 1e-12
     freqs = np.fft.rfftfreq(n_fft, 1.0 / sample_rate)
+
     # triangular mel filters
     def hz_to_mel(hz: float) -> float:
         return 2595.0 * np.log10(1.0 + hz / 700.0)

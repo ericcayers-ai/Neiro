@@ -30,9 +30,7 @@ def _print_table(report: dict) -> None:
         for case in suite["cases"]:
             case_status = "ok" if case["passed"] else "FAIL"
             details = ", ".join(
-                f"{k}={v}"
-                for k, v in case.items()
-                if k not in ("case", "description", "passed")
+                f"{k}={v}" for k, v in case.items() if k not in ("case", "description", "passed")
             )
             print(f"  [{case_status}] {case['case']}: {details}")
     overall = "PASS" if report["passed"] else "FAIL"

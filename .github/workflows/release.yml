@@ -78,7 +78,10 @@ jobs:
           npm ci
           npm --prefix frontend ci
       - name: Build frontend into ui/static
-        run: npm --prefix frontend run build
+        # Vite outDir is ../src/neiro/ui/static (see frontend/vite.config.ts).
+        run: |
+          npm --prefix frontend run build
+          test -f src/neiro/ui/static/index.html
       - name: Build Tauri bundle
         # Unsigned local build — code signing secrets are optional and
         # intentionally not required for an open-source nightly/tag release.

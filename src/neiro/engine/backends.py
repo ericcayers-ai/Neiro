@@ -52,9 +52,7 @@ def probe_backends() -> DeviceLadder:
         import onnxruntime as ort
 
         providers = ort.get_available_providers()
-        backends.append(
-            BackendInfo("onnxruntime", True, f"providers={providers}", "medium")
-        )
+        backends.append(BackendInfo("onnxruntime", True, f"providers={providers}", "medium"))
     except Exception:
         backends.append(BackendInfo("onnxruntime", False, "onnxruntime not installed"))
 

@@ -223,7 +223,9 @@ def hybrid_merge_many(
     out: dict[str, NoteStream] = {}
     for name in sorted(named_stem_streams):
         stem = named_stem_streams[name]
-        partial_mix = NoteStream(tuple(remaining), tempo_bpm=mix_stream.tempo_bpm, source=mix_stream.source)
+        partial_mix = NoteStream(
+            tuple(remaining), tempo_bpm=mix_stream.tempo_bpm, source=mix_stream.source
+        )
         merged = hybrid_merge(partial_mix, stem, onset_tolerance=onset_tolerance)
         out[name] = merged
         used_fills = {id(e) for e in merged.events} - {id(e) for e in stem.events}

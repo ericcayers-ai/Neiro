@@ -1,7 +1,14 @@
 """Pure-DSP signal processing: separation, restoration, pitch, ensembles, editing."""
 
 from neiro.dsp.bleed import bleed_estimate_db, suppress_bleed, suppress_bleed_multi
-from neiro.dsp.enhance import declick, declip, peak_normalize, remove_hum, spectral_gate, vocal_repair
+from neiro.dsp.enhance import (
+    declick,
+    declip,
+    peak_normalize,
+    remove_hum,
+    spectral_gate,
+    vocal_repair,
+)
 from neiro.dsp.ensemble import fuse_stems, tta_separate
 from neiro.dsp.kit import drum_kit_split
 from neiro.dsp.pitch import spectral_flux_onsets, transcribe_mono, yin_track

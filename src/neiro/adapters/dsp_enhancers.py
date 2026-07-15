@@ -2,7 +2,14 @@
 
 from __future__ import annotations
 
-from neiro.dsp.enhance import declick, declip, peak_normalize, remove_hum, spectral_gate, vocal_repair
+from neiro.dsp.enhance import (
+    declick,
+    declip,
+    peak_normalize,
+    remove_hum,
+    spectral_gate,
+    vocal_repair,
+)
 from neiro.engine.artifacts import AudioTensor
 from neiro.nodes.base import ModelProfile
 

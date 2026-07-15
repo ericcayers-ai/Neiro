@@ -134,14 +134,14 @@ def read_midi_notes(path: str | Path, *, track: str = "midi") -> NoteStream:
         p = pos + 8
 
         tick = 0
-        seconds = 0.0
-        us_per_qn = 500_000  # default 120 BPM
-        last_tick_at_tempo = 0
+        # Mutable tempo state (default 120 BPM). Passed as a default arg so the
+        # nested converter binds the same dict without tripping ruff B023.
+        tempo_state = {"seconds": 0.0, "us_per_qn": 500_000, "last_tick": 0}
         running_status = 0
         pending: dict[tuple[int, int], tuple[float, int]] = {}  # (channel,pitch)->(onset_s,vel)
 
-        def tick_to_seconds(t: int) -> float:
-            return seconds + (t - last_tick_at_tempo) * (us_per_qn / ppq) / 1_000_000
+        def tick_to_seconds(t: int, _st: dict = tempo_state) -> float:
+            return _st["seconds"] + (t - _st["last_tick"]) * (_st["us_per_qn"] / ppq) / 1_000_000
 
         while p < end:
             delta, p = _read_varlen(data, p)
@@ -157,9 +157,9 @@ def read_midi_notes(path: str | Path, *, track: str = "midi") -> NoteStream:
                 meta_len, p2 = _read_varlen(data, p + 1)
                 payload = data[p2 : p2 + meta_len]
                 if meta_type == 0x51 and meta_len == 3:
-                    seconds = tick_to_seconds(tick)
-                    last_tick_at_tempo = tick
-                    us_per_qn = int.from_bytes(payload, "big")
+                    tempo_state["seconds"] = tick_to_seconds(tick)
+                    tempo_state["last_tick"] = tick
+                    tempo_state["us_per_qn"] = int.from_bytes(payload, "big")
                 p = p2 + meta_len
             elif status in (0xF0, 0xF7):  # sysex
                 sys_len, p2 = _read_varlen(data, p)

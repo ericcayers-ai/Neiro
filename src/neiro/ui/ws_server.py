@@ -34,6 +34,7 @@ and the notification pushed to subscribers as work progresses:
 
 from __future__ import annotations
 
+import contextlib
 import json
 import threading
 import uuid
@@ -220,10 +221,9 @@ class ProgressHub:
         with self._lock:
             subscribers = list(self._subscribers)
         for fn in subscribers:
-            try:
+            # A dead subscriber shouldn't break progress for the rest.
+            with contextlib.suppress(Exception):
                 fn(notification)
-            except Exception:
-                pass  # a dead subscriber shouldn't break progress for the rest
 
 
 def build_dispatcher(

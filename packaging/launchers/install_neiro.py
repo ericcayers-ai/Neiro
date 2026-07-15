@@ -12,6 +12,7 @@ WinError 2 on the .deleteme rename. Strategy:
 
 from __future__ import annotations
 
+import contextlib
 import os
 import subprocess
 import sys
@@ -49,10 +50,8 @@ def _cleanup_partial_scripts() -> None:
         return
     for pattern in ("*.deleteme", "torch*.exe*", "torch*.exe"):
         for path in scripts.glob(pattern):
-            try:
+            with contextlib.suppress(OSError):
                 path.unlink(missing_ok=True)
-            except OSError:
-                pass
 
 
 def _pip_with_retries(args: list[str], label: str) -> None:

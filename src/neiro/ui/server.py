@@ -395,8 +395,10 @@ def _make_handler(state: _State):
             return {k: v[0] for k, v in parse_qs(urlparse(self.path).query).items()}
 
         def _ctype_for(self, path: Path) -> str:
-            return _MIME.get(path.suffix.lower()) or mimetypes.guess_type(path.name)[0] or (
-                "application/octet-stream"
+            return (
+                _MIME.get(path.suffix.lower())
+                or mimetypes.guess_type(path.name)[0]
+                or ("application/octet-stream")
             )
 
         def _serve_spa(self) -> None:

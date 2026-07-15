@@ -26,6 +26,7 @@ from neiro.nodes.audio_nodes import (
     GatherNode,
     IngestNode,
     LaneNode,
+    OrchestrateComposeNode,
     ResidualNode,
     SeparateNode,
     TranscribeNode,
@@ -248,14 +249,13 @@ def _apply_quality_tier(separator: Any, tier: str, notes: list[str]) -> Any:
 
     target = getattr(wrapped, "inner", wrapped)
     members = getattr(target, "members", None)
-    if members and len(members) > 1 and hasattr(target, "weights"):
-        if tier == "draft":
-            top = max(range(len(target.weights)), key=lambda i: target.weights[i])
-            target.weights = [1.0 if i == top else 0.0 for i in range(len(target.weights))]
-            notes.append(
-                f"quality=draft: ensemble narrowed to its strongest member "
-                f"({members[top].profile.model_id})"
-            )
+    if members and len(members) > 1 and hasattr(target, "weights") and tier == "draft":
+        top = max(range(len(target.weights)), key=lambda i: target.weights[i])
+        target.weights = [1.0 if i == top else 0.0 for i in range(len(target.weights))]
+        notes.append(
+            f"quality=draft: ensemble narrowed to its strongest member "
+            f"({members[top].profile.model_id})"
+        )
 
     notes.append(
         f"quality={tier}: overlap {params['overlap']:.0%}, TTA {'on' if params['tta'] else 'off'}"
@@ -363,7 +363,9 @@ def _build_extract_cascade(
         rem_port = f"{target_name}_remainder"
         if kind == "center":
             prefer = params.get("prefer", ["dsp-center"])
-            entry, _ = _resolve(registry, prefer, notes, auto_download=auto_download, progress=progress)
+            entry, _ = _resolve(
+                registry, prefer, notes, auto_download=auto_download, progress=progress
+            )
             base_sep = entry.instantiate() if entry is not None else CenterSeparator()
             sep = _apply_quality_tier(base_sep, quality, notes)
             g.add(
@@ -371,7 +373,7 @@ def _build_extract_cascade(
                     node_id, remainder, sep, vram, target_name=target_name, complement_name=rem_port
                 )
             )
-            model_ids.append(getattr(getattr(sep, "inner", sep), "profile").model_id)
+            model_ids.append(getattr(sep, "inner", sep).profile.model_id)
         elif kind == "hpss":
             g.add(
                 CascadeHpssNode(
@@ -415,7 +417,9 @@ def _finish_cascade_plan(
 
     residual_node = None
     if with_residual:
-        g.add(ResidualNode("residual", vram_lane, {name: ("separate", name) for name in stem_ports}))
+        g.add(
+            ResidualNode("residual", vram_lane, {name: ("separate", name) for name in stem_ports})
+        )
         residual_node = "residual"
 
     bleed_node = None
@@ -462,7 +466,9 @@ def _plan_detect_all(
     order = [name for name in asserted if name in ("vocals", "drums", "bass")]
     if not order:
         order = ["vocals", "drums", "bass"]
-        notes.append("no confidently-asserted instruments; using the default vocals/drums/bass order")
+        notes.append(
+            "no confidently-asserted instruments; using the default vocals/drums/bass order"
+        )
     else:
         notes.append("detect-all cascade order (by confidence): " + ", ".join(order))
     skipped = [name for name in asserted if name not in ("vocals", "drums", "bass")]
@@ -476,7 +482,9 @@ def _plan_detect_all(
     g.add(LaneNode("lane", ("ingest", "audio"), 44100))
     lane = ("lane", "audio")
 
-    joint_entry, _ = _resolve(registry, ["scnet", "htdemucs-ft"], notes, auto_download=auto_download, progress=progress)
+    joint_entry, _ = _resolve(
+        registry, ["scnet", "htdemucs-ft"], notes, auto_download=auto_download, progress=progress
+    )
     if joint_entry is not None and joint_entry.downloaded():
         sep = _apply_quality_tier(joint_entry.instantiate(), quality, notes)
         g.add(SeparateNode("cascade_joint", lane, sep, vram))
@@ -486,17 +494,35 @@ def _plan_detect_all(
         notes.append(f"using joint multi-stem model {joint_entry.id} instead of the DSP cascade")
     else:
         step_kind = {"vocals": "center", "drums": "hpss", "bass": "band"}
-        step_params = {"vocals": {"prefer": PRESETS["vocals-best"]["prefer"]}, "drums": {}, "bass": {"cutoff_hz": 220.0}}
+        step_params = {
+            "vocals": {"prefer": PRESETS["vocals-best"]["prefer"]},
+            "drums": {},
+            "bass": {"cutoff_hz": 220.0},
+        }
         steps = [(step_kind[name], name, step_params[name]) for name in order]
         stem_sources, model_ids = _build_extract_cascade(
-            g, lane, steps, "other", registry, vram, notes,
-            auto_download=auto_download, progress=progress, quality=quality,
+            g,
+            lane,
+            steps,
+            "other",
+            registry,
+            vram,
+            notes,
+            auto_download=auto_download,
+            progress=progress,
+            quality=quality,
         )
 
     return _finish_cascade_plan(
-        g, stem_sources, model_ids, notes, lane,
-        quality=quality, with_residual=with_residual,
-        bleed_suppress=bleed_suppress, bleed_strength=bleed_strength,
+        g,
+        stem_sources,
+        model_ids,
+        notes,
+        lane,
+        quality=quality,
+        with_residual=with_residual,
+        bleed_suppress=bleed_suppress,
+        bleed_strength=bleed_strength,
     )
 
 
@@ -513,7 +539,9 @@ def _plan_cinematic(
     bleed_strength: float = 0.6,
 ) -> SeparationPlan:
     """Cinematic cascade (roadmap §5.5): dialog / music / effects for video audio."""
-    notes: list[str] = ["cinematic cascade: dialog (centre) -> fx (transients) -> music (remainder)"]
+    notes: list[str] = [
+        "cinematic cascade: dialog (centre) -> fx (transients) -> music (remainder)"
+    ]
     g = Graph()
     g.add(IngestNode("ingest", input_path))
     g.add(LaneNode("lane", ("ingest", "audio"), 44100))
@@ -524,13 +552,27 @@ def _plan_cinematic(
         ("hpss", "fx", {}),
     ]
     stem_sources, model_ids = _build_extract_cascade(
-        g, lane, steps, "music", registry, vram, notes,
-        auto_download=auto_download, progress=progress, quality=quality,
+        g,
+        lane,
+        steps,
+        "music",
+        registry,
+        vram,
+        notes,
+        auto_download=auto_download,
+        progress=progress,
+        quality=quality,
     )
     return _finish_cascade_plan(
-        g, stem_sources, model_ids, notes, lane,
-        quality=quality, with_residual=with_residual,
-        bleed_suppress=bleed_suppress, bleed_strength=bleed_strength,
+        g,
+        stem_sources,
+        model_ids,
+        notes,
+        lane,
+        quality=quality,
+        with_residual=with_residual,
+        bleed_suppress=bleed_suppress,
+        bleed_strength=bleed_strength,
     )
 
 
@@ -555,7 +597,9 @@ def _plan_drums_deep_dive(
     g.add(LaneNode("lane", ("ingest", "audio"), 44100))
     lane = ("lane", "audio")
 
-    joint_entry, _ = _resolve(registry, ["scnet", "htdemucs-ft"], notes, auto_download=auto_download, progress=progress)
+    joint_entry, _ = _resolve(
+        registry, ["scnet", "htdemucs-ft"], notes, auto_download=auto_download, progress=progress
+    )
     if joint_entry is not None and joint_entry.downloaded():
         stage1 = _apply_quality_tier(joint_entry.instantiate(), quality, notes)
         g.add(SeparateNode("stage1", lane, stage1, vram))
@@ -570,7 +614,13 @@ def _plan_drums_deep_dive(
         other_sources = {"other": ("stage1", "other")}
         model_ids = ["dsp-hpss"]
 
-    kit_entry, _ = _resolve(registry, ["mdx23c-drumsep", "dsp-drumkit"], notes, auto_download=auto_download, progress=progress)
+    kit_entry, _ = _resolve(
+        registry,
+        ["mdx23c-drumsep", "dsp-drumkit"],
+        notes,
+        auto_download=auto_download,
+        progress=progress,
+    )
     kit_sep = _apply_quality_tier(
         kit_entry.instantiate() if kit_entry is not None else DrumKitSeparator(), quality, notes
     )
@@ -584,9 +634,15 @@ def _plan_drums_deep_dive(
     stem_sources.update(other_sources)
 
     return _finish_cascade_plan(
-        g, stem_sources, model_ids, notes, lane,
-        quality=quality, with_residual=with_residual,
-        bleed_suppress=bleed_suppress, bleed_strength=bleed_strength,
+        g,
+        stem_sources,
+        model_ids,
+        notes,
+        lane,
+        quality=quality,
+        with_residual=with_residual,
+        bleed_suppress=bleed_suppress,
+        bleed_strength=bleed_strength,
     )
 
 
@@ -625,21 +681,39 @@ def plan_separation(
 
     if preset == "detect-all":
         return _plan_detect_all(
-            input_path, registry, vram, quality=quality or PRESETS[preset]["quality"],
-            auto_download=auto_download, progress=progress, with_residual=with_residual,
-            bleed_suppress=bleed_suppress, bleed_strength=bleed_strength,
+            input_path,
+            registry,
+            vram,
+            quality=quality or PRESETS[preset]["quality"],
+            auto_download=auto_download,
+            progress=progress,
+            with_residual=with_residual,
+            bleed_suppress=bleed_suppress,
+            bleed_strength=bleed_strength,
         )
     if preset == "cinematic":
         return _plan_cinematic(
-            input_path, registry, vram, quality=quality or PRESETS[preset]["quality"],
-            auto_download=auto_download, progress=progress, with_residual=with_residual,
-            bleed_suppress=bleed_suppress, bleed_strength=bleed_strength,
+            input_path,
+            registry,
+            vram,
+            quality=quality or PRESETS[preset]["quality"],
+            auto_download=auto_download,
+            progress=progress,
+            with_residual=with_residual,
+            bleed_suppress=bleed_suppress,
+            bleed_strength=bleed_strength,
         )
     if preset == "drums-deep-dive":
         return _plan_drums_deep_dive(
-            input_path, registry, vram, quality=quality or PRESETS[preset]["quality"],
-            auto_download=auto_download, progress=progress, with_residual=with_residual,
-            bleed_suppress=bleed_suppress, bleed_strength=bleed_strength,
+            input_path,
+            registry,
+            vram,
+            quality=quality or PRESETS[preset]["quality"],
+            auto_download=auto_download,
+            progress=progress,
+            with_residual=with_residual,
+            bleed_suppress=bleed_suppress,
+            bleed_strength=bleed_strength,
         )
 
     if preset not in PRESETS:
@@ -663,7 +737,14 @@ def plan_separation(
     g.add(IngestNode("ingest", input_path))
     intermediate: dict[str, tuple[str, str]] = {}
     lane_source = _maybe_prepend_restoration(
-        g, ("ingest", "audio"), input_path, registry, vram, notes, intermediate, enabled=auto_restore
+        g,
+        ("ingest", "audio"),
+        input_path,
+        registry,
+        vram,
+        notes,
+        intermediate,
+        enabled=auto_restore,
     )
     base_separator = getattr(separator, "inner", separator)
     g.add(LaneNode("lane", lane_source, base_separator.profile.sample_rate))
@@ -698,7 +779,9 @@ def plan_separation(
 
         device_kind = "cuda" if vram.has_accelerator else "cpu"
         estimated_seconds = estimate_seconds(entry.id, device_kind, duration, quality_class=tier)
-        notes.append(f"estimated ~{estimated_seconds:.0f}s on this machine ({entry.id}, {device_kind})")
+        notes.append(
+            f"estimated ~{estimated_seconds:.0f}s on this machine ({entry.id}, {device_kind})"
+        )
 
     return SeparationPlan(
         graph=g,
@@ -774,7 +857,9 @@ def plan_restem(
     g.add(LaneNode("lane", ("ingest", "audio"), separator.profile.sample_rate))
     g.add(SeparateNode("separate", ("lane", "audio"), separator, vram))
 
-    return RestemPlan(graph=g, node_id="separate", stem_name=stem_name, model_id=entry.id, notes=notes)
+    return RestemPlan(
+        graph=g, node_id="separate", stem_name=stem_name, model_id=entry.id, notes=notes
+    )
 
 
 @dataclass
@@ -1085,7 +1170,9 @@ def plan_orchestration(
         ]
         if not candidates:
             break
-        candidates.sort(key=lambda e: (-len(set(e.stems) & remaining), -order.get(e.quality_class, 1)))
+        candidates.sort(
+            key=lambda e: (-len(set(e.stems) & remaining), -order.get(e.quality_class, 1))
+        )
         entry = candidates[0]
         if entry.needs_download and not entry.downloaded():
             if not auto_download:
@@ -1111,9 +1198,13 @@ def plan_orchestration(
 
         if not remaining:
             break
-        catch_all = next((s for s in ("other", "instrumental", "remainder") if s in entry.stems), None)
+        catch_all = next(
+            (s for s in ("other", "instrumental", "remainder") if s in entry.stems), None
+        )
         if catch_all is None:
-            notes.append("no catch-all stem to continue the cascade; remaining instruments decode from the full mix")
+            notes.append(
+                "no catch-all stem to continue the cascade; remaining instruments decode from the full mix"
+            )
             break
         residual_id = f"orch_residual_{step}"
         others = {name: (sep_id, name) for name in entry.stems if name != catch_all}
@@ -1172,8 +1263,17 @@ def plan_orchestration(
         )
         if mix_entry is not None:
             mix_transcriber = mix_entry.instantiate()
-            g.add(LaneNode("orch_mixlane", ("ingest", "audio"), mix_transcriber.profile.sample_rate or 16000, mono=True))
-            g.add(TranscribeNode("orch_mixdecode", ("orch_mixlane", "audio"), mix_transcriber, vram))
+            g.add(
+                LaneNode(
+                    "orch_mixlane",
+                    ("ingest", "audio"),
+                    mix_transcriber.profile.sample_rate or 16000,
+                    mono=True,
+                )
+            )
+            g.add(
+                TranscribeNode("orch_mixdecode", ("orch_mixlane", "audio"), mix_transcriber, vram)
+            )
             mix_stream_port = ("orch_mixdecode", "notes")
             mix_model_id = mix_entry.id
             notes.append(f"hybrid voting: full-mix decode via {mix_entry.id}")

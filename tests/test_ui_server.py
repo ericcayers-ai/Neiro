@@ -112,9 +112,7 @@ def test_export_formats(server):
 def test_waveform_time_range(server):
     base, _ = server
     fid = _upload(base, _tone_wav_bytes(seconds=2.0))["file_id"]
-    wf = json.loads(
-        _get(base + f"/api/waveform?file_id={fid}&width=100&start=0.5&end=1.5")[1]
-    )
+    wf = json.loads(_get(base + f"/api/waveform?file_id={fid}&width=100&start=0.5&end=1.5")[1])
     assert wf["width"] == 100
     assert abs(wf["duration"] - 2.0) < 0.05
     assert len(wf["max"]) == 100

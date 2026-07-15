@@ -94,7 +94,9 @@ def _evaluate_track(track_dir: Path, preset: str, auto_download: bool) -> dict[s
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--split", default="test", choices=("train", "test"))
     parser.add_argument(
         "--preset",
@@ -111,7 +113,9 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="allow downloading model weights (off by default; use local/DSP models only)",
     )
-    parser.add_argument("--json", metavar="PATH", default=None, help="write the report as JSON ('-' for stdout)")
+    parser.add_argument(
+        "--json", metavar="PATH", default=None, help="write the report as JSON ('-' for stdout)"
+    )
     args = parser.parse_args(argv)
 
     status = locate_musdb()
@@ -124,7 +128,12 @@ def main(argv: list[str] | None = None) -> int:
         print(f"No track folders found under {status.path / args.split}")
         return 0
 
-    report: dict[str, Any] = {"dataset": "musdb18hq", "split": args.split, "preset": args.preset, "tracks": []}
+    report: dict[str, Any] = {
+        "dataset": "musdb18hq",
+        "split": args.split,
+        "preset": args.preset,
+        "tracks": [],
+    }
     for track_dir in tracks:
         print(f"Evaluating {track_dir.name} ...")
         try:
@@ -136,13 +145,17 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  ERROR: {result['error']}")
         else:
             for stem, m in result["stems"].items():
-                print(f"  {stem}: SDR={m['sdr_db']}dB SI-SDR={m['si_sdr_db']}dB bleed={m['bleed_db']}dB")
+                print(
+                    f"  {stem}: SDR={m['sdr_db']}dB SI-SDR={m['si_sdr_db']}dB bleed={m['bleed_db']}dB"
+                )
 
     per_stem_sdr: dict[str, list[float]] = {}
     for result in report["tracks"]:
         for stem, m in result.get("stems", {}).items():
             per_stem_sdr.setdefault(stem, []).append(m["sdr_db"])
-    report["mean_sdr_db"] = {stem: round(sum(v) / len(v), 2) for stem, v in per_stem_sdr.items() if v}
+    report["mean_sdr_db"] = {
+        stem: round(sum(v) / len(v), 2) for stem, v in per_stem_sdr.items() if v
+    }
 
     print("\nMean SDR by stem:")
     for stem, mean in report["mean_sdr_db"].items():

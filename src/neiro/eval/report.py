@@ -83,7 +83,9 @@ def run_bleed_suite(cases: list[corpus.BleedCase] | None = None) -> SuiteReport:
     report = SuiteReport(name="bleed_suppression")
     for case in cases:
         before = metrics.bleed_db(case.polluted_target, [case.rival])
-        suppressed = suppress_bleed(case.polluted_target, [case.rival], case.sample_rate, strength=0.8)
+        suppressed = suppress_bleed(
+            case.polluted_target, [case.rival], case.sample_rate, strength=0.8
+        )
         after = metrics.bleed_db(suppressed, [case.rival])
         improvement = before - after
         ok = improvement >= BLEED_IMPROVEMENT_THRESHOLD_DB

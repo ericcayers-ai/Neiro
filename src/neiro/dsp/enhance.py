@@ -151,7 +151,9 @@ def _click_runs(x: np.ndarray, threshold: float, max_len: int) -> list[tuple[int
     return [(s, e) for s, e in zip(starts.tolist(), ends.tolist(), strict=True) if e - s <= max_len]
 
 
-def declick(samples: np.ndarray, sample_rate: int, threshold: float = 3.0, max_click_ms: float = 3.0) -> np.ndarray:
+def declick(
+    samples: np.ndarray, sample_rate: int, threshold: float = 3.0, max_click_ms: float = 3.0
+) -> np.ndarray:
     """Remove short impulsive clicks/pops (vinyl, digital-edit glitches).
 
     Detects runs of samples whose derivative jumps well past their local

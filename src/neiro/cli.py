@@ -535,16 +535,28 @@ def build_parser() -> argparse.ArgumentParser:
     p_ss.add_argument("--name", default=None, help="session name (default: input file stem)")
     p_ss.add_argument("--preset", default=None, help="record a planner preset in graph_config")
     p_ss.add_argument("--job", default=None, help="record a job kind in graph_config")
-    p_ss.add_argument("--home", default=None, help="session home dir (default: %%LOCALAPPDATA%%/Neiro or ~/.neiro)")
+    p_ss.add_argument(
+        "--home",
+        default=None,
+        help="session home dir (default: %%LOCALAPPDATA%%/Neiro or ~/.neiro)",
+    )
     p_ss.set_defaults(func=cmd_session_save)
 
     p_sl = session_sub.add_parser("load", help="print a saved session as JSON")
     p_sl.add_argument("name", help="session name or a direct path to a .neiro.json file")
-    p_sl.add_argument("--home", default=None, help="session home dir (default: %%LOCALAPPDATA%%/Neiro or ~/.neiro)")
+    p_sl.add_argument(
+        "--home",
+        default=None,
+        help="session home dir (default: %%LOCALAPPDATA%%/Neiro or ~/.neiro)",
+    )
     p_sl.set_defaults(func=cmd_session_load)
 
     p_slist = session_sub.add_parser("list", help="list saved session names")
-    p_slist.add_argument("--home", default=None, help="session home dir (default: %%LOCALAPPDATA%%/Neiro or ~/.neiro)")
+    p_slist.add_argument(
+        "--home",
+        default=None,
+        help="session home dir (default: %%LOCALAPPDATA%%/Neiro or ~/.neiro)",
+    )
     p_slist.set_defaults(func=cmd_session_list)
 
     p_watch = sub.add_parser("watch", help="watch a folder and batch-process new audio")

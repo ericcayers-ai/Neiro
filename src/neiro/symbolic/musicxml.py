@@ -77,7 +77,7 @@ def _note_xml(
         # Low-confidence notes get a visible notehead cue rather than being
         # silently presented with the same certainty as a verified note
         # (roadmap §7.3 "confidence surfaces through").
-        parts.append('        <notehead>x</notehead>')
+        parts.append("        <notehead>x</notehead>")
     parts.append("      </note>")
     return "\n".join(parts)
 
@@ -153,9 +153,13 @@ def write_musicxml(
     parts_xml = []
     for i, (name, stream) in enumerate(timeline.tracks):
         part_id = f"P{i + 1}"
-        part_list.append(f'    <score-part id="{part_id}"><part-name>{sx.escape(name)}</part-name></score-part>')
+        part_list.append(
+            f'    <score-part id="{part_id}"><part-name>{sx.escape(name)}</part-name></score-part>'
+        )
 
-        measures, n_measures = _track_to_measures(stream.events, timeline.tempo_bpm, ticks_per_measure)
+        measures, n_measures = _track_to_measures(
+            stream.events, timeline.tempo_bpm, ticks_per_measure
+        )
         measure_blocks = []
         for m_idx in range(n_measures):
             body = []
@@ -182,7 +186,9 @@ def write_musicxml(
                             confidence=e.confidence,
                         )
                     )
-            measure_blocks.append(f'    <measure number="{m_idx + 1}">\n' + "\n".join(body) + "\n    </measure>")
+            measure_blocks.append(
+                f'    <measure number="{m_idx + 1}">\n' + "\n".join(body) + "\n    </measure>"
+            )
         if not measure_blocks:
             measure_blocks.append(
                 '    <measure number="1">\n'
@@ -191,7 +197,7 @@ def write_musicxml(
                 "        <key><fifths>0</fifths></key>\n"
                 "        <time><beats>4</beats><beat-type>4</beat-type></time>\n"
                 "      </attributes>\n"
-                f'      <note><rest/><duration>{ticks_per_measure}</duration></note>\n'
+                f"      <note><rest/><duration>{ticks_per_measure}</duration></note>\n"
                 "    </measure>"
             )
         parts_xml.append(f'  <part id="{part_id}">\n' + "\n".join(measure_blocks) + "\n  </part>")

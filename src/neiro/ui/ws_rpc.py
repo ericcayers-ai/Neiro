@@ -8,10 +8,12 @@ is installed; otherwise callers stay on REST polling.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 __all__ = ["RpcRequest", "RpcResponse", "EventBus", "handle_rpc", "try_serve_ws"]
 
@@ -61,10 +63,8 @@ class EventBus:
         with self._lock:
             subs = list(self._subs)
         for cb in subs:
-            try:
+            with contextlib.suppress(Exception):
                 cb(msg)
-            except Exception:
-                pass
 
 
 def handle_rpc(
@@ -94,8 +94,6 @@ def try_serve_ws(host: str = "127.0.0.1", port: int = 8378) -> str | None:
         return None
 
     from neiro import __version__
-
-    bus = EventBus()
 
     async def _handler(websocket):
         async for message in websocket:

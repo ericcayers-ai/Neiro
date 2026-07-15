@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import json
 
-import numpy as np
 import pytest
 import soundfile as sf
 
@@ -53,7 +52,9 @@ def test_plan_separation_applies_requested_tier(tmp_path, stereo_mix, tier):
 
 def test_plan_separation_defaults_to_preset_tier(tmp_path, stereo_mix):
     wav = _write_wav(tmp_path, stereo_mix)
-    plan = plan_separation(wav, "vocals-best", default_registry(), VRAMManager(), auto_download=False)
+    plan = plan_separation(
+        wav, "vocals-best", default_registry(), VRAMManager(), auto_download=False
+    )
     assert plan.quality == PRESETS["vocals-best"]["quality"]
 
 
@@ -62,7 +63,12 @@ def test_draft_tier_never_silent_bleed_suppression_still_applies(tmp_path, stere
     'never silent in Draft')."""
     wav = _write_wav(tmp_path, stereo_mix)
     plan = plan_separation(
-        wav, "vocals-ensemble", default_registry(), VRAMManager(), quality="draft", auto_download=False
+        wav,
+        "vocals-ensemble",
+        default_registry(),
+        VRAMManager(),
+        quality="draft",
+        auto_download=False,
     )
     assert plan.bleed_node is not None
 
@@ -70,12 +76,22 @@ def test_draft_tier_never_silent_bleed_suppression_still_applies(tmp_path, stere
 def test_bleed_suppress_flag_is_ab_able(tmp_path, stereo_mix):
     wav = _write_wav(tmp_path, stereo_mix)
     plan_on = plan_separation(
-        wav, "vocals-ensemble", default_registry(), VRAMManager(),
-        quality="draft", auto_download=False, bleed_suppress=True,
+        wav,
+        "vocals-ensemble",
+        default_registry(),
+        VRAMManager(),
+        quality="draft",
+        auto_download=False,
+        bleed_suppress=True,
     )
     plan_off = plan_separation(
-        wav, "vocals-ensemble", default_registry(), VRAMManager(),
-        quality="draft", auto_download=False, bleed_suppress=False,
+        wav,
+        "vocals-ensemble",
+        default_registry(),
+        VRAMManager(),
+        quality="draft",
+        auto_download=False,
+        bleed_suppress=False,
     )
     assert plan_on.bleed_node is not None
     assert plan_off.bleed_node is None

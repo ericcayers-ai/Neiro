@@ -23,8 +23,8 @@ def test_quantize_reversible():
     )
     stream = NoteStream(events, tempo_bpm=120)
     quantized, offsets = quantize_stream(stream, 120, division=4, strength=1.0)
-    restored_onsets = [e.onset + o for e, o in zip(quantized.events, offsets)]
-    for orig, restored in zip(events, restored_onsets):
+    restored_onsets = [e.onset + o for e, o in zip(quantized.events, offsets, strict=False)]
+    for orig, restored in zip(events, restored_onsets, strict=False):
         assert abs(orig.onset - restored) < 1e-6
 
 

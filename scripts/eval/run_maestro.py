@@ -149,9 +149,7 @@ def main(argv: list[str] | None = None) -> int:
         label = row.get("canonical_title") or row.get("audio_filename") or "?"
         print(f"Evaluating {label} ...")
         try:
-            result = _evaluate_row(
-                status.path, row, model=model, auto_download=args.auto_download
-            )
+            result = _evaluate_row(status.path, row, model=model, auto_download=args.auto_download)
         except Exception as exc:
             result = {"error": str(exc), "audio": row.get("audio_filename")}
         report["performances"].append(result)

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import io
 import struct
 import wave
 from pathlib import Path
@@ -33,7 +32,7 @@ def _write_tone(path: Path, seconds=0.5, sr=16000):
 def test_corrupt_wav_raises(tmp_path: Path):
     bad = tmp_path / "corrupt.wav"
     bad.write_bytes(b"RIFF....notreally")
-    with pytest.raises(Exception):
+    with pytest.raises((OSError, RuntimeError, ValueError)):
         load_audio(bad)
 
 

@@ -34,6 +34,14 @@ REQUIRES_TO_EXTRA: dict[str, str] = {
     "huggingface_hub": "downloader",
     "demucs": "demucs",
     "torch": "demucs",
+    "whisper": "lyrics",
+    "df": "deepfilternet",
+    "apollo": "apollo",
+    "scnet": "scnet",
+    "medley_vox": "medley_vox",
+    "sonicmaster": "sonicmaster",
+    "transkun": "transkun",
+    "omnizart": "omnizart",
 }
 
 # Neural separation/enhancement backends need at least ~1 s at 44.1 kHz.

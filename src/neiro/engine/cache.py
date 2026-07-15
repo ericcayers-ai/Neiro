@@ -154,9 +154,7 @@ class ArtifactCache:
 
     # -- versioned read/write ---------------------------------------------------
 
-    def _write_versioned(
-        self, key: str, value: Any, *, provenance: tuple[str, ...] = ()
-    ) -> None:
+    def _write_versioned(self, key: str, value: Any, *, provenance: tuple[str, ...] = ()) -> None:
         arrays: dict[str, np.ndarray] = {}
         skeleton = _encode(value, arrays)
         skeleton_bytes = json.dumps(skeleton, sort_keys=True).encode("utf-8")

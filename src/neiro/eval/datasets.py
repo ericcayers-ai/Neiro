@@ -58,7 +58,9 @@ class DatasetStatus:
         }
 
 
-def _locate(env_var: str, dataset_label: str, expect_subdirs: tuple[str, ...] = ()) -> DatasetStatus:
+def _locate(
+    env_var: str, dataset_label: str, expect_subdirs: tuple[str, ...] = ()
+) -> DatasetStatus:
     raw = os.environ.get(env_var)
     if not raw:
         return DatasetStatus(

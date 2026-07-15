@@ -96,11 +96,11 @@ def latency_for(model_id: str) -> float:
 
 
 def resolve(
-    registry: "Registry",
+    registry: Registry,
     instrument: str,
     *,
     prefer: list[str] | None = None,
-) -> tuple["ModelEntry | None", list[str]]:
+) -> tuple[ModelEntry | None, list[str]]:
     """Pick the best *available* decoder for an instrument.
 
     Returns ``(entry_or_None, notes)``. Unlike the planner's

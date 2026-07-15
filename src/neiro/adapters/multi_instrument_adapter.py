@@ -96,7 +96,7 @@ class MultiInstrumentAdapter:
                     midi = self._omnizart_app.transcribe(
                         str(wav), model_path=self.omnizart_model_path, output=tmp
                     )
-                except Exception as exc:
+                except Exception:
                     # Graceful degrade: checkpoints missing or inference failed
                     # -> fall back to Basic Pitch, then the DSP floor, rather
                     # than raising.

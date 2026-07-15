@@ -53,9 +53,7 @@ def assign_tab(
             continue
         taken = used_this_onset.get(e.onset, set())
         available = [c for c in candidates if c[0] not in taken] or candidates
-        s_idx, fret = min(
-            available, key=lambda sf: sf[1] + 0.5 * abs(sf[1] - prev_fret)
-        )
+        s_idx, fret = min(available, key=lambda sf: sf[1] + 0.5 * abs(sf[1] - prev_fret))
         used_this_onset.setdefault(e.onset, set()).add(s_idx)
         prev_fret = fret
         out.append((e, s_idx, fret))
