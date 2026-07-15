@@ -2,6 +2,7 @@
   "name": "neiro",
   "private": true,
   "version": "1.0.0",
+  "license": "MIT",
   "description": "Neiro desktop shell (Tauri) + UI build helpers",
   "scripts": {
     "build:ui": "npm --prefix frontend run build",

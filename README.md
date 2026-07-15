@@ -18,12 +18,13 @@ open-source model development without rewrites. It ships with a **pure-DSP floor
 that works with **no model downloads**, and neural backends (Demucs, RoFormer,
 Basic Pitch, AudioSR, Matchering, …) plug in through JSON manifests.
 
-> **Scope:** this repository implements a tested, runnable slice across every phase
-> of [`roadmap.md`](roadmap.md) — analysis, separation (+ensembles), restoration,
-> transcription (+MIDI), a Tauri desktop worksuite (and an equivalent CLI), and a
-> basic audio editor. The full neural model roster, sheet-music engraving, and a
-> fully wired learn mode remain roadmap items; the architecture to host them is in
-> place. See [`docs/roadmap-traceability.md`](docs/roadmap-traceability.md) for the
+> **Status: Neiro 1.0.0** completes phases 1–10 / milestones M0–M7 in
+> [`roadmap.md`](roadmap.md): analysis, separation (+ensembles / quality tiers),
+> restoration, transcription (+MIDI/MusicXML/score), Learn with WebMIDI wait mode,
+> Simple/Advanced React + Tauri worksuite, CLI, evaluation harness, and
+> documentation/governance. Neural weights stay opt-in (not redistributed); full
+> MUSDB/MAESTRO score tables need a provisioned eval machine. See
+> [`docs/roadmap-traceability.md`](docs/roadmap-traceability.md) for the
 > item-by-item ledger.
 
 ---

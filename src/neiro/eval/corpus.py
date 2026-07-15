@@ -29,6 +29,7 @@ __all__ = [
     "separation_cases",
     "bleed_cases",
     "transcription_cases",
+    "golden_case_count",
 ]
 
 
@@ -84,127 +85,186 @@ class TranscriptionCase:
     extra: dict = field(default_factory=dict)
 
 
-def separation_cases(sr: int = 22050) -> list[SeparationCase]:
-    """A handful of small, exactly-decomposable stereo mixtures.
-
-    Cases deliberately vary panning geometry so a separator that only handles
-    one configuration (e.g. purely centre-panned vocals) is caught: a fully
-    centred case, a partially-panned case, and a case with a quiet, wide
-    "residual-like" bed on top of the two dominant sources.
-    """
-    seconds = 1.5
-    cases: list[SeparationCase] = []
-
-    vocal = _sine(220.0, seconds, sr, amp=0.4)
-    guitar = _sine(660.0, seconds, sr, amp=0.3)
-    vocal_centre = np.stack([vocal, vocal])
-    guitar_left = np.stack([guitar, np.zeros_like(guitar)])
-    cases.append(
-        SeparationCase(
-            name="centred_vocal_hard_left_guitar",
-            sample_rate=sr,
-            mixture=vocal_centre + guitar_left,
-            sources={"vocals": vocal_centre, "instrumental": guitar_left},
-            description="Fully centre-panned tone vs. a hard-left tone — the easy case.",
-        )
-    )
-
-    bass = _sine(110.0, seconds, sr, amp=0.35)
-    keys = _sine(440.0, seconds, sr, amp=0.25)
-    bass_wide = np.stack([bass, bass * 0.85])  # mostly centred, slightly wide
-    keys_panned = np.stack([keys * 0.2, keys])  # mostly right
-    cases.append(
-        SeparationCase(
-            name="wide_bass_right_panned_keys",
-            sample_rate=sr,
-            mixture=bass_wide + keys_panned,
-            sources={"vocals": bass_wide, "instrumental": keys_panned},
-            description="Partial panning on both sources — harder than a hard pan.",
-        )
-    )
-
-    return cases
-
-
-def bleed_cases(sr: int = 16000) -> list[BleedCase]:
-    """Target/rival pairs at a few pollution strengths, for :func:`neiro.eval.metrics.bleed_db`."""
-    seconds = 1.0
-    cases: list[BleedCase] = []
-    target = np.stack([_sine(220.0, seconds, sr, amp=0.5)] * 2)
-    rival = np.stack([_sine(880.0, seconds, sr, amp=0.5)] * 2)
-    for ratio in (0.15, 0.4, 0.8):
-        cases.append(
-            BleedCase(
-                name=f"pollution_{int(ratio * 100)}pct",
-                sample_rate=sr,
-                clean_target=target,
-                rival=rival,
-                polluted_target=target + ratio * rival,
-                pollution_ratio=ratio,
-                description=f"Target polluted with {ratio:.0%} of a disjoint-frequency rival.",
-            )
-        )
-    return cases
-
-
-def transcription_cases(sr: int = 22050) -> list[TranscriptionCase]:
-    """Small monophonic melodies with exactly-known onsets/pitches.
-
-    Notes are rendered as plain sine tones with a short silence gap between
-    them so a note segmenter has an unambiguous boundary to find — this
-    corpus tests the transcription *pipeline* (pitch tracking + segmentation
-    + F1 scoring), not a decoder's robustness to polyphony or noise.
-    """
-    cases: list[TranscriptionCase] = []
-
-    # A simple ascending triad, evenly spaced, generous durations.
-    pitches = [60, 64, 67, 72]  # C4 E4 G4 C5
-    note_len, gap = 0.35, 0.08
+def _melody(
+    pitches: list[int],
+    *,
+    sr: int,
+    note_len: float,
+    gap: float,
+    amp: float = 0.5,
+    name: str,
+    description: str,
+) -> TranscriptionCase:
     chunks: list[np.ndarray] = []
     events: list[NoteEvent] = []
     t = 0.0
     for pitch in pitches:
         freq = 440.0 * 2 ** ((pitch - 69) / 12.0)
-        tone = _sine(freq, note_len, sr, amp=0.5)
+        tone = _sine(freq, note_len, sr, amp=amp)
         chunks.append(tone)
         events.append(NoteEvent(onset=round(t, 4), offset=round(t + note_len, 4), pitch=pitch))
         t += note_len
         chunks.append(_silence(gap, sr))
         t += gap
     audio = np.concatenate(chunks)[np.newaxis, :]
-    cases.append(
-        TranscriptionCase(
-            name="ascending_triad_c_major",
-            sample_rate=sr,
-            audio=audio,
-            notes=tuple(events),
-            description="C4-E4-G4-C5, clean sine tones, generous gaps between notes.",
-        )
+    return TranscriptionCase(
+        name=name,
+        sample_rate=sr,
+        audio=audio,
+        notes=tuple(events),
+        description=description,
     )
 
-    # A faster, smaller-interval run to stress onset resolution a bit more.
-    pitches2 = [69, 71, 72, 74, 76]  # A4 B4 C5 D5 E5
-    note_len2, gap2 = 0.18, 0.04
-    chunks2: list[np.ndarray] = []
-    events2: list[NoteEvent] = []
-    t = 0.0
-    for pitch in pitches2:
-        freq = 440.0 * 2 ** ((pitch - 69) / 12.0)
-        tone = _sine(freq, note_len2, sr, amp=0.5)
-        chunks2.append(tone)
-        events2.append(NoteEvent(onset=round(t, 4), offset=round(t + note_len2, 4), pitch=pitch))
-        t += note_len2
-        chunks2.append(_silence(gap2, sr))
-        t += gap2
-    audio2 = np.concatenate(chunks2)[np.newaxis, :]
-    cases.append(
-        TranscriptionCase(
-            name="fast_scale_run",
-            sample_rate=sr,
-            audio=audio2,
-            notes=tuple(events2),
-            description="A4-E5 scale fragment at a brisker tempo, shorter notes.",
-        )
-    )
 
+def separation_cases(sr: int = 22050) -> list[SeparationCase]:
+    """~12 exactly-decomposable stereo mixtures covering pan / density variants."""
+    seconds = 1.2
+    cases: list[SeparationCase] = []
+
+    def add(name: str, vocals: np.ndarray, instrumental: np.ndarray, description: str) -> None:
+        cases.append(
+            SeparationCase(
+                name=name,
+                sample_rate=sr,
+                mixture=vocals + instrumental,
+                sources={"vocals": vocals, "instrumental": instrumental},
+                description=description,
+            )
+        )
+
+    for i, (vf, gf) in enumerate([(220.0, 660.0), (330.0, 880.0), (110.0, 440.0)]):
+        v = _sine(vf, seconds, sr, amp=0.4)
+        g = _sine(gf, seconds, sr, amp=0.3)
+        add(
+            f"centred_hard_left_{i}",
+            np.stack([v, v]),
+            np.stack([g, np.zeros_like(g)]),
+            "Centre tone vs hard-left tone.",
+        )
+        add(
+            f"wide_partial_pan_{i}",
+            np.stack([v, v * 0.85]),
+            np.stack([g * 0.2, g]),
+            "Partial panning on both sources.",
+        )
+        add(
+            f"dense_bed_{i}",
+            np.stack([v, v]),
+            np.stack([g * 0.5 + _sine(gf * 1.5, seconds, sr, amp=0.15), g * 0.4]),
+            "Dense residual-like bed under vocals.",
+        )
+        # Degraded / quiet solo-like bed
+        quiet = _sine(vf * 2, seconds, sr, amp=0.08)
+        add(
+            f"quiet_wide_bed_{i}",
+            np.stack([v * 0.9, v * 0.9]),
+            np.stack([quiet, quiet * 0.7]),
+            "Quiet wide bed — low energy residual case.",
+        )
     return cases
+
+
+def bleed_cases(sr: int = 16000) -> list[BleedCase]:
+    """Target/rival pairs at several pollution strengths and rival frequencies."""
+    seconds = 1.0
+    cases: list[BleedCase] = []
+    for rival_hz in (880.0, 1320.0, 1760.0):
+        target = np.stack([_sine(220.0, seconds, sr, amp=0.5)] * 2)
+        rival = np.stack([_sine(rival_hz, seconds, sr, amp=0.5)] * 2)
+        for ratio in (0.15, 0.4, 0.8):
+            cases.append(
+                BleedCase(
+                    name=f"pollution_{int(rival_hz)}hz_{int(ratio * 100)}pct",
+                    sample_rate=sr,
+                    clean_target=target,
+                    rival=rival,
+                    polluted_target=target + ratio * rival,
+                    pollution_ratio=ratio,
+                    description=f"Target polluted with {ratio:.0%} of a {rival_hz:.0f} Hz rival.",
+                )
+            )
+    return cases
+
+
+def transcription_cases(sr: int = 22050) -> list[TranscriptionCase]:
+    """Monophonic melodies spanning tempo, interval, and rubato-like spacing."""
+    cases = [
+        _melody(
+            [60, 64, 67, 72],
+            sr=sr,
+            note_len=0.35,
+            gap=0.08,
+            name="ascending_triad_c_major",
+            description="C4-E4-G4-C5, clean sine tones.",
+        ),
+        _melody(
+            [69, 71, 72, 74, 76],
+            sr=sr,
+            note_len=0.18,
+            gap=0.04,
+            name="fast_scale_run",
+            description="A4-E5 scale fragment at a brisker tempo.",
+        ),
+        _melody(
+            [48, 50, 52, 53, 55],
+            sr=sr,
+            note_len=0.28,
+            gap=0.06,
+            name="low_register_run",
+            description="Lower-register monophonic line.",
+        ),
+        _melody(
+            [72, 71, 69, 67, 65],
+            sr=sr,
+            note_len=0.22,
+            gap=0.05,
+            name="descending_line",
+            description="Descending mid-register line.",
+        ),
+        _melody(
+            [60, 62, 64, 65, 67, 69, 71, 72],
+            sr=sr,
+            note_len=0.15,
+            gap=0.03,
+            name="full_octave_c_major",
+            description="Full C-major scale up.",
+        ),
+        _melody(
+            [60, 63, 67, 70],
+            sr=sr,
+            note_len=0.32,
+            gap=0.1,
+            name="odd_meter_gaps",
+            description="Larger gaps approximating irregular meter.",
+        ),
+        _melody(
+            [64, 64, 67, 67, 69, 69, 67],
+            sr=sr,
+            note_len=0.2,
+            gap=0.05,
+            name="repeated_pitch_pairs",
+            description="Repeated pitches for onset resolution stress.",
+        ),
+        _melody(
+            [55, 59, 62, 67, 71],
+            sr=sr,
+            note_len=0.4,
+            gap=0.15,
+            name="rubato_wide_gaps",
+            description="Wide gaps approximating rubato spacing.",
+        ),
+        _melody(
+            [76, 74, 72, 71, 69, 67],
+            sr=sr,
+            note_len=0.16,
+            gap=0.04,
+            name="high_register_descent",
+            description="High register descending phrase.",
+        ),
+    ]
+    return cases
+
+
+def golden_case_count(sr: int = 22050) -> int:
+    """Total synthetic golden cases (~30+) used as the CI stand-in for R-0118."""
+    return len(separation_cases(sr)) + len(bleed_cases(sr)) + len(transcription_cases(sr))

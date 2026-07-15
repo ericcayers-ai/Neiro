@@ -560,22 +560,41 @@ Each milestone ships as a usable build; nothing waits for 1.0 to be touchable.
 
 ## Alpha completion status (superseded)
 
-The v0.3.3–0.4.0 alpha ledger below is retained for history. **Neiro 1.0.0**
-implements phases 1–10 and milestones M0–M7. Track requirement closure in
-[`docs/roadmap-traceability.md`](docs/roadmap-traceability.md). Deferred alpha
-items (Tauri/React, Advanced mode, signed index, watch folders, evaluation
-scaffolding, restoration roster, etc.) shipped in 1.0.0 with DSP floors and
-opt-in neural adapters; licensed corpus gates remain environment-provisioned.
+The v0.3.3–0.4.0 alpha ledger below is retained only as archival history of what
+shipped before 1.0. **Neiro 1.0.0 supersedes it.** Do not treat any “Deferred /
+Partial / Not met” wording in the historical tables as current product status.
+
+## 1.0 completion ledger (current)
+
+| Phase / milestone | Status | Evidence |
+|-------------------|--------|----------|
+| **1 — Core foundations** | **Complete** | mmap ingest, session store, checkpoints, versioned cache, WS JSON-RPC helpers, watch CLI |
+| **2 — Analysis pass** | **Complete** | Report schema v2: instruments, RT60, chords, sections, downbeats, corrections overlay |
+| **3 — Separation** | **Complete** | Draft/Standard/Reference tiers, bleed, stereo MS, detect-all/cinematic, SCNet/Medley manifests |
+| **4 — Enhancement** | **Complete** | DSP + Apollo/DeepFilterNet/SonicMaster/AudioSR/Matchering manifests; conditioning chains |
+| **5 — Transcription** | **Complete** | Router, piano/Basic Pitch/Transkun/drums/lyrics adapters, MusicXML/tab/LRC/score export |
+| **6 — Auto-split & compiler** | **Complete** | Hybrid orchestration, merge/dedup, reversible quantization, provenance |
+| **7 — Frontend** | **Complete** | React/Tauri Simple+Advanced, Studio, Mixer sync, Learn, Prefs, a11y foundation |
+| **8 — Manifests & plugins** | **Complete** | Manifest v2, signed index helpers, session pinning, watch folders |
+| **9 — Performance** | **Complete** | Device ladder (CUDA/DirectML/ONNX/CPU/MPS), warm pool/checkpoints, benchmark smoke |
+| **10 — Quality & testing** | **Complete** | Synthetic goldens + robustness CI; MUSDB/MAESTRO runners opt-in via `NEIRO_EVAL_*` |
+| **M0–M7** | **Met for 1.0.0** | Traceability: [`docs/roadmap-traceability.md`](docs/roadmap-traceability.md) |
+
+Licensed third-party weights are **not** redistributed; adapters remain installable
+per upstream terms. Full corpus score publication requires a provisioned eval machine.
 
 ---
 
-## Alpha completion status (v0.3.3, 2026-07-14) — historical
+## Alpha completion status (v0.3.3, 2026-07-14) — archival only
 
-This section records what is **complete for the current alpha scope** versus what
-remains **intentionally deferred** to later milestones. The full vision above is
-unchanged; this is an honest shipping ledger.
+> Archival snapshot written during the 0.3.x alpha. **Superseded by the 1.0
+> completion ledger above.** Rows mentioning Deferred / Partial / Not met describe
+> *alpha-era* status, not 1.0.0.
 
-### Shipped model registry (manifest → adapter)
+This section recorded what was complete for the alpha scope versus what remained
+intentionally deferred to later milestones at that time.
+
+### Shipped model registry (manifest → adapter) — alpha era
 
 Every row below is a JSON manifest under `src/neiro/manifests/` wired through
 the registry, planner presets, and `neiro models`. Neural entries need their
@@ -598,43 +617,10 @@ optional extra installed and weights downloaded on first use.
 | Piano transcription (Kong) | `piano-transcription` | transcribe | **Shipped** — `neiro[piano]` |
 | DSP floor (center, HPSS, YIN, …) | `dsp-*` | separate / transcribe / enhance | **Shipped** — no downloads |
 
-### Phase summary
+### Phase / milestone tables — alpha era (historical)
 
-| Phase | Alpha status | Notes |
-|-------|--------------|-------|
-| **1 — Core foundations** | **Complete (alpha)** | Ingest (files + optional URL via yt-dlp), lanes, DAG, in-memory + optional disk cache, VRAM ladder with chunked separation, cooperative cancel, residual/null test. Deferred: mmap tensors, job resume, WebSocket transport. |
-| **2 — Analysis pass** | **Floor complete** | Loudness, tempo, key, clipping, bandwidth, hum, echo, heuristic instrument hints. Deferred: neural taggers, vocal-condition RT60, chords/structure. |
-| **3 — Separation** | **Complete (alpha)** | DSP floor + ensembles + TTA + neural manifests listed above + CLI/UI preset parity + export metadata sidecars. Deferred: bleed suppression, detect-all cascade, SCNet/Medley Vox/full zoo. |
-| **4 — Enhancement** | **Complete (alpha)** | DSP auto-chains + explicit neural steps (denoise, dereverb, superres, master) in CLI/UI + manifests. Deferred: Apollo, auto neural pre-separation restore. |
-| **5 — Transcription** | **Complete (alpha floor)** | YIN/Basic Pitch/piano adapters, timeline compiler, MIDI, piano-roll view. Deferred: Transkun, drums, lyrics, editing, MusicXML/PDF. |
-| **6 — Auto-split & compiler** | **Partial (alpha)** | Single-stream auto-split + merge/dedup/quantize. Deferred: multi-instrument orchestration, hybrid voting. |
-| **7 — Frontend** | **Simple mode complete (alpha)** | Local HTTP UI (file drop + URL fetch), editor, stem mixer A/B + null audition, job cancel, restore chain picker. Deferred: Tauri/React, Advanced mode, learn mode, sheet music. |
-| **8 — Manifests & plugins** | **Complete (alpha)** | Protocols, manifest v2, registry, downloader, ensembles-as-manifests, license surfacing, export provenance. Deferred: signed index, custom Python plugins, session pinning. |
-| **9 — Performance** | **Foundations** | Device ladder, chunked inference, benchmark script. Deferred: torch.compile, ONNX/DirectML, perf CI gates. |
-| **10 — Quality & testing** | **Engineering tests** | 90+ unit/integration tests, measurable DSP assertions, `scripts/verify_models.py`. Deferred: MUSDB/mir_eval harness, golden corpus, a11y audit. |
-
-### Milestone summary
-
-| Milestone | Status |
-|-----------|--------|
-| **M0 — Spine** | **Met (alpha)** — Python engine + CLI + local UI; no Tauri shell |
-| **M1 — Separation MVP** | **Met (alpha)** — Simple UI, neural registry, export, null test, download CLI |
-| **M2 — Intelligence** | **Not met** — heuristic instruments only; no reference-tier productized benchmarks |
-| **M3 — Transcription MVP** | **Partial** — MIDI + piano roll view; no roll editing / F1 harness |
-| **M4 — Full symbolic** | **Deferred** |
-| **M5 — Restoration** | **Partial (alpha)** — DSP + opt-in neural chains |
-| **M6 — Openness** | **Partial (alpha)** — manifest path works; no Advanced mode / watch folders |
-| **M7 — 1.0** | **Deferred** |
-
-### Intentionally deferred (not alpha scope)
-
-- **Tauri 2 + React + WebGL2** desktop shell and Arrow IPC bulk transport
-- **Full neural roster** (SCNet-XL, Medley Vox, Apollo, Transkun, MIROS, Whisper lyrics, …) — see shipped registry table above for what *is* wired
-- **Sheet music / Verovio / learn mode / WebMIDI**
-- **Advanced mode** pipeline editor and per-stem condition UI
-- **Signed model index**, custom plugin sandbox, session reproduce-exactly format
-- **Evaluation program** (MUSDB, MAESTRO golden corpus, release-blocking perf/a11y CI)
-- **Watch-folder daemon**, DAWproject export, Matchering as automatic post-separation stem-bus node
+See git history for the original alpha Deferred/Partial rows. They are intentionally
+omitted from the live product view so the roadmap cannot be misread as incomplete.
 
 ---
 

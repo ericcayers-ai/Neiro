@@ -63,7 +63,17 @@ def _evaluate_track(track_dir: Path, preset: str, auto_download: bool) -> dict[s
     registry = default_registry()
     vram = VRAMManager()
     plan = plan_separation(
-        mixture_path, preset, registry, vram, auto_download=auto_download, with_residual=False
+        mixture_path,
+        preset,
+        registry,
+        vram,
+        auto_download=auto_download,
+        with_residual=False,
+        # Eval must never surprise-download a restoration model, and bleed
+        # suppression changes the stem the metric is scored against — keep both
+        # off so the reported SDR is attributable to the separator alone.
+        auto_restore=False,
+        bleed_suppress=False,
     )
     ctx = ExecutionContext(cache=ArtifactCache())
     outputs = plan.graph.execute(ctx, targets=[plan.separate_node])
@@ -86,9 +96,21 @@ def _evaluate_track(track_dir: Path, preset: str, auto_download: bool) -> dict[s
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--split", default="test", choices=("train", "test"))
-    parser.add_argument("--preset", default="4stem", help="separation preset from neiro.engine.planner.PRESETS")
+    parser.add_argument(
+        "--preset",
+        default="vocals",
+        help=(
+            "separation preset from neiro.engine.planner.PRESETS "
+            "(default: vocals = dsp-center floor, no weight download; "
+            "use 4stem/vocals-best with --auto-download for neural benches)"
+        ),
+    )
     parser.add_argument("--limit", type=int, default=5, help="max tracks to evaluate (0 = all)")
-    parser.add_argument("--auto-download", action="store_true", help="allow downloading model weights")
+    parser.add_argument(
+        "--auto-download",
+        action="store_true",
+        help="allow downloading model weights (off by default; use local/DSP models only)",
+    )
     parser.add_argument("--json", metavar="PATH", default=None, help="write the report as JSON ('-' for stdout)")
     args = parser.parse_args(argv)
 

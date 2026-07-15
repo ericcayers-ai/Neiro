@@ -102,6 +102,16 @@ Guidelines:
   MUSDB18-HQ/MAESTRO-class evaluation datasets are always user-provisioned via
   environment variables — see [`docs/evaluation.md`](docs/evaluation.md).
 
+## Evaluation changes
+
+When you change ensemble weights, enhancement defaults, or scoring:
+
+1. Keep `pytest tests/test_eval_harness.py tests/test_perceptual.py` green.
+2. Follow the human listening protocol in [`docs/evaluation.md`](docs/evaluation.md)
+   for default-quality changes (A/B three clips; record the decision in the PR).
+3. Never invent MUSDB/MAESTRO scores — those runners skip unless `NEIRO_EVAL_*`
+   points at a licensed local checkout.
+
 ## Adding a model
 
 Models are JSON manifests, not code changes to the core. The full guide is in

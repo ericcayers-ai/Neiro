@@ -34,6 +34,8 @@ __all__ = [
     "note_f1",
     "NoteF1Result",
     "midi_to_hz",
+    "perceptual_distance",
+    "PerceptualScore",
 ]
 
 
@@ -89,7 +91,7 @@ class ResidualLoudness:
     rms_dbfs: float
 
     def as_dict(self) -> dict[str, float]:
-        return {"peak_dbfs": round(self.peak_dbfs, 2), "rms_dbfs": round(self.rms_dbfs, 2)}
+        return {"peak_dbfs": float(round(self.peak_dbfs, 2)), "rms_dbfs": float(round(self.rms_dbfs, 2))}
 
 
 def residual_loudness(source: np.ndarray, stems: list[np.ndarray]) -> ResidualLoudness:
@@ -194,3 +196,89 @@ def note_f1(
             pass
     precision, recall, f1 = _local_note_f1(list(pred), list(ref), onset_tolerance)
     return NoteF1Result(precision, recall, f1, backend="local")
+
+
+@dataclass
+class PerceptualScore:
+    """Lightweight PEAQ/ViSQOL-class proxy for enhancement regression gates.
+
+    Real PEAQ/ViSQOL binaries are optional; this score always runs in CI using
+    log-mel spectral distance + loudness error (lower is better; identical=0).
+    """
+
+    log_mel_distance: float
+    loudness_error_db: float
+    combined: float
+
+    def as_dict(self) -> dict[str, float]:
+        return {
+            "log_mel_distance": round(self.log_mel_distance, 4),
+            "loudness_error_db": round(self.loudness_error_db, 3),
+            "combined": round(self.combined, 4),
+        }
+
+
+def _mono(x: np.ndarray) -> np.ndarray:
+    a = np.asarray(x, dtype=np.float64)
+    if a.ndim == 2:
+        return a.mean(axis=0)
+    return a.reshape(-1)
+
+
+def _log_mel_vector(mono: np.ndarray, sample_rate: int, n_mels: int = 40) -> np.ndarray:
+    """Compact log-mel energy vector for distance scoring (no torch dependency)."""
+    n_fft = 2048
+    if mono.size < n_fft:
+        mono = np.pad(mono, (0, n_fft - mono.size))
+    window = np.hanning(n_fft)
+    # average a few frames
+    hop = n_fft // 2
+    mags = []
+    for start in range(0, max(1, mono.size - n_fft + 1), hop):
+        frame = mono[start : start + n_fft] * window
+        mags.append(np.abs(np.fft.rfft(frame)))
+    mag = np.mean(np.stack(mags), axis=0) + 1e-12
+    freqs = np.fft.rfftfreq(n_fft, 1.0 / sample_rate)
+    # triangular mel filters
+    def hz_to_mel(hz: float) -> float:
+        return 2595.0 * np.log10(1.0 + hz / 700.0)
+
+    def mel_to_hz(mel: float) -> float:
+        return 700.0 * (10 ** (mel / 2595.0) - 1.0)
+
+    mel_min, mel_max = hz_to_mel(0.0), hz_to_mel(sample_rate / 2.0)
+    mel_points = np.linspace(mel_min, mel_max, n_mels + 2)
+    hz_points = np.array([mel_to_hz(m) for m in mel_points])
+    bins = np.searchsorted(freqs, hz_points)
+    energies = np.zeros(n_mels, dtype=np.float64)
+    for i in range(n_mels):
+        left, center, right = bins[i], bins[i + 1], bins[i + 2]
+        if right <= left:
+            continue
+        for j in range(left, center):
+            if center != left and 0 <= j < mag.size:
+                energies[i] += mag[j] * (j - left) / (center - left)
+        for j in range(center, right):
+            if right != center and 0 <= j < mag.size:
+                energies[i] += mag[j] * (right - j) / (right - center)
+    return np.log10(energies + 1e-12)
+
+
+def perceptual_distance(
+    estimate: np.ndarray,
+    reference: np.ndarray,
+    sample_rate: int = 44100,
+) -> PerceptualScore:
+    """PEAQ/ViSQOL-class regression proxy: lower combined distance is better."""
+    est = _mono(estimate)
+    ref = _mono(reference)
+    n = min(est.size, ref.size)
+    est, ref = est[:n], ref[:n]
+    v_est = _log_mel_vector(est, sample_rate)
+    v_ref = _log_mel_vector(ref, sample_rate)
+    mel_dist = float(np.linalg.norm(v_est - v_ref))
+    loud_est = 20.0 * np.log10(np.sqrt(np.mean(est**2)) + 1e-12)
+    loud_ref = 20.0 * np.log10(np.sqrt(np.mean(ref**2)) + 1e-12)
+    loud_err = abs(loud_est - loud_ref)
+    combined = mel_dist + 0.1 * loud_err
+    return PerceptualScore(log_mel_distance=mel_dist, loudness_error_db=loud_err, combined=combined)

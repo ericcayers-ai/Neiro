@@ -19,6 +19,7 @@ from neiro.eval.metrics import (
     bleed_db,
     midi_to_hz,
     note_f1,
+    perceptual_distance,
     residual_loudness,
     sdr,
     si_sdr,
@@ -31,4 +32,5 @@ __all__ = [
     "residual_loudness",
     "note_f1",
     "midi_to_hz",
+    "perceptual_distance",
 ]

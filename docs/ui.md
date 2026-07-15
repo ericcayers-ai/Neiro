@@ -67,13 +67,11 @@ Simple and Advanced drive identical Separate/Restore/Transcribe requests today.
   [accessibility issue template](../.github/ISSUE_TEMPLATE/accessibility.yml) for
   what's tracked versus outstanding.
 
-## What's deferred
+## 1.0 workspace notes
 
-Sheet-music engraving, the Advanced-mode pipeline/condition editors, and full
-WebMIDI wiring for Learn mode's wait-for-correct-note behavior are roadmap items
-not yet implemented — the Learn module's controls exist and are functional for
-playback-speed/looping, but the "wait for the right key" logic is stubbed pending
-a MIDI input binding. See the
-[alpha completion ledger](../roadmap.md#alpha-completion-status-v033-2026-07-14)
-and [`docs/roadmap-traceability.md`](roadmap-traceability.md) for the authoritative
-status of every §9 requirement.
+Sheet-music export is available as MusicXML (plus SVG/PDF when Verovio or
+MuseScore is present). Advanced mode reveals quality-tier / condition controls
+across modules; Learn mode supports Space/Enter stepping and WebMIDI pitch
+wait. See [`roadmap.md`](../roadmap.md) and
+[`docs/roadmap-traceability.md`](roadmap-traceability.md) for the authoritative
+1.0 ledger.

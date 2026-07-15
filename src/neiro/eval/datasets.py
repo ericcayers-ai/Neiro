@@ -21,13 +21,25 @@ __all__ = [
     "DatasetStatus",
     "MUSDB_ENV",
     "MAESTRO_ENV",
+    "MOISES_ENV",
+    "SLAKH_ENV",
+    "GUITARSET_ENV",
+    "ENST_ENV",
     "locate_musdb",
     "locate_maestro",
+    "locate_moises",
+    "locate_slakh",
+    "locate_guitarset",
+    "locate_enst",
     "locate",
 ]
 
 MUSDB_ENV = "NEIRO_EVAL_MUSDB"
 MAESTRO_ENV = "NEIRO_EVAL_MAESTRO"
+MOISES_ENV = "NEIRO_EVAL_MOISES"
+SLAKH_ENV = "NEIRO_EVAL_SLAKH"
+GUITARSET_ENV = "NEIRO_EVAL_GUITARSET"
+ENST_ENV = "NEIRO_EVAL_ENST"
 
 
 @dataclass
@@ -82,29 +94,49 @@ def _locate(env_var: str, dataset_label: str, expect_subdirs: tuple[str, ...] = 
 
 
 def locate_musdb() -> DatasetStatus:
-    """Locate a MUSDB18-HQ root via ``NEIRO_EVAL_MUSDB``.
-
-    Expects the standard decoded MUSDB18-HQ layout: ``<root>/train/`` and
-    ``<root>/test/``, each containing one folder per track with
-    ``mixture.wav`` and per-stem ``.wav`` files.
-    """
+    """Locate a MUSDB18-HQ root via ``NEIRO_EVAL_MUSDB``."""
     return _locate(MUSDB_ENV, "MUSDB18-HQ", expect_subdirs=("train", "test"))
 
 
 def locate_maestro() -> DatasetStatus:
-    """Locate a MAESTRO root via ``NEIRO_EVAL_MAESTRO``.
-
-    Expects a MAESTRO v2/v3-style layout: a root directory containing a
-    ``maestro-v*.csv`` metadata file alongside year-numbered audio/MIDI folders.
-    Only the root directory's existence is checked here; the runner validates
-    the metadata CSV itself so the error message can point at the exact file.
-    """
+    """Locate a MAESTRO root via ``NEIRO_EVAL_MAESTRO``."""
     return _locate(MAESTRO_ENV, "MAESTRO", expect_subdirs=())
+
+
+def locate_moises() -> DatasetStatus:
+    """Locate a MoisesDB root via ``NEIRO_EVAL_MOISES``."""
+    return _locate(MOISES_ENV, "MoisesDB", expect_subdirs=())
+
+
+def locate_slakh() -> DatasetStatus:
+    """Locate a Slakh2100 root via ``NEIRO_EVAL_SLAKH``."""
+    return _locate(SLAKH_ENV, "Slakh2100", expect_subdirs=())
+
+
+def locate_guitarset() -> DatasetStatus:
+    """Locate a GuitarSet root via ``NEIRO_EVAL_GUITARSET``."""
+    return _locate(GUITARSET_ENV, "GuitarSet", expect_subdirs=())
+
+
+def locate_enst() -> DatasetStatus:
+    """Locate an ENST/ADTOF drums root via ``NEIRO_EVAL_ENST``."""
+    return _locate(ENST_ENV, "ENST/ADTOF", expect_subdirs=())
 
 
 def locate(name: str) -> DatasetStatus:
     """Dispatch by dataset name — convenience for generic reporting/CLI code."""
-    dispatch = {"musdb": locate_musdb, "musdb18hq": locate_musdb, "maestro": locate_maestro}
+    dispatch = {
+        "musdb": locate_musdb,
+        "musdb18hq": locate_musdb,
+        "maestro": locate_maestro,
+        "moises": locate_moises,
+        "moisesdb": locate_moises,
+        "slakh": locate_slakh,
+        "slakh2100": locate_slakh,
+        "guitarset": locate_guitarset,
+        "enst": locate_enst,
+        "adtof": locate_enst,
+    }
     key = name.strip().lower()
     if key not in dispatch:
         raise ValueError(f"unknown dataset {name!r}; expected one of {sorted(set(dispatch))}")

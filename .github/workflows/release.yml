@@ -1,8 +1,8 @@
 name: Release
 
-# Builds distribution artifacts and attaches them to the GitHub Release when a
-# version tag is pushed. No external index (PyPI) is published from CI; this
-# keeps release provenance in-repo and auditable.
+# Builds distribution artifacts (Python wheel/sdist + desktop installers) and
+# attaches them to the GitHub Release when a version tag is pushed. No external
+# index (PyPI) is published from CI; this keeps release provenance in-repo.
 
 on:
   push:
@@ -13,7 +13,8 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  python:
+    name: Python wheel & sdist
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -29,11 +30,114 @@ jobs:
           pip install dist/*.whl
           python -c "import neiro; print('neiro', neiro.__version__)"
           neiro models
-      - name: Attach artifacts to the release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
+      - name: Upload Python artifacts
+        uses: actions/upload-artifact@v4
         with:
-          files: |
+          name: python-dist
+          path: |
             dist/*.whl
             dist/*.tar.gz
+
+  desktop:
+    name: Desktop installer (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            bundle_glob: "src-tauri/target/release/bundle/**/*.msi"
+            extra_glob: "src-tauri/target/release/bundle/**/*.exe"
+          - os: macos-latest
+            bundle_glob: "src-tauri/target/release/bundle/**/*.dmg"
+            extra_glob: "src-tauri/target/release/bundle/**/*.app"
+          - os: ubuntu-latest
+            bundle_glob: "src-tauri/target/release/bundle/**/*.AppImage"
+            extra_glob: "src-tauri/target/release/bundle/**/*.deb"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            frontend/package-lock.json
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install Linux WebKit deps
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - name: Install JS deps
+        run: |
+          npm ci
+          npm --prefix frontend ci
+      - name: Build frontend into ui/static
+        run: npm --prefix frontend run build
+      - name: Build Tauri bundle
+        # Unsigned local build — code signing secrets are optional and
+        # intentionally not required for an open-source nightly/tag release.
+        run: npm run tauri:build
+        env:
+          # Suppress interactive prompts / missing signing keys in CI.
+          TAURI_SIGNING_PRIVATE_KEY: ""
+      - name: Upload desktop artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.os }}
+          path: |
+            ${{ matrix.bundle_glob }}
+            ${{ matrix.extra_glob }}
+          if-no-files-found: warn
+
+  release-notes:
+    name: Publish GitHub Release
+    needs: [python, desktop]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+      - name: Collect release files
+        id: collect
+        shell: bash
+        run: |
+          mkdir -p collected
+          find release-artifacts -type f \( \
+            -name '*.whl' -o -name '*.tar.gz' \
+            -o -name '*.msi' -o -name '*.exe' \
+            -o -name '*.dmg' -o -name '*.AppImage' -o -name '*.deb' \
+          \) -exec cp -v {} collected/ \;
+          ls -la collected || true
+      - name: Create / update GitHub Release with notes
+        uses: softprops/action-gh-release@v2
+        with:
+          files: collected/*
           generate_release_notes: true
+          body: |
+            ## Neiro ${{ github.ref_name }}
+
+            ### Desktop
+            Platform installers are attached below (Windows `.msi`/`.exe`, macOS `.dmg`,
+            Linux `.AppImage`/`.deb`). The desktop shell supervises a local Python
+            engine; neural model weights are **not** bundled — they download on first
+            use under each model's own license (see `docs/models.md`).
+
+            ### Python
+            `pip install` the attached wheel, or install from source via `pyproject.toml`.
+
+            ### Evaluation notes
+            Synthetic goldens always run in CI. Full MUSDB18-HQ / MAESTRO numbers
+            require user-provisioned datasets (`NEIRO_EVAL_MUSDB`, `NEIRO_EVAL_MAESTRO`);
+            see `docs/evaluation.md`.
+
+            ### Changelog
+            See `CHANGELOG.md` for the curated entry matching this tag.

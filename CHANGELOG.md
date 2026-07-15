@@ -14,10 +14,11 @@ performance backends, evaluation harness, and documentation/governance.
 - Quality tiers (Draft/Standard/Reference), detect-all & cinematic presets, bleed suppression, mid/side stereo helpers
 - Manifests/adapters for SCNet, Medley Vox, Apollo, DeepFilterNet, SonicMaster (opt-in checkpoints; licenses surfaced)
 - Decoder router, hybrid orchestration, MusicXML/tablature/LRC/score export, DAWproject zip
-- Learn + Preferences modules; Simple/Advanced workspace; mixer shared transport; Studio undo remount
+- Learn + Preferences modules (WebMIDI wait mode); Simple/Advanced workspace; mixer shared transport; Studio undo remount
 - Health/version API, Tauri CSP + sidecar health/restart, expanded CI (Python/frontend/Rust/packaging)
-- Synthetic evaluation + robustness suites; docs for architecture, models, UI, sessions, plugins, evaluation
-- Governance: SUPPORT, expanded issue templates, Dependabot for npm/cargo
+- Evaluation harness: >=30 synthetic goldens, PEAQ/ViSQOL-class perceptual proxy, human listening protocol, MUSDB/MAESTRO/extra-corpora runners
+- Desktop release workflow: Python wheel/sdist + per-OS Tauri installers
+- Governance: SUPPORT, CODE_OF_CONDUCT, CONTRIBUTING, expanded issue templates, Dependabot
 
 ### Changed
 - Version **1.0.0** across Python, npm, frontend, and Tauri packages
@@ -25,7 +26,7 @@ performance backends, evaluation harness, and documentation/governance.
 
 ### Notes / external requirements
 - Restricted neural weights are **not** bundled; install extras and download per manifest licenses
-- Full MUSDB18 / MAESTRO gate runs require provisioning datasets via `NEIRO_EVAL_*` env vars
+- Full MUSDB18 / MAESTRO score publication requires provisioning datasets via `NEIRO_EVAL_*` env vars
 - Cross-platform signed installers are produced by release workflows on each OS runner
 
 ## 0.4.0 — UI worksuite (2026-07-14)

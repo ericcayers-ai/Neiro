@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSession } from '../state/session'
 import './modules.css'
 
@@ -11,17 +11,98 @@ export function LearnModule() {
   const [metronome, setMetronome] = useState(false)
   const [waitMode, setWaitMode] = useState<'key' | 'webmidi' | 'none'>('key')
   const [feedback, setFeedback] = useState('')
+  const [noteIndex, setNoteIndex] = useState(0)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const noteIndexRef = useRef(0)
+  const pitchesRef = useRef<number[]>([])
+
+  const targetPitches = transcribeResult
+    ? Object.values(transcribeResult.tracks || {})
+        .flat()
+        .sort((a, b) => a.onset - b.onset)
+        .map((e) => e.pitch)
+    : []
+
+  noteIndexRef.current = noteIndex
+  pitchesRef.current = targetPitches
+
+  const advance = (source: string) => {
+    setNoteIndex((i) => {
+      const total = pitchesRef.current.length
+      const next = Math.min(i + 1, Math.max(0, total))
+      setFeedback(`${source}: advanced to note ${next}/${total || '—'}`)
+      return next
+    })
+  }
+
+  useEffect(() => {
+    const el = audioRef.current
+    if (!el) return
+    el.playbackRate = speed
+  }, [speed])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (waitMode !== 'key') return
       if (e.code === 'Space' || e.key === 'Enter') {
         e.preventDefault()
-        setFeedback('Advanced to next note group')
+        advance('Keyboard')
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
+  }, [waitMode])
+
+  useEffect(() => {
+    if (waitMode !== 'webmidi') return
+    let cancelled = false
+    let access: MIDIAccess | null = null
+
+    const onMessage = (ev: MIDIMessageEvent) => {
+      const data = ev.data
+      if (!data || data.length < 3) return
+      const status = data[0]
+      const note = data[1]
+      const velocity = data[2]
+      const isNoteOn = (status & 0xf0) === 0x90 && velocity > 0
+      if (!isNoteOn) return
+      const expected = pitchesRef.current[noteIndexRef.current]
+      if (expected == null) {
+        setFeedback(`Heard MIDI note ${note} (no remaining target notes)`)
+        return
+      }
+      if (note === expected) {
+        advance('WebMIDI correct')
+      } else {
+        setFeedback(`Heard ${note}, expected ${expected} — try again`)
+      }
+    }
+
+    const attach = async () => {
+      if (!navigator.requestMIDIAccess) {
+        setFeedback('WebMIDI is not available in this browser — use keyboard step mode.')
+        return
+      }
+      try {
+        access = await navigator.requestMIDIAccess({ sysex: false })
+        if (cancelled) return
+        setFeedback('WebMIDI connected — play the expected pitch to advance.')
+        for (const input of access.inputs.values()) {
+          input.addEventListener('midimessage', onMessage as EventListener)
+        }
+      } catch {
+        setFeedback('WebMIDI permission denied — use keyboard step mode.')
+      }
+    }
+    void attach()
+    return () => {
+      cancelled = true
+      if (access) {
+        for (const input of access.inputs.values()) {
+          input.removeEventListener('midimessage', onMessage as EventListener)
+        }
+      }
+    }
   }, [waitMode])
 
   if (!file) {
@@ -100,11 +181,20 @@ export function LearnModule() {
           </select>
         </label>
         <span id="wait-hint" className="intent">
-          Playback halts at each note group until the wait condition is met.
+          Playback waits at each note group until Space/Enter or the matching MIDI pitch.
+          {targetPitches.length > 0
+            ? ` Target ${Math.min(noteIndex + 1, targetPitches.length)}/${targetPitches.length}: MIDI ${targetPitches[Math.min(noteIndex, targetPitches.length - 1)]}.`
+            : ''}
         </span>
       </div>
 
-      <audio controls src={file.audioUrl} style={{ width: '100%', marginTop: 12 }} />
+      <audio
+        ref={audioRef}
+        controls
+        loop={looping}
+        src={file.audioUrl}
+        style={{ width: '100%', marginTop: 12 }}
+      />
       {feedback && (
         <p className="muted" role="status" aria-live="polite">
           {feedback}
