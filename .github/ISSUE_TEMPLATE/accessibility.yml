@@ -1,0 +1,48 @@
+name: Accessibility issue
+description: A barrier to using Neiro with a keyboard, screen reader, or other assistive technology
+labels: ["accessibility"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Accessibility is a release gate, not a nice-to-have (roadmap §9.7). Thanks
+        for reporting — please be as specific as possible about the assistive
+        technology and the exact interaction that failed.
+  - type: dropdown
+    id: modality
+    attributes:
+      label: How were you interacting with Neiro?
+      options:
+        - Keyboard only
+        - Screen reader (specify below)
+        - Screen magnification / high zoom
+        - Reduced motion
+        - Color vision (contrast / color-only meaning)
+        - Voice control / switch access
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: at
+    attributes:
+      label: Assistive technology / browser, if applicable
+      placeholder: "NVDA 2024.4 + Firefox 132 / VoiceOver + Safari / desktop app"
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: The screen/module, the action you tried, and what went wrong (not announced, unreachable by keyboard, insufficient contrast, motion not respecting the setting, etc.).
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What should happen
+      description: Reference WCAG 2.2 AA or a specific roadmap §9.7 commitment if you know it (full keyboard operability, ARIA live-region progress/results, no color-only meaning, prefers-reduced-motion honored, 200% scale without loss).
+    validations:
+      required: true
+  - type: input
+    id: module
+    attributes:
+      label: Module / screen
+      placeholder: "Mixer / Studio / Learn / Preferences / Import"

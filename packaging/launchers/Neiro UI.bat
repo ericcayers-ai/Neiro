@@ -1,14 +1,28 @@
 @echo off
 REM One-click Neiro interface launcher (Windows).
 REM
-REM First run: creates a local Python environment and installs Neiro with the
-REM neural model stack (a few minutes, one time). Later runs start instantly.
+REM Prefers the Tauri desktop binary when present next to this script; otherwise
+REM starts the Python engine and opens a browser tab.
+REM
+REM First run (browser path): creates a local Python environment and installs
+REM Neiro with the neural model stack (a few minutes, one time).
 REM Requires Python 3.10/3.11/3.12 on PATH. Get it from https://python.org
 REM (tick "Add Python to PATH" during install).
 REM Prefer extracting to C:\Neiro (not OneDrive / Desktop sync folders).
 
 setlocal
 cd /d "%~dp0"
+
+if exist "%CD%\Neiro.exe" (
+  echo Starting Neiro desktop...
+  start "" "%CD%\Neiro.exe"
+  exit /b 0
+)
+if exist "%CD%\neiro-desktop\Neiro.exe" (
+  echo Starting Neiro desktop...
+  start "" "%CD%\neiro-desktop\Neiro.exe"
+  exit /b 0
+)
 
 set "VENV_PY=%CD%\.venv\Scripts\python.exe"
 

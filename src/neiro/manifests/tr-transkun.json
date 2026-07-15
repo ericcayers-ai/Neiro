@@ -1,0 +1,13 @@
+{
+  "manifest_version": 2,
+  "id": "transkun-piano",
+  "task": "transcribe",
+  "display_name": "Transkun (semi-Markov CRF piano)",
+  "adapter": "neiro.adapters.transkun_adapter:TranskunPianoAdapter",
+  "requires": ["transkun"],
+  "params": {"track": "piano"},
+  "quality_class": "reference",
+  "vram": {"fp32_gb": 0.8},
+  "license": {"spdx": "unknown", "note": "verify upstream repository license before commercial use", "source": "https://github.com/Yujia-Yan/Transkun"},
+  "provenance": {"author": "Yujia Yan", "polyphony": "polyphonic piano", "method": "semi-Markov CRF"}
+}

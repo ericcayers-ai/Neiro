@@ -19,13 +19,34 @@ from neiro.engine.artifacts import AudioTensor
 __all__ = ["waveform_peaks", "spectrogram_image"]
 
 
-def waveform_peaks(audio: AudioTensor, width: int = 1200) -> dict:
-    """Return per-column min/max peaks of the mono mixdown, in [-1, 1]."""
+def waveform_peaks(
+    audio: AudioTensor,
+    width: int = 1200,
+    *,
+    start: float | None = None,
+    end: float | None = None,
+) -> dict:
+    """Return per-column min/max peaks of the mono mixdown, in [-1, 1].
+
+    Optional ``start``/``end`` (seconds) zoom into a time window so the UI can
+    request denser peaks for a zoomed viewport without shipping the full file.
+    """
     width = max(1, min(width, audio.frames or 1))
     mono = audio.samples.mean(axis=0)
     n = mono.size
+    duration = audio.duration_seconds
     if n == 0:
         return {"width": 0, "min": [], "max": [], "duration": 0.0}
+    if start is not None or end is not None:
+        sr = audio.sample_rate
+        a0 = 0 if start is None else max(0, min(n, int(round(float(start) * sr))))
+        b0 = n if end is None else max(0, min(n, int(round(float(end) * sr))))
+        if b0 < a0:
+            a0, b0 = b0, a0
+        if b0 == a0:
+            b0 = min(n, a0 + 1)
+        mono = mono[a0:b0]
+        n = mono.size
     edges = np.linspace(0, n, width + 1, dtype=int)
     mins = np.empty(width, dtype=np.float32)
     maxs = np.empty(width, dtype=np.float32)
@@ -38,7 +59,7 @@ def waveform_peaks(audio: AudioTensor, width: int = 1200) -> dict:
         "width": width,
         "min": np.round(mins, 4).tolist(),
         "max": np.round(maxs, 4).tolist(),
-        "duration": audio.duration_seconds,
+        "duration": duration,
     }
 
 

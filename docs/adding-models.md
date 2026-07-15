@@ -4,6 +4,12 @@ Neiro's core never imports a model repository. Models arrive as **manifests** th
 point at an **adapter** implementing one of four protocols. Adding a model is a
 manifest plus a small adapter class — no changes to the engine.
 
+See [`docs/models.md`](models.md) for the currently registered roster (and their
+licenses) before you start, so you don't duplicate an existing entry. For anything
+non-trivial, opening a
+[model/adapter proposal issue](../.github/ISSUE_TEMPLATE/model_adapter.yml) first
+gets you feedback on fit and licensing before you write code.
+
 ## 1. Write the adapter
 
 Pick the protocol for your task from `neiro.nodes.base`:

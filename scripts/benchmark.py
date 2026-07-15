@@ -54,7 +54,14 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--seconds", type=float, default=30.0)
     ap.add_argument("--sr", type=int, default=44100)
+    ap.add_argument(
+        "--smoke",
+        action="store_true",
+        help="Short CI smoke run (2 s signal) instead of the full bench.",
+    )
     args = ap.parse_args()
+    if args.smoke:
+        args.seconds = 2.0
 
     audio = _make_signal(args.seconds, args.sr)
     mono16 = AudioTensor(audio.to_mono().samples[:, :: args.sr // 16000], 16000)

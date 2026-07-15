@@ -1,0 +1,14 @@
+{
+  "manifest_version": 2,
+  "id": "medley-vox",
+  "task": "separate",
+  "stems": ["singer1", "singer2", "instrumental"],
+  "display_name": "Medley Vox (multi-singer, opt-in checkpoint)",
+  "adapter": "neiro.adapters.medleyvox_adapter:MedleyVoxSeparator",
+  "requires": ["medley_vox"],
+  "params": {},
+  "quality_class": "reference",
+  "vram": { "fp32_gb": 3.0, "supports_fp16": false },
+  "license": { "spdx": "unknown", "note": "no bundled checkpoint; verify license of any weights you configure", "source": "https://mvsep.com/algorithms/60" },
+  "provenance": { "author": "Medley Vox", "note": "requires a user-supplied checkpoint_path; unavailable until configured" }
+}

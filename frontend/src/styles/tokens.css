@@ -1,0 +1,104 @@
+/* Roadmap §9.1 — dark ink-on-slate, one accent, Okabe–Ito stems */
+:root,
+:root[data-theme='dark'] {
+  --bg0: #0e1116;
+  --bg1: #161b22;
+  --bg2: #1e2430;
+  --bg3: #272e3b;
+  --line: #2e3644;
+  --text: #e8ebf0;
+  --muted: #98a0ad;
+  --faint: #6b7380;
+  --accent: #7b9fc4;
+  --accent-hot: #9bb8d4;
+  --focus: #d4dae3;
+  --danger: #d27a78;
+  --warn: #c9a96e;
+  --ok: #6a9e8a;
+  --font-scale: 1;
+
+  --stem-vocals: #e69f00;
+  --stem-instrumental: #56b4e9;
+  --stem-harmonic: #009e73;
+  --stem-percussive: #d55e00;
+  --stem-drums: #d55e00;
+  --stem-bass: #0072b2;
+  --stem-other: #cc79a7;
+  --stem-melody: #e69f00;
+  --stem-residual: #8b93a1;
+  --stem-guitar: #f0e442;
+  --stem-keys: #009e73;
+  --stem-strings: #56b4e9;
+  --stem-winds: #cc79a7;
+
+  --font: 'IBM Plex Sans', 'Segoe UI', sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
+  --rail-w: 240px;
+  --session-h: 48px;
+  --ease: 160ms ease-out;
+  --radius: 4px;
+}
+
+:root[data-theme='light'] {
+  --bg0: #eef1f5;
+  --bg1: #f7f8fa;
+  --bg2: #e4e8ee;
+  --bg3: #d8dde6;
+  --line: #c5ccd8;
+  --text: #1a1f27;
+  --muted: #5a6370;
+  --faint: #7a8494;
+  --accent: #3d6a94;
+  --accent-hot: #2a4f72;
+  --focus: #1a1f27;
+  --danger: #b54442;
+  --warn: #9a7040;
+}
+
+:root[data-theme='high-contrast'] {
+  --bg0: #000000;
+  --bg1: #0a0a0a;
+  --bg2: #141414;
+  --bg3: #1e1e1e;
+  --line: #ffffff;
+  --text: #ffffff;
+  --muted: #e0e0e0;
+  --faint: #c0c0c0;
+  --accent: #ffff00;
+  --accent-hot: #ffff66;
+  --focus: #00ffff;
+  --danger: #ff6666;
+  --warn: #ffcc00;
+}
+
+:root[data-density='compact'] {
+  --session-h: 40px;
+  --rail-w: 200px;
+}
+
+:root[data-reduced-motion='true'] * {
+  transition: none !important;
+  animation: none !important;
+}
+
+html {
+  font-size: calc(14px * var(--font-scale, 1));
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']):not([data-theme='high-contrast']):not([data-theme='light']) {
+    --bg0: #eef1f5;
+    --bg1: #f7f8fa;
+    --bg2: #e4e8ee;
+    --bg3: #d8dde6;
+    --line: #c5ccd8;
+    --text: #1a1f27;
+    --muted: #5a6370;
+    --faint: #7a8494;
+    --accent: #3d6a94;
+    --accent-hot: #2a4f72;
+    --focus: #1a1f27;
+    --danger: #b54442;
+    --warn: #9a7040;
+  }
+}

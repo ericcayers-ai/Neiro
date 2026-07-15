@@ -42,7 +42,10 @@ or harmful.
 
 ## Scope
 
-This Code of Conduct applies within all community spaces, and also applies when
+This Code of Conduct applies within all community spaces — issues, pull requests,
+Discussions, and any other project space — regardless of which part of the stack a
+contribution touches (the Python engine, the TypeScript/React frontend, the
+Rust/Tauri desktop shell, or model manifests/documentation). It also applies when
 an individual is officially representing the community in public spaces.
 
 ## Enforcement

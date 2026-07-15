@@ -1,0 +1,16 @@
+{
+  "name": "neiro",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Neiro desktop shell (Tauri) + UI build helpers",
+  "scripts": {
+    "build:ui": "npm --prefix frontend run build",
+    "dev:ui": "npm --prefix frontend run dev",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.11.4"
+  }
+}

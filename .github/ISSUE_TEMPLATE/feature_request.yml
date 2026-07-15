@@ -1,7 +1,13 @@
 name: Feature request
-description: Propose a capability or a model to support
+description: Propose a capability, workflow, or UI improvement
 labels: ["enhancement"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Proposing a specific model to add? Use the
+        [Model / adapter proposal](?template=model_adapter.yml) template instead —
+        it captures the license and integration details reviewers need.
   - type: textarea
     id: problem
     attributes:
@@ -17,22 +23,18 @@ body:
         - Separation
         - Transcription
         - Restoration / enhancement
-        - Audio editor
+        - Audio editor (Studio)
         - Analysis / auto-detect
-        - Interface
-        - Model support (a specific model)
+        - Desktop app (Tauri shell)
+        - Frontend / worksuite UI
+        - Accessibility
         - Engine / architecture
+        - Packaging / installers
         - Other
     validations:
       required: true
   - type: textarea
-    id: model
-    attributes:
-      label: If proposing a model
-      description: Link the repo/paper and its license. Recall that models plug in via a manifest — see docs/adding-models.md.
-      placeholder: "BS-RoFormer — https://… — license: …"
-  - type: textarea
     id: notes
     attributes:
       label: Anything else
-      description: References, prior art, roadmap section this relates to.
+      description: References, prior art, mockups, roadmap section this relates to.

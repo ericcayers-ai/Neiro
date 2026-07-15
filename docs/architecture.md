@@ -13,7 +13,13 @@ by a runtime that **caches by content**, with models loaded through a
 ## Layers
 
 ```
-CLI (neiro.cli)  ·  Local UI (neiro.ui)  ·  Python API
+Desktop shell (src-tauri, Rust)         Browser
+  spawns + supervises the engine  ─┐        │
+                                    ▼        ▼
+                          Frontend (frontend/, React + TS)
+                                    │  fetch("/api/...")
+                                    ▼
+CLI (neiro.cli)  ·  Local HTTP UI (neiro.ui.server)  ·  Python API
         \                |                 /
               Planner (neiro.engine.planner)
                          |
@@ -23,6 +29,12 @@ CLI (neiro.cli)  ·  Local UI (neiro.ui)  ·  Python API
                          |
    DSP (neiro.dsp)  ·  Analysis  ·  Symbolic  ·  I/O
 ```
+
+The Python engine is the single source of truth. The desktop shell and the
+browser worksuite are two presentations of the *same* local HTTP API
+(`neiro.ui.server`) — there is no separate "desktop" business logic. See
+[Desktop shell & frontend](#desktop-shell--frontend) below and
+[`docs/ui.md`](ui.md) for the module-level tour.
 
 ### Artifacts (`neiro.engine.artifacts`)
 
@@ -127,6 +139,36 @@ Every node family has a pure-DSP implementation that needs no downloads:
 This is deliberate: the app is useful the instant it's installed, and the neural
 models are quality upgrades slotted in through the same interface, never a
 prerequisite.
+
+## Desktop shell & frontend
+
+### Frontend (`frontend/`, React + TypeScript)
+
+A single-page app (`AppShell` + a module rail) that talks to the engine's local
+HTTP API — `neiro.ui.server` — over `fetch`, never anything else. Ten modules
+(Import, Analysis, Studio, Separate, Restore, Transcribe, Mixer, Learn,
+Preferences, About) share one `SessionProvider` (`frontend/src/state/session.tsx`)
+holding the current file, analysis report, and per-module job results, so
+switching modules never re-fetches or loses state. Built with Vite; `npm --prefix
+frontend run build` emits static assets that both the browser worksuite (served
+directly by `neiro.ui.server`) and the desktop shell's webview load from the same
+`src/neiro/ui/static/` directory (see `tauri.conf.json`'s `frontendDist`).
+
+### Desktop shell (`src-tauri/`, Rust + Tauri 2)
+
+A small native binary whose only job is process supervision and window
+management — it contains no audio logic. On startup it spawns
+`python -m neiro.cli ui --no-browser` as a child process, polls
+`GET /api/health` until the engine responds, then loads
+`http://127.0.0.1:8377/` into the main window. A background thread polls health
+every 5 seconds and restarts the engine (with a capped retry count) if it exits or
+stops responding, so a Python crash degrades to "restarting…" rather than a dead
+window. The window's Content-Security-Policy pins `connect-src`/`img-src`/
+`media-src` to that same local origin — the shell cannot be pointed elsewhere.
+Two Tauri commands (`engine_status`, `restart_engine_cmd`) expose supervision
+state to the frontend's About screen; no other IPC surface exists today, which
+keeps the plugin/permission story (roadmap §10.1, [`docs/plugins.md`](plugins.md))
+simple: the desktop shell itself is not a plugin host, the Python registry is.
 
 ## Testing philosophy
 

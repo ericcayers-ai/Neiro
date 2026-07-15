@@ -1,0 +1,14 @@
+{
+  "manifest_version": 2,
+  "id": "whisper-lyrics",
+  "task": "transcribe",
+  "display_name": "Lyrics (Whisper timestamps)",
+  "adapter": "neiro.adapters.whisper_lyrics_adapter:WhisperLyricsAdapter",
+  "requires": ["whisper"],
+  "params": {"whisper_model": "base", "granularity": "segment"},
+  "audio": { "sample_rate": 16000, "channels": 1 },
+  "quality_class": "standard",
+  "vram": { "fp32_gb": 1.0 },
+  "license": { "spdx": "MIT", "source": "https://github.com/openai/whisper" },
+  "provenance": { "author": "OpenAI", "alignment": "decode timestamps (CTC/MFA-alignment stub)" }
+}

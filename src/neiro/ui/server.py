@@ -1,26 +1,31 @@
-"""Local HTTP server for the Neiro interface.
+"""Local HTTP server for the Neiro worksuite.
 
 Standard library only, bound to 127.0.0.1 — nothing is exposed to the network
-and no audio leaves the machine (roadmap principle 2). The browser page is a
-thin client over the same planner/graph engine as the CLI.
+and no audio leaves the machine (roadmap principle 2). The browser/Tauri page is
+a thin client over the same planner/graph engine as the CLI.
 
 Endpoints:
-    GET  /                      the interface
+    GET  /                      React SPA (or legacy redirect)
+    GET  /api/health            liveness {status, version, engine}
+    GET  /api/version           {name, version, api_version}
     POST /api/upload            raw audio bytes (X-Filename header) -> analysis
     POST /api/ingest-url        {url}               -> analysis (yt-dlp)
     POST /api/separate          {file_id, preset}   -> job id
-    POST /api/transcribe        {file_id, mode}     -> job id
-    POST /api/enhance           {file_id}           -> job id
+    POST /api/transcribe        {file_id, mode, model?} -> job id
+    POST /api/enhance           {file_id, chain?}   -> job id
     GET  /api/job/<id>          job status, progress lines, result
-    GET  /api/waveform          ?file_id&width      -> min/max peak envelope
+    POST /api/job/<id>/cancel   cooperative cancel
+    GET  /api/waveform          ?file_id&width[&start&end] -> peak envelope
     GET  /api/spectrogram       ?file_id            -> quantised log-freq grid
     POST /api/edit              {file_id, op, ...}  -> new (edited) file_id
+    GET  /api/export            ?file_id&format     -> wav16|wav24|flac download
     GET  /files/<...>           artifacts (stems, MIDI, edits) from the workspace
 """
 
 from __future__ import annotations
 
 import json
+import mimetypes
 import re
 import tempfile
 import threading
@@ -28,7 +33,9 @@ import uuid
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import unquote
 
+from neiro import __version__
 from neiro.engine.cache import ArtifactCache
 from neiro.engine.graph import CancelledError, ExecutionContext, Progress
 from neiro.engine.registry import default_registry
@@ -36,12 +43,36 @@ from neiro.engine.vram import VRAMManager
 
 __all__ = ["serve"]
 
+_API_VERSION = 1
+
 _MIME = {
     ".html": "text/html; charset=utf-8",
+    ".js": "text/javascript; charset=utf-8",
+    ".mjs": "text/javascript; charset=utf-8",
+    ".css": "text/css; charset=utf-8",
+    ".svg": "image/svg+xml",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+    ".woff": "font/woff",
+    ".woff2": "font/woff2",
+    ".ttf": "font/ttf",
+    ".map": "application/json",
+    ".json": "application/json",
     ".wav": "audio/wav",
     ".flac": "audio/flac",
     ".mid": "audio/midi",
-    ".json": "application/json",
+    ".ico": "image/x-icon",
+}
+
+_STATIC_DIR = Path(__file__).resolve().parent / "static"
+_LEGACY_INDEX = Path(__file__).resolve().parent / "index.html"
+
+_EXPORT_FORMATS = {
+    "wav16": ("wav", 16, "audio/wav"),
+    "wav24": ("wav", 24, "audio/wav"),
+    "flac": ("flac", 16, "audio/flac"),
 }
 
 
@@ -56,6 +87,9 @@ class _State:
         self.jobs: dict[str, dict] = {}
         self.job_contexts: dict[str, ExecutionContext] = {}
         self.lock = threading.Lock()
+        # Optional: set by serve() when the WS control channel is enabled, so
+        # progress lines get pushed there too, not just appended for polling.
+        self.ws_hub = None
 
     def load(self, file_id: str):
         from neiro.io import load_audio
@@ -71,6 +105,11 @@ class _State:
         self.files[file_id] = dest
         return file_id
 
+    def register_path(self, path: Path) -> str:
+        file_id = uuid.uuid4().hex[:12]
+        self.files[file_id] = path
+        return file_id
+
 
 def _safe_name(name: str) -> str:
     base = re.sub(r"[^A-Za-z0-9._-]", "_", Path(name).name)
@@ -84,6 +123,8 @@ def _job_progress(state: _State, job_id: str):
             job = state.jobs.get(job_id)
             if job is not None:
                 job["progress"].append(line)
+        if state.ws_hub is not None:
+            state.ws_hub.publish(job_id, line)
 
     return _cb
 
@@ -116,9 +157,11 @@ def _run_separation(state: _State, job_id: str, file_id: str, preset: str) -> No
             license_note=entry.license_note,
             provenance=art.provenance,
         )
+        stem_id = state.register_path(p)
         files.append(
             {
                 "name": name,
+                "file_id": stem_id,
                 "url": f"/files/jobs/{job_id}/{p.name}",
                 "meta_url": f"/files/jobs/{job_id}/{meta.name}",
             }
@@ -133,7 +176,14 @@ def _run_separation(state: _State, job_id: str, file_id: str, preset: str) -> No
     if plan.residual_node:
         resid = outputs[plan.residual_node]["residual"]
         p = write_audio(resid, job_dir / "residual.wav", fmt="wav", bit_depth=16)
-        files.append({"name": "residual", "url": f"/files/jobs/{job_id}/{p.name}"})
+        resid_id = state.register_path(p)
+        files.append(
+            {
+                "name": "residual",
+                "file_id": resid_id,
+                "url": f"/files/jobs/{job_id}/{p.name}",
+            }
+        )
         result["null_test_db"] = round(float(20 * np.log10(resid.peak() + 1e-12)), 1)
     with state.lock:
         state.jobs[job_id].update(status="done", result=result)
@@ -207,7 +257,9 @@ def _run_enhancement(state: _State, job_id: str, file_id: str, chain: list[str] 
         p = write_audio(
             outputs[plan.output_node]["audio"], job_dir / "restored.wav", fmt="wav", bit_depth=16
         )
+        restored_id = state.register_path(p)
         result["file_url"] = f"/files/jobs/{job_id}/{p.name}"
+        result["file_id"] = restored_id
     with state.lock:
         state.jobs[job_id].update(status="done", result=result)
 
@@ -219,6 +271,74 @@ _RUNNERS = {
 }
 
 
+def start_job(state: _State, kind: str, file_id: str, body: dict) -> str:
+    """Start a job and return its id; shared by the HTTP and WS control planes.
+
+    ``body`` is the same shape either transport hands in (``preset``/``mode``/
+    ``model``/``chain``), so a WS ``start_job`` call and a
+    ``POST /api/separate`` etc. request run the identical runner with
+    identical job bookkeeping — there's exactly one code path for "what does
+    starting a job do," regardless of which control channel asked.
+    """
+    if file_id not in state.files:
+        raise KeyError(f"unknown file_id {file_id!r} — upload first")
+    if kind not in _RUNNERS:
+        raise ValueError(f"unknown job kind {kind!r}")
+    job_id = uuid.uuid4().hex[:12]
+    with state.lock:
+        state.jobs[job_id] = {"status": "running", "kind": kind, "progress": []}
+    args = {
+        "separate": (body.get("preset", "vocals"),),
+        "transcribe": (body.get("mode", "auto"), body.get("model")),
+        "enhance": (_parse_enhance_chain(body.get("chain")),),
+    }[kind]
+
+    def _work() -> None:
+        try:
+            _RUNNERS[kind](state, job_id, file_id, *args)
+        except CancelledError:
+            with state.lock:
+                if state.jobs[job_id].get("status") == "running":
+                    state.jobs[job_id].update(status="cancelled", error="cancelled")
+        except Exception as exc:
+            with state.lock:
+                if state.jobs[job_id].get("status") != "cancelled":
+                    state.jobs[job_id].update(status="error", error=str(exc))
+
+    threading.Thread(target=_work, daemon=True).start()
+    return job_id
+
+
+def job_status(state: _State, job_id: str) -> dict | None:
+    """Same payload shape as ``GET /api/job/<id>``; shared with the WS control plane."""
+    with state.lock:
+        job = state.jobs.get(job_id)
+        if job is None:
+            return None
+        return {
+            "status": job["status"],
+            "kind": job["kind"],
+            "progress": list(job["progress"]),
+            "result": job.get("result"),
+            "error": job.get("error"),
+        }
+
+
+def cancel_job(state: _State, job_id: str) -> dict:
+    """Same behavior as ``POST /api/job/<id>/cancel``; shared with the WS control plane."""
+    with state.lock:
+        ctx = state.job_contexts.get(job_id)
+        job = state.jobs.get(job_id)
+    if job is None:
+        raise KeyError(f"unknown job {job_id!r}")
+    if ctx is not None:
+        ctx.cancel()
+    with state.lock:
+        if job.get("status") == "running":
+            state.jobs[job_id].update(status="cancelled", error="cancelled by user")
+    return {"job_id": job_id, "status": "cancelled"}
+
+
 def _parse_enhance_chain(raw) -> list[str] | None:
     if raw is None or raw == "" or raw == "auto":
         return None
@@ -227,9 +347,25 @@ def _parse_enhance_chain(raw) -> list[str] | None:
     return [s.strip() for s in str(raw).split(",") if s.strip()]
 
 
-def _make_handler(state: _State):
-    index_path = Path(__file__).resolve().parent / "index.html"
+def _spa_index() -> Path | None:
+    candidate = _STATIC_DIR / "index.html"
+    if candidate.is_file():
+        return candidate
+    return None
 
+
+def _static_file(rel: str) -> Path | None:
+    if not rel or ".." in rel.split("/"):
+        return None
+    target = (_STATIC_DIR / rel).resolve()
+    try:
+        target.relative_to(_STATIC_DIR.resolve())
+    except ValueError:
+        return None
+    return target if target.is_file() else None
+
+
+def _make_handler(state: _State):
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, fmt: str, *args) -> None:  # quiet by default
             pass
@@ -258,39 +394,93 @@ def _make_handler(state: _State):
 
             return {k: v[0] for k, v in parse_qs(urlparse(self.path).query).items()}
 
+        def _ctype_for(self, path: Path) -> str:
+            return _MIME.get(path.suffix.lower()) or mimetypes.guess_type(path.name)[0] or (
+                "application/octet-stream"
+            )
+
+        def _serve_spa(self) -> None:
+            index = _spa_index()
+            if index is not None:
+                self._send(200, index.read_bytes(), _MIME[".html"])
+                return
+            # Dev / unpackaged fallback: short notice pointing at the worksuite build.
+            if _LEGACY_INDEX.is_file():
+                self._send(200, _LEGACY_INDEX.read_bytes(), _MIME[".html"])
+                return
+            body = (
+                b"<!doctype html><title>Neiro</title>"
+                b"<p>Neiro UI assets are not built. Run "
+                b"<code>cd frontend &amp;&amp; npm run build</code>.</p>"
+            )
+            self._send(200, body, _MIME[".html"])
+
         # -- GET ---------------------------------------------------------------
         def do_GET(self) -> None:  # noqa: N802
-            if self.path in ("/", "/index.html"):
-                self._send(200, index_path.read_bytes(), _MIME[".html"])
+            from urllib.parse import urlparse
+
+            parsed = urlparse(self.path)
+            path = unquote(parsed.path)
+
+            if path in ("/", "/index.html"):
+                self._serve_spa()
                 return
-            if self.path.startswith("/api/waveform"):
+            if path == "/api/health":
+                self._json(
+                    {
+                        "status": "ok",
+                        "version": __version__,
+                        "engine": "python-sidecar",
+                    }
+                )
+                return
+            if path == "/api/version":
+                self._json(
+                    {
+                        "name": "neiro",
+                        "version": __version__,
+                        "api_version": _API_VERSION,
+                    }
+                )
+                return
+            if path.startswith("/assets/") or path.startswith("/static/"):
+                rel = path.lstrip("/")
+                if rel.startswith("static/"):
+                    rel = rel[len("static/") :]
+                hit = _static_file(rel)
+                if hit is None and path.startswith("/assets/"):
+                    hit = _static_file(path.lstrip("/"))
+                if hit is not None:
+                    self._send(200, hit.read_bytes(), self._ctype_for(hit))
+                    return
+                self._error(404, "not found")
+                return
+            # Vite-hashed assets at root (favicon, etc.)
+            if not path.startswith("/api/") and not path.startswith("/files/"):
+                hit = _static_file(path.lstrip("/"))
+                if hit is not None:
+                    self._send(200, hit.read_bytes(), self._ctype_for(hit))
+                    return
+
+            if path.startswith("/api/waveform"):
                 self._handle_waveform()
                 return
-            if self.path.startswith("/api/spectrogram"):
+            if path.startswith("/api/spectrogram"):
                 self._handle_spectrogram()
                 return
-            if self.path.startswith("/api/job/"):
-                job_id = self.path.rstrip("/").rsplit("/", 1)[-1]
-                with state.lock:
-                    job = state.jobs.get(job_id)
-                    payload = (
-                        None
-                        if job is None
-                        else {
-                            "status": job["status"],
-                            "kind": job["kind"],
-                            "progress": list(job["progress"]),
-                            "result": job.get("result"),
-                            "error": job.get("error"),
-                        }
-                    )
+            if path.startswith("/api/export"):
+                self._handle_export()
+                return
+            if path.startswith("/api/job/"):
+                job_id = path.rstrip("/").rsplit("/", 1)[-1]
+                payload = job_status(state, job_id)
                 if payload is None:
                     self._error(404, "unknown job")
                 else:
                     self._json(payload)
                 return
-            if self.path.startswith("/files/"):
-                rel = self.path[len("/files/") :]
+            if path.startswith("/files/"):
+                rel = path[len("/files/") :]
                 target = (state.workspace / rel).resolve()
                 if (
                     not str(target).startswith(str(state.workspace.resolve()))
@@ -300,6 +490,11 @@ def _make_handler(state: _State):
                     return
                 ctype = _MIME.get(target.suffix.lower(), "application/octet-stream")
                 self._send(200, target.read_bytes(), ctype)
+                return
+
+            # Client-side module routes → SPA
+            if _spa_index() is not None and not path.startswith("/api"):
+                self._serve_spa()
                 return
             self._error(404, "not found")
 
@@ -323,18 +518,10 @@ def _make_handler(state: _State):
                 self._error(500, str(exc))
 
         def _handle_cancel(self, job_id: str) -> None:
-            with state.lock:
-                ctx = state.job_contexts.get(job_id)
-                job = state.jobs.get(job_id)
-            if job is None:
+            try:
+                self._json(cancel_job(state, job_id))
+            except KeyError:
                 self._error(404, "unknown job")
-                return
-            if ctx is not None:
-                ctx.cancel()
-            with state.lock:
-                if job.get("status") == "running":
-                    state.jobs[job_id].update(status="cancelled", error="cancelled by user")
-            self._json({"job_id": job_id, "status": "cancelled"})
 
         def _handle_waveform(self) -> None:
             from neiro.dsp import waveform_peaks
@@ -345,7 +532,9 @@ def _make_handler(state: _State):
                 self._error(400, "unknown file_id")
                 return
             width = max(1, min(4000, int(q.get("width", "1200"))))
-            self._json(waveform_peaks(state.load(file_id), width=width))
+            start = float(q["start"]) if "start" in q else None
+            end = float(q["end"]) if "end" in q else None
+            self._json(waveform_peaks(state.load(file_id), width=width, start=start, end=end))
 
         def _handle_spectrogram(self) -> None:
             from neiro.dsp import spectrogram_image
@@ -356,6 +545,25 @@ def _make_handler(state: _State):
                 self._error(400, "unknown file_id")
                 return
             self._json(spectrogram_image(state.load(file_id)))
+
+        def _handle_export(self) -> None:
+            from neiro.io import write_audio
+
+            q = self._query()
+            file_id = q.get("file_id", "")
+            fmt_key = q.get("format", "wav24")
+            if file_id not in state.files:
+                self._error(400, "unknown file_id")
+                return
+            if fmt_key not in _EXPORT_FORMATS:
+                self._error(400, f"unknown format {fmt_key!r}")
+                return
+            fmt, bit_depth, ctype = _EXPORT_FORMATS[fmt_key]
+            audio = state.load(file_id)
+            ext = "flac" if fmt == "flac" else "wav"
+            out = state.workspace / "exports" / file_id / f"export.{ext}"
+            write_audio(audio, out, fmt=fmt, bit_depth=bit_depth)
+            self._send(200, out.read_bytes(), ctype)
 
         def _handle_edit(self) -> None:
             from neiro.dsp import edit as ed
@@ -464,42 +672,58 @@ def _make_handler(state: _State):
         def _handle_job(self, kind: str) -> None:
             body = json.loads(self._read_body() or b"{}")
             file_id = body.get("file_id", "")
-            if file_id not in state.files:
-                self._error(400, "unknown file_id — upload first")
+            try:
+                job_id = start_job(state, kind, file_id, body)
+            except KeyError as exc:
+                self._error(400, str(exc))
                 return
-            job_id = uuid.uuid4().hex[:12]
-            with state.lock:
-                state.jobs[job_id] = {"status": "running", "kind": kind, "progress": []}
-            args = {
-                "separate": (body.get("preset", "vocals"),),
-                "transcribe": (body.get("mode", "auto"), body.get("model")),
-                "enhance": (_parse_enhance_chain(body.get("chain")),),
-            }[kind]
-
-            def _work() -> None:
-                try:
-                    _RUNNERS[kind](state, job_id, file_id, *args)
-                except CancelledError:
-                    with state.lock:
-                        if state.jobs[job_id].get("status") == "running":
-                            state.jobs[job_id].update(status="cancelled", error="cancelled")
-                except Exception as exc:
-                    with state.lock:
-                        if state.jobs[job_id].get("status") != "cancelled":
-                            state.jobs[job_id].update(status="error", error=str(exc))
-
-            threading.Thread(target=_work, daemon=True).start()
             self._json({"job_id": job_id})
 
     return Handler
 
 
-def serve(port: int = 8377, open_browser: bool = True) -> int:
+def _start_ws_control_plane(state: _State, ws_port: int) -> None:
+    """Start the optional WS JSON-RPC control channel alongside the HTTP server.
+
+    Runs in its own thread with its own asyncio event loop so it can't block
+    or be blocked by ``ThreadingHTTPServer.serve_forever()``; degrades to a
+    printed note (never a crash) when ``websockets`` isn't installed, since
+    the REST API in this module is fully functional without it either way.
+    """
+    from neiro.ui.ws_server import ProgressHub, build_dispatcher, serve_ws, websockets_available
+
+    if not websockets_available():
+        print(
+            f"WS control channel requested (--ws-port {ws_port}) but the optional "
+            "'websockets' package isn't installed; REST API remains fully available."
+        )
+        return
+
+    hub = ProgressHub()
+    state.ws_hub = hub
+    dispatcher = build_dispatcher(
+        start_job=lambda kind, file_id, body: start_job(state, kind, file_id, body),
+        job_status=lambda job_id: job_status(state, job_id),
+        cancel_job=lambda job_id: cancel_job(state, job_id),
+    )
+
+    def _run() -> None:
+        import asyncio
+
+        asyncio.run(serve_ws("127.0.0.1", ws_port, dispatcher, hub))
+
+    threading.Thread(target=_run, daemon=True).start()
+    print(f"WS control channel at ws://127.0.0.1:{ws_port}/")
+
+
+def serve(port: int = 8377, open_browser: bool = True, ws_port: int | None = None) -> int:
     state = _State()
     server = ThreadingHTTPServer(("127.0.0.1", port), _make_handler(state))
     url = f"http://127.0.0.1:{port}/"
     print(f"Neiro interface at {url} (local only — Ctrl+C to stop)")
     print(f"Workspace: {state.workspace}")
+    if ws_port is not None:
+        _start_ws_control_plane(state, ws_port)
     if open_browser:
         webbrowser.open(url)
     try:

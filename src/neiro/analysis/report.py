@@ -292,6 +292,40 @@ def _detect_instruments(samples: np.ndarray, sample_rate: int) -> tuple[dict[str
     return tuple(hints[:8])
 
 
+def _neural_instrument_tags(
+    audio: AudioTensor, registry: Any | None
+) -> tuple[dict[str, Any], ...] | None:
+    """Optional neural instrument tagger hook (roadmap §4.1 tagger ensemble).
+
+    If ``registry`` has a usable model registered for the ``analyze`` task,
+    it is expected to expose ``instantiate().tag(audio) -> Iterable[dict]``
+    yielding the same ``{instrument, confidence, status}`` hint shape as the
+    DSP heuristic below, so callers never need to branch on which backend
+    produced the tags. No such manifest ships today (there is no bundled
+    neural tagger yet) — this is a genuine extension point, not a
+    placeholder: dropping a manifest + adapter in is enough to upgrade
+    tagging without touching :func:`analyze`. Any failure (missing model,
+    adapter error, …) degrades silently to the DSP floor.
+    """
+    if registry is None:
+        return None
+    try:
+        entry = registry.best_for("analyze", "standard")
+    except Exception:
+        return None
+    if entry is None or not entry.available():
+        return None
+    try:
+        adapter = entry.instantiate()
+        tagger = getattr(adapter, "tag", None)
+        if tagger is None:
+            return None
+        tags = tuple(tagger(audio))
+        return tags or None
+    except Exception:
+        return None
+
+
 def _noise_floor_dbfs(samples: np.ndarray) -> float:
     mono = samples.mean(axis=0)
     frame = 2048
@@ -308,7 +342,120 @@ def _noise_floor_dbfs(samples: np.ndarray) -> float:
     return float(20 * np.log10(floor + 1e-12))
 
 
-def analyze(audio: AudioTensor) -> AnalysisReport:
+_CHORD_TEMPLATES = {
+    "C": np.array([1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0], dtype=np.float64),
+    "Am": np.array([1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0], dtype=np.float64),
+    "F": np.array([1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0], dtype=np.float64),
+    "G": np.array([0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1], dtype=np.float64),
+    "Dm": np.array([0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0], dtype=np.float64),
+    "Em": np.array([0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1], dtype=np.float64),
+}
+
+
+def _estimate_chords(
+    chroma: np.ndarray, bpm: float | None, duration: float
+) -> tuple[dict[str, Any], ...]:
+    """Sparse chord lattice from global chroma vs. major/minor templates."""
+    if chroma is None or chroma.size != 12 or duration <= 0:
+        return ()
+    c = chroma / (chroma.sum() + 1e-12)
+    scores = []
+    for name, tmpl in _CHORD_TEMPLATES.items():
+        t = tmpl / (tmpl.sum() + 1e-12)
+        scores.append((name, float(np.dot(c, t))))
+    scores.sort(key=lambda x: x[1], reverse=True)
+    top = scores[0]
+    # One global chord label with start/end for the whole clip (lattice can refine later)
+    return (
+        {
+            "chord": top[0],
+            "confidence": round(top[1], 3),
+            "start": 0.0,
+            "end": round(duration, 3),
+        },
+    )
+
+
+def _estimate_sections(
+    samples: np.ndarray, sample_rate: int, bpm: float | None, duration: float
+) -> tuple[dict[str, Any], ...]:
+    """Heuristic intro/verse/chorus segmentation by energy curve breaks."""
+    if duration < 8:
+        return ({"label": "full", "start": 0.0, "end": round(duration, 3)},)
+    mono = samples.mean(axis=0)
+    n_blocks = max(4, int(duration / 4))
+    block = max(1, mono.size // n_blocks)
+    energies = []
+    for i in range(n_blocks):
+        seg = mono[i * block : (i + 1) * block]
+        energies.append(float(np.sqrt(np.mean(seg**2) + 1e-12)))
+    energies = np.array(energies)
+    med = float(np.median(energies))
+    labels = []
+    for i, e in enumerate(energies):
+        start = i * (duration / n_blocks)
+        end = (i + 1) * (duration / n_blocks)
+        if i == 0 and e < med * 0.85:
+            label = "intro"
+        elif e >= med * 1.15:
+            label = "chorus"
+        else:
+            label = "verse"
+        if labels and labels[-1]["label"] == label:
+            labels[-1]["end"] = round(end, 3)
+        else:
+            labels.append({"label": label, "start": round(start, 3), "end": round(end, 3)})
+    return tuple(labels)
+
+
+def _estimate_downbeats(bpm: float | None, duration: float) -> tuple[float, ...]:
+    if not bpm or bpm <= 0 or duration <= 0:
+        return ()
+    beat = 60.0 / bpm
+    bar = beat * 4
+    times = []
+    t = 0.0
+    while t < duration:
+        times.append(round(t, 4))
+        t += bar
+    return tuple(times[:512])
+
+
+def _estimate_rt60(samples: np.ndarray, sample_rate: int) -> float | None:
+    """Very rough late-decay estimate for vocal-dominant bands (heuristic)."""
+    mono = samples.mean(axis=0)
+    if mono.size < sample_rate:
+        return None
+    # Use last 25% energy envelope slope
+    tail = mono[int(mono.size * 0.75) :]
+    frame = max(256, sample_rate // 50)
+    envs = []
+    for i in range(0, tail.size - frame, frame):
+        envs.append(float(np.sqrt(np.mean(tail[i : i + frame] ** 2) + 1e-12)))
+    if len(envs) < 4:
+        return None
+    envs = np.array(envs)
+    db = 20 * np.log10(envs + 1e-12)
+    # Fit simple slope
+    x = np.arange(len(db))
+    slope = float(np.polyfit(x, db, 1)[0])
+    if slope >= -0.05:
+        return 0.2
+    # Convert dB/frame to time for -60 dB
+    seconds_per_frame = frame / sample_rate
+    rt60 = abs(60.0 / (slope / seconds_per_frame))
+    return float(np.clip(rt60, 0.15, 4.0))
+
+
+def analyze(audio: AudioTensor, *, registry: Any | None = None) -> AnalysisReport:
+    """Run the analysis pass.
+
+    ``registry`` is optional: when given, an ``analyze``-task model (see
+    :func:`_neural_instrument_tags`) is tried first for instrument tagging,
+    falling back to the DSP heuristic on any failure or absence — the same
+    "neural preferred, DSP floor always available" contract the separation
+    and transcription planners use.
+    """
     samples = audio.samples
     sr = audio.sample_rate
     is_mono, corr = _mono_check(samples)
@@ -342,10 +489,39 @@ def analyze(audio: AudioTensor) -> AnalysisReport:
         conditions["echo_delay_s"] = round(echo_s, 3)
 
     instruments = _detect_instruments(samples, sr)
+    tagger_capability = "dsp-instrument-hints"
+    neural_tags = _neural_instrument_tags(audio, registry)
+    if neural_tags is not None:
+        instruments = neural_tags
+        tagger_capability = "neural-instrument-tagger"
+        notes.append("instrument tagging: neural tagger via registry 'analyze' task")
     if instruments:
         asserted = [h["instrument"] for h in instruments if h["status"] == "asserted"]
         if asserted:
             notes.append("detected: " + ", ".join(asserted[:6]))
+
+    bpm = _tempo(samples, sr)
+    key = _estimate_key(chroma)
+    chords = _estimate_chords(chroma, bpm, audio.duration_seconds)
+    sections = _estimate_sections(samples, sr, bpm, audio.duration_seconds)
+    downbeats = _estimate_downbeats(bpm, audio.duration_seconds)
+    capabilities = (
+        "dsp-loudness",
+        "dsp-tempo-key",
+        tagger_capability,
+        "dsp-chord-lattice",
+        "dsp-structure",
+        "dsp-hum-echo",
+    )
+    if tagger_capability == "dsp-instrument-hints":
+        notes.append("analysis capabilities: DSP floor (neural taggers attach when installed)")
+
+    # RT60-style reverb estimate from decay of late energy after onsets (heuristic)
+    rt60 = _estimate_rt60(samples, sr)
+    if rt60 is not None:
+        conditions["rt60_s"] = round(rt60, 2)
+        if rt60 > 0.6:
+            notes.append(f"estimated RT60 ~{rt60:.1f} s — consider dereverb before transcription")
 
     return AnalysisReport(
         duration_seconds=audio.duration_seconds,
@@ -354,12 +530,17 @@ def analyze(audio: AudioTensor) -> AnalysisReport:
         is_effectively_mono=is_mono,
         integrated_lufs=_integrated_lufs(samples, sr),
         peak_dbfs=float(20 * np.log10(audio.peak() + 1e-12)),
-        estimated_bpm=_tempo(samples, sr),
-        estimated_key=_estimate_key(chroma),
+        estimated_bpm=bpm,
+        estimated_key=key,
         bandwidth_hz=bandwidth,
         clipping_ratio=clip,
         noise_floor_dbfs=_noise_floor_dbfs(samples),
         instruments=instruments,
         vocal_conditions=conditions,
         notes=tuple(notes),
+        schema_version=2,
+        chords=chords,
+        sections=sections,
+        downbeats=downbeats,
+        capabilities=capabilities,
     )

@@ -7,6 +7,21 @@ body:
       value: |
         Thanks for reporting. Neiro processes audio locally, so most bugs are
         reproducible from a command and a file description — no need to share audio.
+  - type: dropdown
+    id: component
+    attributes:
+      label: Where did this happen?
+      description: Which part of the stack surfaced the bug?
+      options:
+        - CLI (neiro ...)
+        - Python engine / DSP / adapters
+        - Desktop app (Tauri shell)
+        - Frontend / worksuite UI (browser)
+        - Local HTTP API (neiro.ui.server)
+        - Packaging / installer / launcher
+        - Not sure
+    validations:
+      required: true
   - type: textarea
     id: what-happened
     attributes:
@@ -19,7 +34,7 @@ body:
     id: repro
     attributes:
       label: Steps to reproduce
-      description: The exact command(s), and a description of the input (format, sample rate, mono/stereo, duration).
+      description: The exact command(s) or UI steps, and a description of the input (format, sample rate, mono/stereo, duration).
       placeholder: |
         1. neiro analyze mix.wav
         2. neiro separate mix.wav --preset 4stem
@@ -30,14 +45,14 @@ body:
     id: output
     attributes:
       label: Output / error
-      description: Paste the terminal output. For crashes, the full traceback.
+      description: Paste the terminal output. For crashes, the full traceback. For the desktop app, include the engine status shown on the About screen.
       render: shell
   - type: input
     id: version
     attributes:
       label: Neiro version
-      description: "`neiro --version`"
-      placeholder: "0.2.0"
+      description: "`neiro --version`, or the version shown in the app's About screen"
+      placeholder: "0.4.0"
     validations:
       required: true
   - type: dropdown
@@ -52,6 +67,11 @@ body:
     attributes:
       label: Python version
       placeholder: "3.12.7"
+  - type: input
+    id: node
+    attributes:
+      label: Node.js version (only if the bug is in the frontend build/dev server)
+      placeholder: "22.x"
   - type: input
     id: accelerator
     attributes:

@@ -68,16 +68,34 @@ def load_audio(path: str | Path) -> AudioTensor:
     return AudioTensor(samples, sr, provenance=(f"ingest:{path.name}",))
 
 
+def _resample(samples: np.ndarray, sr_in: int, sr_out: int) -> np.ndarray:
+    """Resample ``(channels, frames)`` audio from ``sr_in`` to ``sr_out``.
+
+    Prefers the optional ``soxr`` package (SoX resampler bindings) when
+    installed: it's the higher-quality resampler roadmap §3.1 asks for and is
+    a small, wheel-only dependency. Falls back to polyphase (``scipy``) —
+    always installed, correct, just a notch behind soxr on stopband
+    rejection — so lane creation never hard-depends on an optional package.
+    """
+    try:
+        import soxr
+
+        out = soxr.resample(samples.T, sr_in, sr_out, quality="VHQ")
+        return np.ascontiguousarray(out.T, dtype=np.float32)
+    except ImportError:
+        pass
+    g = gcd(sr_in, sr_out)
+    up, down = sr_out // g, sr_in // g
+    return resample_poly(samples, up, down, axis=1).astype(np.float32)
+
+
 def make_lane(audio: AudioTensor, target_sr: int, *, mono: bool = False) -> AudioTensor:
     """Resample (and optionally downmix) to produce a processing lane."""
     samples = audio.samples
     if mono and samples.shape[0] > 1:
         samples = samples.mean(axis=0, keepdims=True)
     if audio.sample_rate != target_sr:
-        g = gcd(audio.sample_rate, target_sr)
-        up = target_sr // g
-        down = audio.sample_rate // g
-        samples = resample_poly(samples, up, down, axis=1).astype(np.float32)
+        samples = _resample(samples, audio.sample_rate, target_sr)
     return AudioTensor(
         samples.astype(np.float32),
         target_sr,

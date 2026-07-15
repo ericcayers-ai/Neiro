@@ -1,0 +1,41 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Neiro",
+  "version": "1.0.0",
+  "identifier": "app.neiro.desktop",
+  "build": {
+    "frontendDist": "../src/neiro/ui/static",
+    "devUrl": "http://127.0.0.1:8377",
+    "beforeDevCommand": "npm --prefix frontend run build",
+    "beforeBuildCommand": "npm --prefix frontend run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Neiro",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 900,
+        "minHeight": 600,
+        "resizable": true,
+        "fullscreen": false,
+        "url": "http://127.0.0.1:8377/"
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; connect-src 'self' http://127.0.0.1:8377 ws://127.0.0.1:8377; img-src 'self' data: blob: http://127.0.0.1:8377; media-src 'self' blob: http://127.0.0.1:8377; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}

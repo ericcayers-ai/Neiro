@@ -2,11 +2,18 @@
 
 from __future__ import annotations
 
-from neiro.dsp.enhance import declip, peak_normalize, remove_hum, spectral_gate
+from neiro.dsp.enhance import declick, declip, peak_normalize, remove_hum, spectral_gate, vocal_repair
 from neiro.engine.artifacts import AudioTensor
 from neiro.nodes.base import ModelProfile
 
-__all__ = ["DeclipEnhancer", "DehumEnhancer", "DenoiseEnhancer", "NormalizeEnhancer"]
+__all__ = [
+    "DeclipEnhancer",
+    "DehumEnhancer",
+    "DenoiseEnhancer",
+    "NormalizeEnhancer",
+    "DeclickEnhancer",
+    "VocalRepairEnhancer",
+]
 
 
 class _DspEnhancer:
@@ -98,3 +105,45 @@ class NormalizeEnhancer(_DspEnhancer):
 
     def enhance(self, audio: AudioTensor) -> AudioTensor:
         return self._wrap(peak_normalize(audio.samples, self.target_dbfs), audio)
+
+
+class DeclickEnhancer(_DspEnhancer):
+    def __init__(self, model_id: str = "dsp-declick", threshold: float = 3.0, **_: object):
+        self.threshold = float(threshold)
+        self.profile = ModelProfile(
+            model_id=model_id,
+            task="enhance",
+            fp32_gb=0.02,
+            quality_class="draft",
+            license_spdx="MIT",
+            extras={"fixes": "impulsive clicks/pops", "method": "derivative-gated spline repair"},
+        )
+
+    def enhance(self, audio: AudioTensor) -> AudioTensor:
+        cleaned = declick(audio.samples, audio.sample_rate, threshold=self.threshold)
+        return self._wrap(cleaned, audio)
+
+
+class VocalRepairEnhancer(_DspEnhancer):
+    def __init__(
+        self,
+        model_id: str = "dsp-vocal-repair",
+        deess_db: float = 6.0,
+        **_: object,
+    ):
+        self.deess_db = float(deess_db)
+        self.profile = ModelProfile(
+            model_id=model_id,
+            task="enhance",
+            fp32_gb=0.05,
+            quality_class="draft",
+            license_spdx="MIT",
+            extras={
+                "fixes": "vocal-take glitches (clicks, harsh sibilance)",
+                "method": "declick + sibilance-band soft compressor",
+            },
+        )
+
+    def enhance(self, audio: AudioTensor) -> AudioTensor:
+        repaired = vocal_repair(audio.samples, audio.sample_rate, deess_db=self.deess_db)
+        return self._wrap(repaired, audio)

@@ -356,10 +356,75 @@ def cmd_enhance(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_watch(args: argparse.Namespace) -> int:
+    from neiro.io.watch import watch_loop
+
+    return watch_loop(
+        Path(args.inbox),
+        Path(args.out),
+        job=args.job,
+        preset=args.preset,
+        poll_seconds=args.poll,
+        quiet=args.quiet,
+        once=args.once,
+    )
+
+
 def cmd_ui(args: argparse.Namespace) -> int:
     from neiro.ui.server import serve
 
-    return serve(port=args.port, open_browser=not args.no_browser)
+    return serve(port=args.port, open_browser=not args.no_browser, ws_port=args.ws_port)
+
+
+def cmd_session_save(args: argparse.Namespace) -> int:
+    from neiro.engine.session import SessionDocument, SessionStore, file_fingerprint
+
+    home = Path(args.home) if args.home else None
+    store = SessionStore(home / "sessions" if home else None)
+    source_path = Path(args.input)
+    if not source_path.is_file():
+        raise FileNotFoundError(source_path)
+
+    name = args.name or source_path.stem
+    graph_config: dict = {}
+    if args.preset:
+        graph_config["preset"] = args.preset
+    if args.job:
+        graph_config["job"] = args.job
+
+    doc = SessionDocument(
+        name=name,
+        source=file_fingerprint(source_path),
+        graph_config=graph_config,
+        notes=[f"created by 'neiro session save' from {source_path.name}"],
+    )
+    path = store.save(doc, name=name)
+    print(f"Saved session '{name}' -> {path}")
+    return 0
+
+
+def cmd_session_load(args: argparse.Namespace) -> int:
+    from neiro.engine.session import SessionStore
+
+    home = Path(args.home) if args.home else None
+    store = SessionStore(home / "sessions" if home else None)
+    doc = store.load(args.name)
+    print(json.dumps(doc.to_dict(), indent=2))
+    return 0
+
+
+def cmd_session_list(args: argparse.Namespace) -> int:
+    from neiro.engine.session import SessionStore
+
+    home = Path(args.home) if args.home else None
+    store = SessionStore(home / "sessions" if home else None)
+    paths = store.list_sessions()
+    if not paths:
+        print("No sessions saved.")
+        return 0
+    for p in paths:
+        print(p.stem.removesuffix(".neiro"))
+    return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -388,6 +453,8 @@ def build_parser() -> argparse.ArgumentParser:
         "4stem",
         "6stem",
         "drums",
+        "detect-all",
+        "cinematic",
     ]
     p_sep = sub.add_parser("separate", help="separate a file into stems")
     p_sep.add_argument("input")
@@ -451,7 +518,44 @@ def build_parser() -> argparse.ArgumentParser:
     p_ui = sub.add_parser("ui", help="open the local interface in a browser")
     p_ui.add_argument("--port", type=int, default=8377)
     p_ui.add_argument("--no-browser", action="store_true")
+    p_ui.add_argument(
+        "--ws-port",
+        type=int,
+        default=None,
+        help="also serve the JSON-RPC WS control channel on this port "
+        "(needs the optional 'websockets' package)",
+    )
     p_ui.set_defaults(func=cmd_ui)
+
+    p_session = sub.add_parser("session", help="portable session files (roadmap §10.2)")
+    session_sub = p_session.add_subparsers(dest="session_command", required=True)
+
+    p_ss = session_sub.add_parser("save", help="pin a source file's fingerprint into a session")
+    p_ss.add_argument("input", help="source audio file to fingerprint and pin")
+    p_ss.add_argument("--name", default=None, help="session name (default: input file stem)")
+    p_ss.add_argument("--preset", default=None, help="record a planner preset in graph_config")
+    p_ss.add_argument("--job", default=None, help="record a job kind in graph_config")
+    p_ss.add_argument("--home", default=None, help="session home dir (default: %%LOCALAPPDATA%%/Neiro or ~/.neiro)")
+    p_ss.set_defaults(func=cmd_session_save)
+
+    p_sl = session_sub.add_parser("load", help="print a saved session as JSON")
+    p_sl.add_argument("name", help="session name or a direct path to a .neiro.json file")
+    p_sl.add_argument("--home", default=None, help="session home dir (default: %%LOCALAPPDATA%%/Neiro or ~/.neiro)")
+    p_sl.set_defaults(func=cmd_session_load)
+
+    p_slist = session_sub.add_parser("list", help="list saved session names")
+    p_slist.add_argument("--home", default=None, help="session home dir (default: %%LOCALAPPDATA%%/Neiro or ~/.neiro)")
+    p_slist.set_defaults(func=cmd_session_list)
+
+    p_watch = sub.add_parser("watch", help="watch a folder and batch-process new audio")
+    p_watch.add_argument("inbox", help="input folder to watch")
+    p_watch.add_argument("--out", required=True, help="output directory")
+    p_watch.add_argument("--job", default="separate", choices=["separate", "transcribe", "enhance"])
+    p_watch.add_argument("--preset", default="vocals")
+    p_watch.add_argument("--poll", type=float, default=2.0)
+    p_watch.add_argument("--once", action="store_true")
+    p_watch.add_argument("--quiet", action="store_true")
+    p_watch.set_defaults(func=cmd_watch)
 
     return parser
 

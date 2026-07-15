@@ -1,9 +1,23 @@
 #!/usr/bin/env bash
 # One-click Neiro interface launcher (macOS / Linux).
-# First run creates a local environment and installs Neiro with the neural
-# model stack (a few minutes, one time). Requires Python 3.10–3.12.
+# Prefers the Tauri desktop binary when present; otherwise starts Python UI.
+# First run (browser path) creates a local environment and installs Neiro.
 set -e
 cd "$(dirname "$0")"
+
+if [ -x "./Neiro" ]; then
+  echo "Starting Neiro desktop..."
+  exec ./Neiro
+fi
+if [ -x "./neiro-desktop/Neiro" ]; then
+  echo "Starting Neiro desktop..."
+  exec ./neiro-desktop/Neiro
+fi
+# macOS .app bundle
+if [ -d "./Neiro.app" ]; then
+  echo "Starting Neiro desktop..."
+  exec open "./Neiro.app"
+fi
 
 VENV_PY=".venv/bin/python"
 

@@ -1,0 +1,13 @@
+{
+  "manifest_version": 2,
+  "id": "apollo",
+  "task": "enhance",
+  "display_name": "Apollo (lossy-codec / bandwidth restoration, opt-in)",
+  "adapter": "neiro.adapters.restoration_adapters:ApolloRestorer",
+  "requires": ["apollo"],
+  "params": {},
+  "quality_class": "reference",
+  "vram": { "fp32_gb": 2.0, "supports_fp16": false },
+  "license": { "spdx": "unknown", "note": "no bundled checkpoint; verify license of any weights you configure" },
+  "provenance": { "author": "Apollo", "fixes": "lossy-codec artefacts / bandwidth ceiling", "note": "requires a user-supplied checkpoint_path; unavailable until configured" }
+}

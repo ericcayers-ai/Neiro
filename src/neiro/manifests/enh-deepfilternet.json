@@ -1,0 +1,14 @@
+{
+  "manifest_version": 2,
+  "id": "deepfilternet",
+  "task": "enhance",
+  "display_name": "DeepFilterNet (denoise)",
+  "adapter": "neiro.adapters.restoration_adapters:DeepFilterNetDenoiser",
+  "requires": ["df"],
+  "params": {},
+  "weights": [{"kind": "managed", "note": "checkpoint auto-downloads on first init_df() call"}],
+  "quality_class": "reference",
+  "vram": { "fp32_gb": 0.5, "supports_fp16": false },
+  "license": { "spdx": "MIT", "source": "https://github.com/Rikorose/DeepFilterNet" },
+  "provenance": { "author": "Rikorose", "fixes": "broadband / stationary noise" }
+}

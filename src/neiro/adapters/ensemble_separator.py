@@ -15,7 +15,7 @@ from neiro.dsp.ensemble import fuse_stems, tta_separate
 from neiro.engine.artifacts import AudioTensor
 from neiro.nodes.base import ModelProfile
 
-__all__ = ["EnsembleSeparator"]
+__all__ = ["EnsembleSeparator", "TTASeparator"]
 
 
 def _instantiate(spec: dict):
@@ -78,3 +78,26 @@ class EnsembleSeparator:
     def unload(self) -> None:
         for m in self.members:
             m.unload()
+
+
+class TTASeparator:
+    """Wraps any single :class:`Separator` with test-time augmentation.
+
+    Lets quality-tier wiring (roadmap §5.2/§5.3, ``plan_separation(quality=…)``)
+    turn TTA on for a preset that resolved to a plain (non-ensemble) model —
+    e.g. Standard/Reference tiers on the ``vocals`` preset before any neural
+    ensemble is installed — without every adapter needing its own TTA logic.
+    """
+
+    def __init__(self, inner) -> None:
+        self.inner = inner
+        self.profile = inner.profile
+
+    def load(self, device: str, precision: str) -> None:
+        self.inner.load(device, precision)
+
+    def separate(self, audio: AudioTensor) -> dict[str, AudioTensor]:
+        return tta_separate(self.inner, audio)
+
+    def unload(self) -> None:
+        self.inner.unload()

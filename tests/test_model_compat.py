@@ -31,6 +31,14 @@ REQUIRES_TO_EXTRA: dict[str, str] = {
     "huggingface_hub": "downloader",
     "demucs": "demucs",
     "torch": "demucs",
+    "whisper": "lyrics",
+    "df": "deepfilternet",
+    "apollo": "apollo",
+    "scnet": "scnet",
+    "medley_vox": "medley_vox",
+    "sonicmaster": "sonicmaster",
+    "transkun": "transkun",
+    "omnizart": "omnizart",
 }
 
 WEIGHT_KINDS = {"http", "hf_hub", "managed"}

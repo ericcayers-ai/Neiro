@@ -1,0 +1,13 @@
+{
+  "manifest_version": 2,
+  "id": "drums-neural",
+  "task": "transcribe",
+  "display_name": "Drum kit (omnizart, neural)",
+  "adapter": "neiro.adapters.drum_transcriber:DrumNeuralTranscriber",
+  "requires": ["omnizart"],
+  "params": {"track": "drums"},
+  "quality_class": "standard",
+  "vram": {"fp32_gb": 1.0},
+  "license": {"spdx": "MIT", "note": "requires a separate 'omnizart download-checkpoints' run", "source": "https://github.com/Music-and-Culture-Technology-Lab/omnizart"},
+  "provenance": {"author": "MCT Lab", "polyphony": "13-class drum activation"}
+}

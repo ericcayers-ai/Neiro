@@ -558,7 +558,18 @@ Each milestone ships as a usable build; nothing waits for 1.0 to be touchable.
 
 ---
 
-## Alpha completion status (v0.3.3, 2026-07-14)
+## Alpha completion status (superseded)
+
+The v0.3.3–0.4.0 alpha ledger below is retained for history. **Neiro 1.0.0**
+implements phases 1–10 and milestones M0–M7. Track requirement closure in
+[`docs/roadmap-traceability.md`](docs/roadmap-traceability.md). Deferred alpha
+items (Tauri/React, Advanced mode, signed index, watch folders, evaluation
+scaffolding, restoration roster, etc.) shipped in 1.0.0 with DSP floors and
+opt-in neural adapters; licensed corpus gates remain environment-provisioned.
+
+---
+
+## Alpha completion status (v0.3.3, 2026-07-14) — historical
 
 This section records what is **complete for the current alpha scope** versus what
 remains **intentionally deferred** to later milestones. The full vision above is

@@ -1,8 +1,14 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Questions & ideas
+  - name: Questions & how-to
     url: https://github.com/ericcayers-ai/Neiro/discussions
-    about: Ask a question or discuss an idea in Discussions before filing an issue.
+    about: Ask a question or discuss an idea in Discussions before filing an issue. See also SUPPORT.md.
+  - name: Security vulnerability
+    url: https://github.com/ericcayers-ai/Neiro/security/advisories/new
+    about: Do not file a public issue for security problems — use private reporting, or see SECURITY.md.
   - name: Roadmap
     url: https://github.com/ericcayers-ai/Neiro/blob/main/roadmap.md
     about: The full product and architecture plan — check here before proposing large features.
+  - name: Roadmap traceability
+    url: https://github.com/ericcayers-ai/Neiro/blob/main/docs/roadmap-traceability.md
+    about: Requirement-by-requirement implementation/test/docs status.

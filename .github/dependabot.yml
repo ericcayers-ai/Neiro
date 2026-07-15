@@ -5,9 +5,39 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
-    labels: ["dependencies"]
+    labels: ["dependencies", "python"]
     groups:
       python-deps:
+        patterns: ["*"]
+
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "frontend"]
+    groups:
+      root-npm-deps:
+        patterns: ["*"]
+
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "frontend"]
+    groups:
+      frontend-npm-deps:
+        patterns: ["*"]
+
+  - package-ecosystem: "cargo"
+    directory: "/src-tauri"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "rust"]
+    groups:
+      tauri-cargo-deps:
         patterns: ["*"]
 
   - package-ecosystem: "github-actions"

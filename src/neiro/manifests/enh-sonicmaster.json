@@ -1,0 +1,13 @@
+{
+  "manifest_version": 2,
+  "id": "sonicmaster",
+  "task": "enhance",
+  "display_name": "SonicMaster (all-in-one restoration + mastering, opt-in)",
+  "adapter": "neiro.adapters.restoration_adapters:SonicMasterRestorer",
+  "requires": ["sonicmaster"],
+  "params": {},
+  "quality_class": "reference",
+  "vram": { "fp32_gb": 2.5, "supports_fp16": false },
+  "license": { "spdx": "unknown", "note": "no bundled checkpoint; verify license of any weights you configure", "source": "https://arxiv.org/pdf/2508.03448" },
+  "provenance": { "author": "SonicMaster", "fixes": "combined restoration + mastering", "note": "requires a user-supplied checkpoint_path; unavailable until configured" }
+}

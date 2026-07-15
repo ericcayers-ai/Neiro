@@ -61,6 +61,16 @@ large model on a small GPU degrades to a slower path with a stated reason instea
 of an out-of-memory crash. `neiro models` shows which backends are installed and
 available on your machine.
 
+## Desktop shell startup
+
+The Tauri shell (`src-tauri/`) spawns the Python engine as a child process and
+waits on `GET /api/health` before showing the window; on a warm Python
+environment (dependencies already installed, no cold `pip install`) this adds low
+hundreds of milliseconds to first paint, well inside the roadmap's 2-second
+interactive budget below. On a machine bootstrapping through the one-click
+launchers (first-run venv + wheel install), first launch is dominated by the
+Python environment setup, not the engine itself — subsequent launches are fast.
+
 ## Roadmap performance targets
 
 The roadmap (§11) sets budgets the project tracks toward: app interactive < 2 s,
@@ -68,3 +78,10 @@ first analysis result < 15 s for a typical song on a mid-range GPU, draft
 separation faster than real time on GPU, and chunk-granular crash resume for long
 jobs. The CPU DSP numbers above already meet the "faster than real time" bar for
 the model-free lanes.
+
+**CI gating status:** these budgets are not yet enforced as blocking CI checks —
+see `R-0114` and `R-0201` in
+[`docs/roadmap-traceability.md`](roadmap-traceability.md) and the perf-CI item in
+[`docs/evaluation.md`](evaluation.md#whats-not-yet-gated-in-ci). Regressions are
+currently caught by running `scripts/benchmark.py` manually, not by an automated
+release gate.

@@ -1,0 +1,55 @@
+name: Performance issue
+description: Something is slower than expected, or a benchmark regressed
+labels: ["performance"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        See [`docs/performance.md`](../../docs/performance.md) for how to measure
+        Neiro on your own machine (`python scripts/benchmark.py`) before filing —
+        it helps to have your own numbers to compare against.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where is it slow?
+      options:
+        - Analysis pass
+        - Separation (DSP floor)
+        - Separation (neural model / ensemble)
+        - Transcription
+        - Restoration / enhancement
+        - Studio editor (waveform/spectrogram rendering)
+        - Desktop app startup / engine handshake
+        - Model download
+        - Other / not sure
+    validations:
+      required: true
+  - type: textarea
+    id: measured
+    attributes:
+      label: What did you measure?
+      description: Command run, input duration/format, and elapsed time (or RTF from scripts/benchmark.py). Compare against the reference numbers in docs/performance.md if applicable.
+      placeholder: |
+        neiro separate 4min.flac --preset vocals-neural-ensemble
+        Took 6m40s on an RTX 3060 12GB; expected roughly half that.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect, and why?
+      description: A prior run, a documented budget (roadmap §11 / docs/performance.md), or a comparable tool.
+  - type: input
+    id: hardware
+    attributes:
+      label: Hardware
+      placeholder: "CPU: Ryzen 7 7700X · GPU: RTX 3060 12GB · RAM: 32GB · SSD"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Neiro version
+      placeholder: "0.4.0"
+    validations:
+      required: true

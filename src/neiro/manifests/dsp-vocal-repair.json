@@ -1,0 +1,13 @@
+{
+  "manifest_version": 2,
+  "id": "dsp-vocal-repair",
+  "task": "enhance",
+  "display_name": "Vocal repair (DSP)",
+  "adapter": "neiro.adapters.dsp_enhancers:VocalRepairEnhancer",
+  "framework": "numpy",
+  "params": { "deess_db": 6.0 },
+  "quality_class": "draft",
+  "vram": { "fp32_gb": 0.05, "supports_fp16": false },
+  "license": { "spdx": "MIT", "source": "builtin" },
+  "provenance": { "author": "neiro", "method": "declick + sibilance-band soft compressor" }
+}

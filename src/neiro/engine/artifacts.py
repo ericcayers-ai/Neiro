@@ -23,6 +23,8 @@ __all__ = [
     "NoteEvent",
     "NoteStream",
     "Timeline",
+    "LyricEvent",
+    "LyricStream",
 ]
 
 
@@ -121,9 +123,15 @@ class AnalysisReport(Artifact):
     instruments: tuple[dict[str, Any], ...] = ()
     vocal_conditions: dict[str, Any] = field(default_factory=dict)
     notes: tuple[str, ...] = ()
+    schema_version: int = 2
+    chords: tuple[dict[str, Any], ...] = ()
+    sections: tuple[dict[str, Any], ...] = ()
+    downbeats: tuple[float, ...] = ()
+    capabilities: tuple[str, ...] = ()
 
     def as_dict(self) -> dict[str, Any]:
         return {
+            "schema_version": self.schema_version,
             "duration_seconds": round(self.duration_seconds, 3),
             "sample_rate": self.sample_rate,
             "channels": self.channels,
@@ -139,6 +147,10 @@ class AnalysisReport(Artifact):
             ),
             "instruments": list(self.instruments),
             "vocal_conditions": self.vocal_conditions,
+            "chords": list(self.chords),
+            "sections": list(self.sections),
+            "downbeats": list(self.downbeats),
+            "capabilities": list(self.capabilities),
             "notes": list(self.notes),
         }
 
@@ -150,7 +162,15 @@ class AnalysisReport(Artifact):
 
 @dataclass(frozen=True)
 class NoteEvent:
-    """A single transcribed note in absolute (float second) time."""
+    """A single transcribed note in absolute (float second) time.
+
+    ``provenance`` names the decoder(s) that produced this specific note (e.g.
+    ``"basic-pitch"`` or ``"merge(piano-transcription,basic-pitch)"``) — per-note
+    traceability for the hybrid-voting orchestrator (roadmap §8.1) and the
+    "honest software" principle: every note can be traced back to what decided
+    it. ``user_verified`` marks a note a human edited/confirmed in the editor
+    (roadmap §9.4), at which point confidence is pinned to 1.0.
+    """
 
     onset: float
     offset: float
@@ -158,6 +178,8 @@ class NoteEvent:
     velocity: int = 80
     confidence: float = 1.0
     track: str = "default"
+    provenance: str = ""
+    user_verified: bool = False
 
 
 @dataclass(frozen=True)
@@ -173,6 +195,29 @@ class NoteStream(Artifact):
             f"{e.onset:.4f},{e.offset:.4f},{e.pitch},{e.velocity}" for e in self.events
         )
         return _hash_bytes(payload.encode(), str(self.tempo_bpm).encode())
+
+
+@dataclass(frozen=True)
+class LyricEvent:
+    """A single synced lyric line/word in absolute (float second) time."""
+
+    start: float
+    end: float
+    text: str
+    confidence: float = 1.0
+    provenance: str = ""
+
+
+@dataclass(frozen=True)
+class LyricStream(Artifact):
+    """A collection of synced lyric events, mirroring :class:`NoteStream`."""
+
+    events: tuple[LyricEvent, ...]
+    source: str = ""
+
+    def content_key(self) -> str:
+        payload = "|".join(f"{e.start:.3f},{e.end:.3f},{e.text}" for e in self.events)
+        return _hash_bytes(payload.encode())
 
 
 @dataclass(frozen=True)

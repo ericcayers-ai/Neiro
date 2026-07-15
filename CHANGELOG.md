@@ -1,5 +1,61 @@
 # Changelog
 
+## 1.0.0 — Full roadmap product (2026-07-16)
+
+Completes the Neiro 1.0 program across phases 1–10 / milestones M0–M7: engine
+foundations, analysis intelligence, separation & restoration roster, transcription
+orchestration & symbolic exports, Simple/Advanced React worksuite, plugins &
+performance backends, evaluation harness, and documentation/governance.
+
+### Added
+- Portable sessions, job checkpoints, watch-folder batch CLI, signed model index helpers
+- Memory-mapped ingest path, safer versioned cache, WebSocket JSON-RPC control helpers
+- Analysis report v2: chords, sections, downbeats, RT60 heuristic, capability notes, user corrections
+- Quality tiers (Draft/Standard/Reference), detect-all & cinematic presets, bleed suppression, mid/side stereo helpers
+- Manifests/adapters for SCNet, Medley Vox, Apollo, DeepFilterNet, SonicMaster (opt-in checkpoints; licenses surfaced)
+- Decoder router, hybrid orchestration, MusicXML/tablature/LRC/score export, DAWproject zip
+- Learn + Preferences modules; Simple/Advanced workspace; mixer shared transport; Studio undo remount
+- Health/version API, Tauri CSP + sidecar health/restart, expanded CI (Python/frontend/Rust/packaging)
+- Synthetic evaluation + robustness suites; docs for architecture, models, UI, sessions, plugins, evaluation
+- Governance: SUPPORT, expanded issue templates, Dependabot for npm/cargo
+
+### Changed
+- Version **1.0.0** across Python, npm, frontend, and Tauri packages
+- Roadmap ledger updated to 1.0 completion status (see `docs/roadmap-traceability.md`)
+
+### Notes / external requirements
+- Restricted neural weights are **not** bundled; install extras and download per manifest licenses
+- Full MUSDB18 / MAESTRO gate runs require provisioning datasets via `NEIRO_EVAL_*` env vars
+- Cross-platform signed installers are produced by release workflows on each OS runner
+
+## 0.4.0 — UI worksuite (2026-07-14)
+
+Replaces the single-file Simple UI with a Tauri 2 + React + TypeScript worksuite:
+module rail, labeled engine controls, Audacity-like Studio, and Mixer — still driven
+by the local Python HTTP engine on `127.0.0.1`.
+
+### Added
+- **React worksuite** (`frontend/`): Import, Analysis, Studio, Separate, Restore,
+  Transcribe, Mixer, About — ink-on-slate tokens (IBM Plex), intent helpers on every
+  control, sticky session bar, `localStorage` preset memory, module shortcuts 1–7.
+- **Studio**: stacked waveform + spectrogram, zoom/pan/scrub, selection, labeled edit
+  ops, undo/redo, keyboard shortcuts, export (`wav16` / `wav24` / `flac`).
+- **Mixer**: mute/solo/gain preview, A/B, null test, Open in Studio (stem `file_id`).
+- **API**: `GET /api/export`, waveform `start`/`end` zoom window; SPA static serve from
+  `ui/static/`; stem/restore results include `file_id` for Studio.
+- **Tauri 2 shell** (`src-tauri/`): spawns `python -m neiro.cli ui --no-browser`, loads
+  the local UI, tears down the sidecar on quit.
+- Launchers prefer `Neiro.exe` / `Neiro` / `Neiro.app` when present beside the script.
+
+### Changed
+- Vanilla `index.html` Simple mode retired (short build notice remains as fallback).
+- Package data includes `ui/static/**` for wheel packaging.
+
+### Notes
+- Dev: `neiro ui --no-browser` + `npm --prefix frontend run dev` (Vite proxies `/api`).
+- Or build UI once: `npm --prefix frontend run build`, then `neiro ui`.
+- Desktop: `npm install` at repo root, then `npm run tauri:dev` / `tauri:build`.
+
 ## 0.3.3 — Windows launcher + Python 3.12 extras (2026-07-14)
 
 Critical fixes for the one-click Windows launchers and for Python 3.12 users:

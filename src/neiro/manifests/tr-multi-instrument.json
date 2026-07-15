@@ -1,0 +1,13 @@
+{
+  "manifest_version": 2,
+  "id": "multi-instrument",
+  "task": "transcribe",
+  "display_name": "Multi-instrument (whole mix, YourMT3/MIROS-class)",
+  "adapter": "neiro.adapters.multi_instrument_adapter:MultiInstrumentAdapter",
+  "framework": "numpy",
+  "params": {"track": "multi"},
+  "quality_class": "standard",
+  "vram": { "fp32_gb": 1.2 },
+  "license": { "spdx": "MIT", "note": "prefers omnizart when installed; always falls back to Basic Pitch", "source": "builtin" },
+  "provenance": { "author": "neiro", "polyphony": "polyphonic, multi-instrument (whole mix)", "note": "no YourMT3/MIROS pip-installable inference package exists yet; wired for when one lands" }
+}

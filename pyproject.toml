@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "neiro"
-version = "0.3.3"
+version = "1.0.0"
 description = "Local source separation, restoration, and symbolic transcription."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -12,7 +12,7 @@ license = { text = "MIT" }
 authors = [{ name = "Neiro contributors" }]
 keywords = ["audio", "source-separation", "transcription", "music", "dsp"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
@@ -38,6 +38,15 @@ loudness = ["pyloudnorm>=0.1"]  # ITU-R BS.1770 loudness in the analysis pass
 downloader = ["huggingface_hub>=0.20"]  # Hugging Face Hub weight downloads
 youtube = ["yt-dlp>=2024.1"]  # URL ingest (YouTube and similar)
 demucs = ["demucs>=4.0", "torch>=2.1"]  # direct Demucs backend (alternative to audio-separator)
+lyrics = ["openai-whisper>=20231117"]
+deepfilternet = ["deepfilternet>=0.5.6"]
+# Opt-in extras: adapters probe for these modules; weights/checkpoints are user-supplied.
+apollo = ["numpy>=1.24"]
+scnet = ["numpy>=1.24"]
+medley_vox = ["numpy>=1.24"]
+sonicmaster = ["numpy>=1.24"]
+transkun = ["numpy>=1.24"]
+omnizart = ["numpy>=1.24"]
 # Convenience bundle: packages that install cleanly on Python 3.12.
 # Excludes basicpitch (needs TensorFlow <2.15.1 — not published for 3.12) and
 # superres (AudioSR, Python ≤3.11). Install those extras on 3.10/3.11 only.
@@ -62,7 +71,11 @@ Roadmap = "https://github.com/ericcayers-ai/Neiro/blob/main/roadmap.md"
 where = ["src"]
 
 [tool.setuptools.package-data]
-neiro = ["manifests/*.json", "ui/*.html"]
+neiro = [
+    "manifests/*.json",
+    "ui/*.html",
+    "ui/static/**/*",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

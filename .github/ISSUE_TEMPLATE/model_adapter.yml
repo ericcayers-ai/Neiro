@@ -1,0 +1,64 @@
+name: Model / adapter proposal
+description: Propose a new separation, transcription, enhancement, or analysis model
+labels: ["enhancement", "model"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Models plug into Neiro as a manifest + a small adapter — no core changes
+        (see [`docs/adding-models.md`](../../docs/adding-models.md) and
+        [`docs/models.md`](../../docs/models.md)). This template captures what a
+        reviewer needs to judge fit and licensing before anyone writes code.
+  - type: input
+    id: model-name
+    attributes:
+      label: Model name
+      placeholder: "SCNet-XL"
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: Repository / paper
+      placeholder: "https://github.com/yoyololicon/SCNet"
+    validations:
+      required: true
+  - type: dropdown
+    id: task
+    attributes:
+      label: Task
+      options:
+        - separate
+        - transcribe
+        - enhance
+        - analyze
+    validations:
+      required: true
+  - type: input
+    id: license
+    attributes:
+      label: License (SPDX identifier if possible)
+      description: This is the single most important field — see CONTRIBUTING.md. If unsure, say so explicitly rather than guessing.
+      placeholder: "MIT / Apache-2.0 / NonCommercial / unknown — needs verification"
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why this model
+      description: What does it add over what's already registered (see `neiro models` or docs/models.md)? Benchmark numbers (SDR, F1, …) if available.
+    validations:
+      required: true
+  - type: textarea
+    id: integration
+    attributes:
+      label: Integration notes
+      description: Expected dependencies (torch version, other pip packages), approximate VRAM footprint, weight file size/hosting, and whether you can supply a reference adapter/PR yourself.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I checked the model isn't already registered under a different name (`neiro models` / `docs/models.md`)
+        - label: I have a link to the model's actual license text, not just an assumption
+        - label: I'm willing to open a PR with the manifest + adapter (optional, but speeds things up a lot)

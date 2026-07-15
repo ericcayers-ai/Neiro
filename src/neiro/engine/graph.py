@@ -167,7 +167,7 @@ class Graph:
             def _compute(node=node, resolved=resolved) -> dict[str, Artifact]:
                 return node.run(ctx, resolved)
 
-            outputs = ctx.cache.get_or_compute(key, _compute)
+            outputs = ctx.cache.get_or_compute(key, _compute, provenance=(node.node_id,))
             elapsed = time.perf_counter() - start
             from_cache = ctx.cache.hits > hit_before
             results[node.node_id] = outputs

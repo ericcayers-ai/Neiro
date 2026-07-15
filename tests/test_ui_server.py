@@ -81,11 +81,43 @@ def _run_job(base, kind, body):
     raise AssertionError("job did not finish in time")
 
 
+def test_health_and_version_contract(server):
+    base, _ = server
+    health = json.loads(_get(base + "/api/health")[1])
+    assert health["status"] == "ok"
+    assert "version" in health
+    assert health["engine"] == "python-sidecar"
+    ver = json.loads(_get(base + "/api/version")[1])
+    assert ver["name"] == "neiro"
+    assert isinstance(ver["api_version"], int)
+    assert ver["version"] == health["version"]
+
+
 def test_index_served(server):
     base, _ = server
     status, body = _get(base + "/")
     assert status == 200
     assert b"<title>Neiro" in body
+
+
+def test_export_formats(server):
+    base, _ = server
+    fid = _upload(base)["file_id"]
+    for fmt in ("wav16", "wav24", "flac"):
+        code, body = _get(base + f"/api/export?file_id={fid}&format={fmt}")
+        assert code == 200
+        assert len(body) > 44
+
+
+def test_waveform_time_range(server):
+    base, _ = server
+    fid = _upload(base, _tone_wav_bytes(seconds=2.0))["file_id"]
+    wf = json.loads(
+        _get(base + f"/api/waveform?file_id={fid}&width=100&start=0.5&end=1.5")[1]
+    )
+    assert wf["width"] == 100
+    assert abs(wf["duration"] - 2.0) < 0.05
+    assert len(wf["max"]) == 100
 
 
 def test_upload_returns_analysis(server):

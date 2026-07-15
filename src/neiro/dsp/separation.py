@@ -24,9 +24,16 @@ import math
 
 import numpy as np
 from scipy.ndimage import median_filter
-from scipy.signal import get_window
+from scipy.signal import butter, get_window, sosfiltfilt
 
-__all__ = ["stft", "istft", "center_extract", "harmonic_percussive", "residual"]
+__all__ = [
+    "stft",
+    "istft",
+    "center_extract",
+    "harmonic_percussive",
+    "residual",
+    "band_extract",
+]
 
 
 def stft(x: np.ndarray, n_fft: int = 4096, hop: int = 1024, window: str = "hann") -> np.ndarray:
@@ -145,6 +152,23 @@ def harmonic_percussive(
     harmonic = np.stack(harm_channels).astype(np.float32)
     percussive = np.stack(perc_channels).astype(np.float32)
     return harmonic, percussive
+
+
+def band_extract(
+    samples: np.ndarray, sample_rate: int, cutoff_hz: float = 220.0, order: int = 4
+) -> tuple[np.ndarray, np.ndarray]:
+    """Split ``samples`` into (low, high) by a zero-phase Butterworth low-pass.
+
+    Used as the DSP-floor "bass" step of the detect-all cascade (roadmap
+    §5.5): ``low`` is the sub/bass-heavy proxy, ``high`` is the exact
+    complement (``samples - low``), so the pair is energy-conserving — no
+    signal is lost to filter overlap, which keeps the cascade's running
+    residual meaningful at every step.
+    """
+    sos = butter(order, cutoff_hz, btype="low", fs=sample_rate, output="sos")
+    low = sosfiltfilt(sos, samples, axis=1).astype(np.float32)
+    high = (samples - low).astype(np.float32)
+    return low, high
 
 
 def residual(source: np.ndarray, stems: list[np.ndarray]) -> np.ndarray:

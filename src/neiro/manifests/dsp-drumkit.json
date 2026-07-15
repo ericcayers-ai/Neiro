@@ -1,0 +1,14 @@
+{
+  "manifest_version": 2,
+  "id": "dsp-drumkit",
+  "task": "separate",
+  "stems": ["kick", "snare", "toms", "hh", "other"],
+  "display_name": "Drum kit split (DSP floor)",
+  "adapter": "neiro.adapters.dsp_separators:DrumKitSeparator",
+  "framework": "numpy",
+  "params": {},
+  "quality_class": "draft",
+  "vram": { "fp32_gb": 0.05, "supports_fp16": false },
+  "license": { "spdx": "MIT", "source": "builtin" },
+  "provenance": { "author": "neiro", "method": "band + transient (HPSS-style) heuristic; coarse fallback for mdx23c-drumsep" }
+}

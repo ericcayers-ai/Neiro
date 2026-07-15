@@ -17,8 +17,8 @@ from PyInstaller.utils.hooks import collect_data_files
 datas = []
 # libsndfile shipped inside the soundfile package.
 datas += collect_data_files("soundfile")
-# Neiro's packaged manifests and the UI page.
-datas += collect_data_files("neiro", includes=["manifests/*.json", "ui/*.html", "py.typed"])
+# Neiro's packaged manifests and the UI (SPA static build + fallback HTML).
+datas += collect_data_files("neiro", includes=["manifests/*.json", "ui/*.html", "ui/static/**", "py.typed"])
 
 hiddenimports = [
     "neiro.adapters.dsp_separators",

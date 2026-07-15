@@ -1,0 +1,14 @@
+{
+  "manifest_version": 2,
+  "id": "drums-dsp",
+  "task": "transcribe",
+  "display_name": "Drum kit (DSP onset classifier)",
+  "adapter": "neiro.adapters.drum_transcriber:DrumDspTranscriber",
+  "framework": "numpy",
+  "params": {"track": "drums"},
+  "audio": { "sample_rate": 44100, "channels": 1 },
+  "quality_class": "draft",
+  "vram": { "fp32_gb": 0.05, "supports_fp16": false },
+  "license": { "spdx": "MIT", "source": "builtin" },
+  "provenance": { "author": "neiro", "method": "spectral-flux onsets + band-energy classification" }
+}
