@@ -1,9 +1,10 @@
-import { useEffect, useRef } from 'react'
-import { startTranscribe } from '../api/client'
+import { useEffect, useRef, useState } from 'react'
+import { editNotes, startTranscribe } from '../api/client'
 import { useJobPoller, useLocalPref } from '../api/hooks'
 import type { MidiEvent, TranscribeResult } from '../api/types'
 import { IntentField } from '../components/IntentField'
 import { JobProgress } from '../components/JobProgress'
+import { PlanStrip } from '../components/PlanStrip'
 import { TRANSCRIBE_MODES, TRANSCRIBE_MODELS, stemColor } from '../constants/options'
 import { useSession } from '../state/session'
 import { drawWebGLPianoRoll, type PianoRollNote } from '../viz/webgl'
@@ -170,6 +171,7 @@ export function TranscribeModule() {
     setJobRunning,
     setJobLabel,
     registerCancel,
+    workspaceMode,
   } = useSession()
   const [mode, setMode] = useLocalPref('neiro.tr.mode', 'auto')
   const [model, setModel] = useLocalPref('neiro.tr.model', '')
@@ -194,7 +196,11 @@ export function TranscribeModule() {
       startTranscribe(file.fileId, mode, model || undefined),
     )
     if (done?.status === 'done' && done.result) {
-      setTranscribeResult(done.result as TranscribeResult)
+      const result = done.result as TranscribeResult
+      if (!result.job_id && done) {
+        // job poller may expose id separately; keep whatever the engine returned
+      }
+      setTranscribeResult(result)
     }
   }
 
@@ -254,23 +260,78 @@ export function TranscribeModule() {
         </button>
       </div>
 
+      {workspaceMode === 'advanced' && (
+        <PlanStrip kind="transcribe" fileId={file.fileId} mode={mode} />
+      )}
+
       <JobProgress status={job.status} error={job.error} onCancel={() => void job.cancel()} />
 
       {transcribeResult && (
-        <div style={{ marginTop: 20 }}>
-          <h2>
-            Transcription — {transcribeResult.model}
-            {transcribeResult.used_split ? ' (auto-split)' : ''}
-          </h2>
-          <PianoRoll result={transcribeResult} />
-          <div className="meta-block">
-            {transcribeResult.event_count} notes · {Math.round(transcribeResult.tempo_bpm)} BPM ·{' '}
-            <a href={transcribeResult.midi_url} download>
-              download MIDI
-            </a>
-            <br />
-            {(transcribeResult.notes || []).join(' · ')}
-          </div>
+        <TranscriptionResultPanel
+          result={transcribeResult}
+          onUpdate={(next) => setTranscribeResult(next)}
+        />
+      )}
+    </div>
+  )
+}
+
+function TranscriptionResultPanel({
+  result,
+  onUpdate,
+}: {
+  result: TranscribeResult
+  onUpdate: (r: TranscribeResult) => void
+}) {
+  const [busy, setBusy] = useState(false)
+  const jobId = result.job_id
+
+  const deleteLast = async () => {
+    if (!jobId) return
+    const track = Object.keys(result.tracks)[0]
+    const events = result.tracks[track] || []
+    if (!track || !events.length) return
+    setBusy(true)
+    try {
+      const next = await editNotes(jobId, { op: 'delete', track, index: events.length - 1 })
+      onUpdate({
+        ...result,
+        tracks: next.tracks,
+        tempo_bpm: next.tempo_bpm,
+        event_count: Object.values(next.tracks).reduce((n, t) => n + t.length, 0),
+      })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div style={{ marginTop: 20 }}>
+      <h2>
+        Transcription — {result.model}
+        {result.used_split ? ' (auto-split)' : ''}
+      </h2>
+      <PianoRoll result={result} />
+      <div className="meta-block">
+        {result.event_count} notes · {Math.round(result.tempo_bpm)} BPM ·{' '}
+        <a href={result.midi_url} download>
+          download MIDI
+        </a>
+        {jobId && (
+          <>
+            {' · '}
+            <button type="button" disabled={busy} onClick={() => void deleteLast()}>
+              Delete last note
+            </button>
+          </>
+        )}
+        <br />
+        {(result.notes || []).join(' · ')}
+      </div>
+      {result.svg_url && (
+        <div className="score-view" style={{ marginTop: 16 }}>
+          <h3>Score</h3>
+          <img src={result.svg_url} alt="Rendered score" style={{ maxWidth: '100%' }} />
         </div>
       )}
     </div>

@@ -4,6 +4,7 @@ import { useJobPoller, useLocalPref } from '../api/hooks'
 import type { SeparateResult } from '../api/types'
 import { IntentField } from '../components/IntentField'
 import { JobProgress } from '../components/JobProgress'
+import { PlanStrip } from '../components/PlanStrip'
 import { SEPARATE_PRESETS, QUALITY_TIERS } from '../constants/options'
 import { useSession } from '../state/session'
 import './modules.css'
@@ -38,9 +39,12 @@ export function SeparateModule() {
 
   const run = async () => {
     if (!file) return
-    const effective =
-      workspaceMode === 'advanced' && tier !== 'standard' ? `${preset}:${tier}` : preset
-    const done = await job.start('separate', () => startSeparate(file.fileId, effective))
+    const done = await job.start('separate', () =>
+      startSeparate(file.fileId, preset, {
+        quality: tier,
+        bleed_suppress: bleed,
+      }),
+    )
     if (done?.status === 'done' && done.result) {
       setSeparateResult(done.result as SeparateResult)
       setModule('mixer')
@@ -51,7 +55,7 @@ export function SeparateModule() {
     return (
       <div className="module-panel">
         <h2>Separate</h2>
-        <div className="gate muted">Import a file first.</div>
+        <div className="gate muted">Import a file first — or capture from a DAW injector.</div>
       </div>
     )
   }
@@ -60,7 +64,7 @@ export function SeparateModule() {
     <div className="module-panel">
       <h2>Separate</h2>
       <p className="lede">
-        Run a stem separation job on <strong>{file.name}</strong>. Results open in Mixer.
+        Stemify <strong>{file.name}</strong> with the local planner. Results open in Mixer.
       </p>
 
       <div className="row">
@@ -104,24 +108,33 @@ export function SeparateModule() {
       </div>
 
       {workspaceMode === 'advanced' && (
-        <div className="row" style={{ marginTop: 10 }}>
-          <IntentField
-            label="Bleed suppression"
-            intent="Post-pass rival-stem leakage control. Off in Draft unless forced."
-            htmlFor="sep-bleed"
-          >
-            <select
-              id="sep-bleed"
-              value={bleed}
-              disabled={job.running}
-              onChange={(e) => setBleed(e.target.value)}
+        <>
+          <div className="row" style={{ marginTop: 10 }}>
+            <IntentField
+              label="Bleed suppression"
+              intent="Post-pass rival-stem leakage control. Sent to the engine with the job."
+              htmlFor="sep-bleed"
             >
-              <option value="auto">Auto (tier policy)</option>
-              <option value="on">On</option>
-              <option value="off">Off</option>
-            </select>
-          </IntentField>
-        </div>
+              <select
+                id="sep-bleed"
+                value={bleed}
+                disabled={job.running}
+                onChange={(e) => setBleed(e.target.value)}
+              >
+                <option value="auto">Auto (on)</option>
+                <option value="on">On</option>
+                <option value="off">Off</option>
+              </select>
+            </IntentField>
+          </div>
+          <PlanStrip
+            kind="separate"
+            fileId={file.fileId}
+            preset={preset}
+            quality={tier}
+            bleed={bleed}
+          />
+        </>
       )}
 
       <span className="intent" style={{ marginTop: 8 }}>

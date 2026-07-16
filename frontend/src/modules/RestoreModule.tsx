@@ -4,6 +4,7 @@ import { useJobPoller, useLocalPref } from '../api/hooks'
 import type { EnhanceResult } from '../api/types'
 import { IntentField } from '../components/IntentField'
 import { JobProgress } from '../components/JobProgress'
+import { PlanStrip } from '../components/PlanStrip'
 import { RESTORE_CHAINS } from '../constants/options'
 import { useSession } from '../state/session'
 import './modules.css'
@@ -17,6 +18,7 @@ export function RestoreModule() {
     setJobRunning,
     setJobLabel,
     registerCancel,
+    workspaceMode,
   } = useSession()
   const [chain, setChain] = useLocalPref('neiro.restore.chain', 'auto')
   const job = useJobPoller()
@@ -85,6 +87,10 @@ export function RestoreModule() {
           Restore
         </button>
       </div>
+
+      {workspaceMode === 'advanced' && (
+        <PlanStrip kind="enhance" fileId={file.fileId} chain={chain} />
+      )}
 
       <JobProgress status={job.status} error={job.error} onCancel={() => void job.cancel()} />
 

@@ -1,26 +1,51 @@
 # Changelog
 
-## Unreleased
+## 1.1.0 — DAW all-modes, full zoo, roadmap close-out (2026-07-16)
+
+QOL / QA / function / aesthetic overhaul on top of 1.0.0: CI green, shared-window
+DAW injectors for every mode with Edison-style capture, full model-zoo wiring,
+and MVP close-outs for remaining roadmap surfaces.
 
 ### Added
-- Shared-window **DAW VST injector** (`plugins/neiro-vst`, VST2): multiple track
-  inserts open one Neiro window via `/api/daw/*` for every mode; Edison-style capture
-  uploads track audio for Separate/Restore/Transcribe; host MIDI feeds Learn wait mode.
-  Install with `./scripts/install_daw_plugin.sh`.
-- Learn rail unlocks automatically when a DAW injector is connected (even in Simple mode)
-- Full roadmap model zoo wiring: BS-RoFormer SW/1296, Mel-RoFormer Kim/FT, MDX-B & VR karaoke,
-  Demucs3 MMI, Kuielab instrument isolators, woodwinds, crowd removal, aspiration/de-breath,
-  VR denoise/dereverb/de-echo, bleed suppressor, VoiceFixer, YourMT3 (`mt3-infer`), SVT melody,
-  TimbreAMT / Noise-to-Notes / LarsNet / SCNet-XL opt-in adapters, direct Demucs manifest
-- Planner presets for bass/guitar/piano/woodwinds/crowd; enhancement steps `debreath`, `deecho`,
-  `bleed`, `crowd`, `voicefixer`; router specialists for the new decoders
-- `scripts/generate_zoo_manifests.py` to regenerate audio-separator zoo manifests
+- Shared-window **DAW VST2 injector** + **CLAP/VST3 bridge crate** (`plugins/neiro-vst`,
+  `plugins/neiro-clap`): Target Mode for every worksuite module; Record →
+  `/api/daw/capture` Edison-style upload; MIDI → Learn; Open UI focuses one window
+- Full roadmap **model zoo** (~68 manifests): BS-RoFormer SW/1296, Mel Kim/FT,
+  MDX-B/VR karaoke, Demucs MMI, Kuielab isolators, woodwinds/crowd, aspiration,
+  VR denoise/dereverb/de-echo, bleed, VoiceFixer, YourMT3, SVT, TimbreAMT,
+  Noise-to-Notes, LarsNet, SCNet-XL; planner presets + enhance steps
+- **CLAP analyze** adapter (`an-clap`) for neural instrument tags (DSP floor remains)
+- **User Python plugins** scan (`~/.neiro/plugins`) with grant API
+- **Plan strip** (`GET /api/plan`) + Advanced UI DAG preview
+- **WebGL2** Studio / piano-roll drawing with Canvas2D fallback
+- **Arrow IPC** bulk waveform path (`/api/bulk/waveform`) with JSON fallback
+- **In-app score SVG** on transcription results (Verovio when available)
+- **Piano-roll note CRUD** (`/api/notes/<job>`)
+- **Session Save/Open** UI + `/api/session/*`
+- **Compute flush** `/api/compute` wired from Prefs
+- Reference-lyric **greedy aligner** (`neiro.symbolic.lyric_align`) for Whisper words
+- About → Check for updates (GitHub Releases; no telemetry)
 
 ### Changed
-- Medley Vox preset uses installable chorus male/female RoFormer (residual = bed)
-- Apollo adapter uses `look2hear.models.BaseModel.from_pretrain("JusperLee/Apollo")`
-- Multi-instrument adapter prefers YourMT3 via `mt3-infer` before omnizart / Basic Pitch
-- Cascade center node selects the stem matching the cascade target (not always `vocals`)
+- Separate quality tier + bleed suppression are sent to the engine (no more
+  `preset:tier` string hack)
+- DAW connection unlocks the full module rail in Simple mode
+- Learn copy honestly labels browser `playbackRate` vs pitch-preserving stretch;
+  metronome clicks via Web Audio
+- Docs/install scripts updated for all-modes DAW + CLAP path
+- Aesthetic polish within existing ink-on-slate / IBM Plex tokens (plan strip,
+  recording pill, session bar)
+
+### Fixed
+- CI: Ruff SIM105 (`contextlib.suppress`) + format on DAW bridge
+- CI: unused `@ts-expect-error` breaking frontend typecheck
+
+### Notes / external requirements
+- Restricted neural weights are **not** bundled; install extras and download per
+  manifest licenses
+- True MFA phoneme alignment still requires an external AM; reference-text
+  aligner ships as the local MVP
+- Desktop auto-update remains GitHub Releases–driven (Check for updates in About)
 
 ## 1.0.0 — Full roadmap product (2026-07-16)
 

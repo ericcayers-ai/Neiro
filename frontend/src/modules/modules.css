@@ -235,6 +235,61 @@
   font-size: 13px;
 }
 
+.plan-strip {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--bg1) 80%, transparent);
+}
+
+.plan-strip-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+
+.plan-nodes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.plan-nodes li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 7rem;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--bg0);
+  font-size: 12px;
+}
+
+.plan-node-id {
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--accent-hot);
+}
+
+.plan-notes {
+  margin: 10px 0 0;
+  padding-left: 1.1rem;
+}
+
+.score-view img {
+  background: var(--bg0);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 8px;
+}
+
 @media (max-width: 700px) {
   .mixer-strip {
     grid-template-columns: 1fr;

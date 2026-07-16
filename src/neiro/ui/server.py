@@ -20,6 +20,14 @@ Endpoints:
     POST /api/edit              {file_id, op, ...}  -> new (edited) file_id
     GET  /api/plugins           list local user Python plugins + grants
     POST /api/plugins           update plugin grants
+    GET  /api/compute           warm-pool / VRAM residency status
+    POST /api/compute           {action: flush|status}
+    GET  /api/session/list      portable sessions on disk
+    POST /api/session/save      save current session metadata
+    POST /api/session/open      open a saved session document
+    GET  /api/plan              ?kind&file_id&preset… → planned DAG strip
+    GET  /api/bulk/waveform     Arrow IPC peaks (JSON fallback via Accept)
+    GET/POST /api/notes/<job>   piano-roll note CRUD for a transcription job
     GET  /api/export            ?file_id&format     -> wav16|wav24|flac download
     GET  /api/daw/status        shared-window DAW injector status
     GET  /api/daw/midi          ?after_seq=N        Learn MIDI from DAW injectors
@@ -44,6 +52,7 @@ import uuid
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from typing import Any
 from urllib.parse import unquote
 
 from neiro import __version__
@@ -97,6 +106,7 @@ class _State:
         self.parents: dict[str, str] = {}  # edited file_id -> file_id it derived from
         self.jobs: dict[str, dict] = {}
         self.job_contexts: dict[str, ExecutionContext] = {}
+        self.transcription_sessions: dict[str, Any] = {}
         self.lock = threading.Lock()
         self.port = 8377
         # Optional: set by serve() when the WS control channel is enabled, so
@@ -141,14 +151,28 @@ def _job_progress(state: _State, job_id: str):
     return _cb
 
 
-def _run_separation(state: _State, job_id: str, file_id: str, preset: str) -> None:
+def _run_separation(
+    state: _State,
+    job_id: str,
+    file_id: str,
+    preset: str,
+    quality: str | None = None,
+    bleed_suppress: bool = True,
+) -> None:
     import numpy as np
 
     from neiro.engine.planner import plan_separation
     from neiro.io import write_audio, write_export_metadata
 
     job_dir = state.workspace / "jobs" / job_id
-    plan = plan_separation(state.files[file_id], preset, state.registry, state.vram)
+    plan = plan_separation(
+        state.files[file_id],
+        preset,
+        state.registry,
+        state.vram,
+        quality=quality,
+        bleed_suppress=bleed_suppress,
+    )
     ctx = ExecutionContext(cache=state.cache, progress=_job_progress(state, job_id))
     with state.lock:
         state.job_contexts[job_id] = ctx
@@ -222,6 +246,23 @@ def _run_transcription(
     timeline = outputs[plan.compile_node]["timeline"]
 
     midi_path = write_midi(timeline, job_dir / "transcription.mid")
+    from neiro.symbolic.session import TranscriptionSession
+
+    tsession = TranscriptionSession(timeline)
+    with state.lock:
+        state.transcription_sessions[job_id] = tsession
+
+    svg_url = None
+    try:
+        from neiro.symbolic.score import export_score
+
+        score_info = export_score(timeline, job_dir / "score", want_pdf=False)
+        svg_path = score_info.get("svg_path")
+        if svg_path:
+            svg_url = f"/files/jobs/{job_id}/{Path(svg_path).name}"
+    except Exception:
+        svg_url = None
+
     tracks = {
         name: [
             {
@@ -230,24 +271,26 @@ def _run_transcription(
                 "pitch": e.pitch,
                 "velocity": e.velocity,
                 "confidence": e.confidence,
+                "user_verified": getattr(e, "user_verified", False),
             }
             for e in stream.events
         ]
         for name, stream in timeline.tracks
     }
+    result = {
+        "model": plan.model_id,
+        "used_split": plan.used_split,
+        "notes": plan.notes,
+        "tempo_bpm": timeline.tempo_bpm,
+        "event_count": timeline.total_events(),
+        "midi_url": f"/files/jobs/{job_id}/{midi_path.name}",
+        "tracks": tracks,
+        "job_id": job_id,
+    }
+    if svg_url:
+        result["svg_url"] = svg_url
     with state.lock:
-        state.jobs[job_id].update(
-            status="done",
-            result={
-                "model": plan.model_id,
-                "used_split": plan.used_split,
-                "notes": plan.notes,
-                "tempo_bpm": timeline.tempo_bpm,
-                "event_count": timeline.total_events(),
-                "midi_url": f"/files/jobs/{job_id}/{midi_path.name}",
-                "tracks": tracks,
-            },
-        )
+        state.jobs[job_id].update(status="done", result=result)
 
 
 def _run_enhancement(state: _State, job_id: str, file_id: str, chain: list[str] | None) -> None:
@@ -299,11 +342,20 @@ def start_job(state: _State, kind: str, file_id: str, body: dict) -> str:
     job_id = uuid.uuid4().hex[:12]
     with state.lock:
         state.jobs[job_id] = {"status": "running", "kind": kind, "progress": []}
-    args = {
-        "separate": (body.get("preset", "vocals"),),
-        "transcribe": (body.get("mode", "auto"), body.get("model")),
-        "enhance": (_parse_enhance_chain(body.get("chain")),),
-    }[kind]
+    if kind == "separate":
+        quality = body.get("quality")
+        bleed_raw = body.get("bleed_suppress", body.get("bleed"))
+        if bleed_raw is None or bleed_raw == "auto":
+            bleed_suppress = True
+        elif isinstance(bleed_raw, str):
+            bleed_suppress = bleed_raw.lower() not in {"off", "false", "0", "no"}
+        else:
+            bleed_suppress = bool(bleed_raw)
+        args = (body.get("preset", "vocals"), quality, bleed_suppress)
+    elif kind == "transcribe":
+        args = (body.get("mode", "auto"), body.get("model"))
+    else:
+        args = (_parse_enhance_chain(body.get("chain")),)
 
     def _work() -> None:
         try:
@@ -460,6 +512,25 @@ def _make_handler(state: _State):
             if path == "/api/plugins":
                 self._handle_plugins_get()
                 return
+            if path == "/api/compute":
+                from neiro.ui.api_extras import vram_status
+
+                self._json(vram_status(state.vram))
+                return
+            if path == "/api/session/list":
+                from neiro.ui.api_extras import list_sessions
+
+                self._json(list_sessions())
+                return
+            if path.startswith("/api/plan"):
+                self._handle_plan()
+                return
+            if path.startswith("/api/bulk/"):
+                self._handle_bulk(path)
+                return
+            if path.startswith("/api/notes/"):
+                self._handle_notes_get(path)
+                return
             if path.startswith("/assets/") or path.startswith("/static/"):
                 rel = path.lstrip("/")
                 if rel.startswith("static/"):
@@ -538,6 +609,14 @@ def _make_handler(state: _State):
                     self._handle_edit()
                 elif self.path == "/api/plugins":
                     self._handle_plugins_post()
+                elif self.path == "/api/compute":
+                    self._handle_compute_post()
+                elif self.path == "/api/session/save":
+                    self._handle_session_save()
+                elif self.path == "/api/session/open":
+                    self._handle_session_open()
+                elif self.path.startswith("/api/notes/"):
+                    self._handle_notes_post(self.path)
                 elif self.path.startswith("/api/job/") and self.path.endswith("/cancel"):
                     job_id = self.path.rstrip("/").rsplit("/", 2)[-2]
                     self._handle_cancel(job_id)
@@ -683,6 +762,179 @@ def _make_handler(state: _State):
             with state.lock:
                 state.registry = default_registry()
             self._json({"ok": True, "plugins": [plugin.as_dict() for plugin in plugins]})
+
+        def _handle_compute_post(self) -> None:
+            from neiro.ui.api_extras import flush_vram, vram_status
+
+            body = json.loads(self._read_body() or b"{}")
+            action = str(body.get("action", "status"))
+            if action == "flush":
+                self._json(flush_vram(state.vram))
+                return
+            self._json(vram_status(state.vram))
+
+        def _handle_session_save(self) -> None:
+            from neiro.ui.api_extras import save_session_doc
+
+            body = json.loads(self._read_body() or b"{}")
+            name = str(body.get("name") or "untitled")
+            file_id = body.get("file_id")
+            path = state.files.get(file_id) if file_id else None
+            self._json(
+                save_session_doc(
+                    name=name,
+                    file_id=file_id,
+                    file_path=path,
+                    graph_config=dict(body.get("graph_config") or {}),
+                    notes=body.get("notes"),
+                )
+            )
+
+        def _handle_session_open(self) -> None:
+            from neiro.ui.api_extras import open_session_doc
+
+            body = json.loads(self._read_body() or b"{}")
+            name = str(body.get("name") or "")
+            if not name:
+                self._error(400, "name is required")
+                return
+            try:
+                self._json(open_session_doc(name))
+            except FileNotFoundError:
+                self._error(404, "session not found")
+            except Exception as exc:
+                self._error(400, str(exc))
+
+        def _handle_plan(self) -> None:
+            from neiro.ui.api_extras import plan_payload
+
+            q = self._query()
+            file_id = q.get("file_id", "")
+            kind = q.get("kind", "separate")
+            if file_id not in state.files:
+                self._error(400, "unknown file_id")
+                return
+            bleed_raw = q.get("bleed_suppress", "true")
+            bleed = bleed_raw.lower() not in {"off", "false", "0", "no"}
+            try:
+                payload = plan_payload(
+                    kind=kind,
+                    file_path=state.files[file_id],
+                    registry=state.registry,
+                    vram=state.vram,
+                    preset=q.get("preset", "vocals"),
+                    mode=q.get("mode", "auto"),
+                    model=q.get("model"),
+                    chain=_parse_enhance_chain(q.get("chain")),
+                    quality=q.get("quality"),
+                    bleed_suppress=bleed,
+                )
+            except Exception as exc:
+                self._error(400, str(exc))
+                return
+            self._json(payload)
+
+        def _handle_bulk(self, path: str) -> None:
+            from neiro.dsp import waveform_peaks
+            from neiro.ui.api_extras import arrow_table_bytes
+
+            q = self._query()
+            file_id = q.get("file_id", "")
+            if file_id not in state.files:
+                self._error(400, "unknown file_id")
+                return
+            kind = path.rstrip("/").rsplit("/", 1)[-1]
+            accept = (self.headers.get("Accept") or "").lower()
+            want_arrow = "application/vnd.apache.arrow" in accept or q.get("format") == "arrow"
+            if kind == "waveform":
+                width = max(1, min(4000, int(q.get("width", "1200"))))
+                start = float(q["start"]) if "start" in q else None
+                end = float(q["end"]) if "end" in q else None
+                peaks = waveform_peaks(state.load(file_id), width=width, start=start, end=end)
+                if want_arrow:
+                    raw = arrow_table_bytes(
+                        {
+                            "min": list(peaks.get("min") or []),
+                            "max": list(peaks.get("max") or []),
+                        }
+                    )
+                    if raw is not None:
+                        self._send(200, raw, "application/vnd.apache.arrow.stream")
+                        return
+                self._json(peaks)
+                return
+            self._error(404, "unknown bulk kind")
+
+        def _handle_notes_get(self, path: str) -> None:
+            from neiro.ui.api_extras import notes_to_public
+
+            job_id = path.rstrip("/").rsplit("/", 1)[-1]
+            with state.lock:
+                sess = state.transcription_sessions.get(job_id)
+            if sess is None:
+                self._error(404, "no transcription session for job")
+                return
+            self._json({"job_id": job_id, **notes_to_public(sess)})
+
+        def _handle_notes_post(self, path: str) -> None:
+            from neiro.engine.artifacts import NoteEvent
+            from neiro.symbolic import write_midi
+            from neiro.ui.api_extras import notes_to_public
+
+            job_id = path.rstrip("/").rsplit("/", 1)[-1]
+            body = json.loads(self._read_body() or b"{}")
+            with state.lock:
+                sess = state.transcription_sessions.get(job_id)
+            if sess is None:
+                self._error(404, "no transcription session for job")
+                return
+            op = str(body.get("op", "update"))
+            track = str(body.get("track") or next(iter(sess.track_names()), "melody"))
+            try:
+                if op == "add":
+                    note = NoteEvent(
+                        onset=float(body["onset"]),
+                        offset=float(body["offset"]),
+                        pitch=int(body["pitch"]),
+                        velocity=int(body.get("velocity", 100)),
+                        confidence=1.0,
+                        user_verified=True,
+                    )
+                    sess.add_note(track, note)
+                elif op == "delete":
+                    sess.delete_note(track, int(body["index"]))
+                elif op == "update":
+                    changes = {
+                        k: body[k] for k in ("onset", "offset", "pitch", "velocity") if k in body
+                    }
+                    if "pitch" in changes:
+                        changes["pitch"] = int(changes["pitch"])
+                    if "velocity" in changes:
+                        changes["velocity"] = int(changes["velocity"])
+                    if "onset" in changes:
+                        changes["onset"] = float(changes["onset"])
+                    if "offset" in changes:
+                        changes["offset"] = float(changes["offset"])
+                    sess.update_note(track, int(body["index"]), **changes)
+                else:
+                    self._error(400, f"unknown op {op!r}")
+                    return
+            except (KeyError, IndexError, ValueError, TypeError) as exc:
+                self._error(400, str(exc))
+                return
+            timeline = sess.to_timeline()
+            job_dir = state.workspace / "jobs" / job_id
+            job_dir.mkdir(parents=True, exist_ok=True)
+            midi_path = write_midi(timeline, job_dir / "transcription.mid")
+            public = notes_to_public(sess)
+            with state.lock:
+                job = state.jobs.get(job_id)
+                if job and isinstance(job.get("result"), dict):
+                    job["result"]["tracks"] = public["tracks"]
+                    job["result"]["tempo_bpm"] = public["tempo_bpm"]
+                    job["result"]["event_count"] = sum(len(v) for v in public["tracks"].values())
+                    job["result"]["midi_url"] = f"/files/jobs/{job_id}/{midi_path.name}"
+            self._json({"ok": True, "job_id": job_id, **public})
 
         def _handle_waveform(self) -> None:
             from neiro.dsp import waveform_peaks
