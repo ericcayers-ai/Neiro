@@ -21,6 +21,17 @@ export interface DawStatus {
   focus_seq: number
   focus_module: string
   midi_seq: number
+  capture_seq?: number
+  last_capture?: {
+    file_id: string
+    name: string
+    audio_url: string
+    report: any
+    module: string
+    capture_seq: number
+    instance_id?: string | null
+  } | null
+  allowed_modules?: string[]
   shared_window: boolean
   contract: string
 }

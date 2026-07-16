@@ -23,9 +23,10 @@ Endpoints:
     GET  /api/daw/midi          ?after_seq=N        Learn MIDI from DAW injectors
     POST /api/daw/register      register a VST/CLAP injector instance
     POST /api/daw/unregister    drop an injector
-    POST /api/daw/heartbeat     keep-alive + optional peak meter
-    POST /api/daw/show-ui       focus the single Neiro window (Learn)
+    POST /api/daw/heartbeat     keep-alive + peak / recording / preferred module
+    POST /api/daw/show-ui       focus the single Neiro window (any module)
     POST /api/daw/midi          push a MIDI note from the DAW into Learn
+    POST /api/daw/capture       Edison-style track capture (WAV body) -> file + focus
     GET  /files/<...>           artifacts (stems, MIDI, edits) from the workspace
 """
 
@@ -534,6 +535,8 @@ def _make_handler(state: _State):
                     self._handle_cancel(job_id)
                 elif self.path in ("/api/separate", "/api/transcribe", "/api/enhance"):
                     self._handle_job(self.path.rsplit("/", 1)[-1])
+                elif self.path == "/api/daw/capture":
+                    self._handle_daw_capture()
                 elif self.path.startswith("/api/daw/"):
                     self._handle_daw(self.path)
                 else:
@@ -542,7 +545,7 @@ def _make_handler(state: _State):
                 self._error(500, str(exc))
 
         def _handle_daw(self, path: str) -> None:
-            from neiro.ui.daw_bridge import default_bridge
+            from neiro.ui.daw_bridge import default_bridge, normalize_module
 
             bridge = default_bridge()
             body = json.loads(self._read_body() or b"{}")
@@ -554,6 +557,7 @@ def _make_handler(state: _State):
                     sample_rate=int(body.get("sample_rate", 44100)),
                     channels=int(body.get("channels", 2)),
                     instance_id=body.get("instance_id"),
+                    preferred_module=body.get("preferred_module") or body.get("module"),
                 )
                 self._json({"ok": True, "instance": inst.to_public(), "status": bridge.status()})
                 return
@@ -567,6 +571,8 @@ def _make_handler(state: _State):
                     iid,
                     peak=body.get("peak"),
                     frames=int(body.get("frames", 0) or 0),
+                    recording=body.get("recording"),
+                    preferred_module=body.get("preferred_module") or body.get("module"),
                 )
                 if not ok:
                     self._error(404, "unknown instance")
@@ -576,7 +582,7 @@ def _make_handler(state: _State):
             if path == "/api/daw/show-ui":
                 status = bridge.request_show_ui(
                     body.get("instance_id"),
-                    module=str(body.get("module", "learn")),
+                    module=normalize_module(str(body.get("module", "learn"))),
                     launch_if_needed=bool(body.get("launch_if_needed", True)),
                 )
                 # Best-effort open of the single shared window if a client isn't
@@ -603,6 +609,49 @@ def _make_handler(state: _State):
                 self._json(result)
                 return
             self._error(404, "not found")
+
+        def _handle_daw_capture(self) -> None:
+            """Accept a WAV body from a VST injector (Edison-style track dump)."""
+            from neiro.io import load_audio
+            from neiro.ui.daw_bridge import default_bridge, normalize_module
+
+            bridge = default_bridge()
+            iid = (self.headers.get("X-Instance-Id") or "").strip() or None
+            module = normalize_module(
+                self.headers.get("X-Module") or "separate",
+                default="separate",
+            )
+            name = _safe_name(self.headers.get("X-Filename") or "daw-capture.wav")
+            data = self._read_body()
+            if not data:
+                self._error(400, "empty capture")
+                return
+            # Soft cap ~80 MB — keeps local Edison-style dumps practical.
+            if len(data) > 80 * 1024 * 1024:
+                self._error(413, "capture too large (max 80 MB)")
+                return
+            file_id = uuid.uuid4().hex[:12]
+            dest = state.workspace / "uploads" / file_id / name
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_bytes(data)
+            try:
+                load_audio(dest)
+            except Exception as exc:
+                self._error(422, f"couldn't decode capture {name}: {exc}")
+                return
+            payload = self._register_analyzed(dest, name)
+            status = bridge.publish_capture(
+                iid,
+                file_payload=payload,
+                module=module,
+                launch_if_needed=True,
+            )
+            if bridge.consume_launch_request():
+                try:
+                    webbrowser.open(f"http://127.0.0.1:{state.port}/")
+                except Exception:
+                    pass
+            self._json({"ok": True, "capture": status.get("last_capture"), "status": status})
 
         def _handle_cancel(self, job_id: str) -> None:
             try:

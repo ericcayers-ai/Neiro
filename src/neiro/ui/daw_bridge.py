@@ -5,7 +5,12 @@ register with this module, optionally stream audio/MIDI, and when the user
 opens the plugin editor they do **not** embed a second UI. Instead they call
 :func:`request_show_ui`, which bumps a focus sequence the desktop/browser
 client polls. The client brings the *single* Neiro window forward and switches
-to the Learn module (and Advanced workspace) for that instance.
+to the requested module (any worksuite mode) for that instance.
+
+Audio can be captured from the insert (Edison-style arm/record/stop) and posted
+to ``/api/daw/capture``, which registers a normal Neiro file and bumps
+``capture_seq`` so the shared window loads it for Separate / Restore /
+Transcribe / etc.
 
 This is the "one activate open window for all functions" contract: N inserts
 in the DAW, one Neiro surface.
@@ -20,6 +25,8 @@ from dataclasses import asdict, dataclass, field
 from typing import Any
 
 __all__ = [
+    "ALLOWED_MODULES",
+    "normalize_module",
     "DawInstance",
     "DawMidiEvent",
     "DawBridgeState",
@@ -28,6 +35,31 @@ __all__ = [
 
 _MAX_MIDI = 256
 _STALE_SECONDS = 120.0
+
+# Every worksuite ModuleId — VST show-ui / capture may target any of these.
+ALLOWED_MODULES: frozenset[str] = frozenset(
+    {
+        "import",
+        "analysis",
+        "studio",
+        "separate",
+        "restore",
+        "transcribe",
+        "mixer",
+        "learn",
+        "preferences",
+        "about",
+    }
+)
+
+# Default after Edison-style capture: send the clip into preprocess (Separate).
+_DEFAULT_CAPTURE_MODULE = "separate"
+_DEFAULT_FOCUS_MODULE = "learn"
+
+
+def normalize_module(module: str | None, *, default: str = _DEFAULT_FOCUS_MODULE) -> str:
+    m = (module or default).strip().lower()
+    return m if m in ALLOWED_MODULES else default
 
 
 @dataclass
@@ -52,8 +84,11 @@ class DawInstance:
     last_seen: float = field(default_factory=time.monotonic)
     active: bool = True
     learn_armed: bool = True
+    recording: bool = False
     frames_captured: int = 0
     last_peak: float = 0.0
+    preferred_module: str = _DEFAULT_FOCUS_MODULE
+    last_capture_file_id: str | None = None
 
     def touch(self) -> None:
         self.last_seen = time.monotonic()
@@ -74,9 +109,11 @@ class DawBridgeState:
         self._instances: dict[str, DawInstance] = {}
         self._focus_instance: str | None = None
         self._focus_seq: int = 0
-        self._focus_module: str = "learn"
+        self._focus_module: str = _DEFAULT_FOCUS_MODULE
         self._midi: list[DawMidiEvent] = []
         self._midi_seq: int = 0
+        self._capture_seq: int = 0
+        self._last_capture: dict[str, Any] | None = None
         self._launch_requested: bool = False
         self._browser_opened: bool = False
 
@@ -90,10 +127,12 @@ class DawBridgeState:
         sample_rate: int = 44100,
         channels: int = 2,
         instance_id: str | None = None,
+        preferred_module: str | None = None,
     ) -> DawInstance:
         with self._lock:
             self._gc_locked()
             iid = instance_id or f"daw-{uuid.uuid4().hex[:10]}"
+            pref = normalize_module(preferred_module, default=_DEFAULT_FOCUS_MODULE)
             if iid in self._instances:
                 inst = self._instances[iid]
                 inst.track_name = track_name or inst.track_name
@@ -101,6 +140,8 @@ class DawBridgeState:
                 inst.host = host or inst.host
                 inst.sample_rate = int(sample_rate) or inst.sample_rate
                 inst.channels = int(channels) or inst.channels
+                if preferred_module is not None:
+                    inst.preferred_module = pref
                 inst.touch()
                 return inst
             inst = DawInstance(
@@ -110,6 +151,7 @@ class DawBridgeState:
                 host=host,
                 sample_rate=int(sample_rate),
                 channels=int(channels),
+                preferred_module=pref,
             )
             self._instances[iid] = inst
             return inst
@@ -121,7 +163,15 @@ class DawBridgeState:
                 self._focus_instance = next(iter(self._instances), None)
             return gone
 
-    def heartbeat(self, instance_id: str, *, peak: float | None = None, frames: int = 0) -> bool:
+    def heartbeat(
+        self,
+        instance_id: str,
+        *,
+        peak: float | None = None,
+        frames: int = 0,
+        recording: bool | None = None,
+        preferred_module: str | None = None,
+    ) -> bool:
         with self._lock:
             inst = self._instances.get(instance_id)
             if inst is None:
@@ -131,6 +181,12 @@ class DawBridgeState:
                 inst.last_peak = float(peak)
             if frames:
                 inst.frames_captured += int(frames)
+            if recording is not None:
+                inst.recording = bool(recording)
+            if preferred_module is not None:
+                inst.preferred_module = normalize_module(
+                    preferred_module, default=inst.preferred_module
+                )
             return True
 
     def list_instances(self) -> list[dict[str, Any]]:
@@ -143,19 +199,21 @@ class DawBridgeState:
         self,
         instance_id: str | None = None,
         *,
-        module: str = "learn",
+        module: str = _DEFAULT_FOCUS_MODULE,
         launch_if_needed: bool = True,
     ) -> dict[str, Any]:
         """Bump the focus sequence so the single Neiro window comes forward."""
         with self._lock:
             self._gc_locked()
+            mod = normalize_module(module, default=_DEFAULT_FOCUS_MODULE)
             if instance_id and instance_id in self._instances:
                 self._focus_instance = instance_id
                 self._instances[instance_id].touch()
                 self._instances[instance_id].learn_armed = True
+                self._instances[instance_id].preferred_module = mod
             elif self._instances:
                 self._focus_instance = next(iter(self._instances))
-            self._focus_module = module or "learn"
+            self._focus_module = mod
             self._focus_seq += 1
             if launch_if_needed:
                 self._launch_requested = True
@@ -170,6 +228,41 @@ class DawBridgeState:
             self._launch_requested = False
             self._browser_opened = True
             return True
+
+    # -- Edison-style capture ------------------------------------------------
+    def publish_capture(
+        self,
+        instance_id: str | None,
+        *,
+        file_payload: dict[str, Any],
+        module: str | None = None,
+        launch_if_needed: bool = True,
+    ) -> dict[str, Any]:
+        """Register a finished capture and focus the shared window on it."""
+        with self._lock:
+            self._gc_locked()
+            mod = normalize_module(module, default=_DEFAULT_CAPTURE_MODULE)
+            if instance_id and instance_id in self._instances:
+                inst = self._instances[instance_id]
+                inst.touch()
+                inst.recording = False
+                inst.last_capture_file_id = str(file_payload.get("file_id") or "") or None
+                inst.preferred_module = mod
+                self._focus_instance = instance_id
+            elif self._instances:
+                self._focus_instance = next(iter(self._instances))
+            self._capture_seq += 1
+            self._last_capture = {
+                **file_payload,
+                "instance_id": instance_id,
+                "module": mod,
+                "capture_seq": self._capture_seq,
+            }
+            self._focus_module = mod
+            self._focus_seq += 1
+            if launch_if_needed:
+                self._launch_requested = True
+            return self.status_locked()
 
     # -- MIDI (Learn wait mode from DAW) -------------------------------------
     def push_midi(
@@ -221,11 +314,15 @@ class DawBridgeState:
             "focus_seq": self._focus_seq,
             "focus_module": self._focus_module,
             "midi_seq": self._midi_seq,
+            "capture_seq": self._capture_seq,
+            "last_capture": self._last_capture,
+            "allowed_modules": sorted(ALLOWED_MODULES),
             "launch_requested": self._launch_requested,
             "shared_window": True,
             "contract": (
                 "One Neiro window serves every DAW injector instance; "
-                "plugin editors call show-ui instead of embedding a second UI."
+                "plugin editors call show-ui for any mode; arm/record captures "
+                "track audio into Neiro for preprocess (Separate/Restore/Transcribe)."
             ),
         }
 

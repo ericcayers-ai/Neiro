@@ -51,3 +51,20 @@ def test_stale_unknown_midi_raises():
         raise AssertionError("expected KeyError")
     except KeyError:
         pass
+
+
+def test_publish_capture_allows_any_module_and_bumps_seq():
+    bridge = DawBridgeState()
+    inst = bridge.register(track_name="Cap")
+    before = bridge.status()["capture_seq"]
+    payload = {
+        "file_id": "deadbeefcafe",
+        "name": "take.wav",
+        "audio_url": "/files/uploads/deadbeefcafe/take.wav",
+        "report": {"duration_seconds": 1.23, "sample_rate": 44100, "channels": 2},
+    }
+    status = bridge.publish_capture(inst.instance_id, file_payload=payload, module="transcribe")
+    assert status["capture_seq"] == before + 1
+    assert status["last_capture"]["file_id"] == "deadbeefcafe"
+    assert status["focus_module"] == "transcribe"
+    assert "transcribe" in status["allowed_modules"]

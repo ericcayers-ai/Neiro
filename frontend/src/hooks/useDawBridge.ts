@@ -9,10 +9,11 @@ import { useSession } from '../state/session'
 export function useDawBridge(opts?: {
   onMidiNoteOn?: (pitch: number, velocity: number, instanceId: string) => void
 }) {
-  const { setModule, setWorkspaceMode } = useSession()
+  const { setModule, setWorkspaceMode, setFile } = useSession()
   const [status, setStatus] = useState<DawStatus | null>(null)
   const focusSeqRef = useRef(0)
   const midiSeqRef = useRef(0)
+  const captureSeqRef = useRef(0)
   const onMidiRef = useRef(opts?.onMidiNoteOn)
   onMidiRef.current = opts?.onMidiNoteOn
 
@@ -26,7 +27,26 @@ export function useDawBridge(opts?: {
         if (next.focus_seq > focusSeqRef.current) {
           focusSeqRef.current = next.focus_seq
           setWorkspaceMode('advanced')
-          setModule((next.focus_module as 'learn') || 'learn')
+          setModule((next.focus_module as any) || 'learn')
+          try {
+            window.focus()
+          } catch {
+            /* ignore */
+          }
+        }
+        if ((next.capture_seq || 0) > captureSeqRef.current && next.last_capture) {
+          captureSeqRef.current = next.capture_seq || 0
+          // Load captured file into session and navigate to requested module
+          const cap = next.last_capture
+          setWorkspaceMode('advanced')
+          setFile({
+            fileId: cap.file_id,
+            name: cap.name,
+            audioUrl: cap.audio_url,
+            // @ts-expect-error AnalysisReport shape compatible
+            report: cap.report,
+          })
+          setModule((cap.module as any) || 'separate')
           try {
             window.focus()
           } catch {

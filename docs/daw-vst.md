@@ -10,9 +10,13 @@ automatically when a DAW injector connects). This page describes the installable
 - Insert `Neiro DAW Bridge` on as many tracks as you like.
 - Opening the plug-in's editor does **not** embed a second UI.
 - It calls `POST /api/daw/show-ui`, which focuses the single running Neiro window
-  and switches it to **Learn** for that injector instance.
+  and switches it to the requested module for that injector instance
+  (Import, Analysis, Studio, Separate, Restore, Transcribe, Mixer, Learn, Prefs).
 - Audio is passed through (true injector). Host MIDI note-ons are forwarded into
   Learn wait mode (`DAW VST injector MIDI`).
+- Edison-style capture: arm Record in the plug-in to buffer the insert’s audio,
+  release to upload a WAV via `/api/daw/capture`. The shared window loads the
+  capture and focuses your Target Mode (e.g. Separate/Restore/Transcribe).
 
 ## Prerequisites
 
@@ -44,9 +48,10 @@ Rescan plug-ins in your DAW after installing.
 |---|---|---|
 | POST | `/api/daw/register` | Register an injector instance |
 | POST | `/api/daw/unregister` | Drop an instance |
-| POST | `/api/daw/heartbeat` | Keep-alive + peak meter |
-| POST | `/api/daw/show-ui` | Focus the shared Neiro window → Learn |
+| POST | `/api/daw/heartbeat` | Keep-alive + peak / recording / preferred module |
+| POST | `/api/daw/show-ui` | Focus the shared Neiro window (any module) |
 | POST | `/api/daw/midi` | Push MIDI into Learn wait mode |
+| POST | `/api/daw/capture` | Edison-style WAV body from VST -> file + focus |
 | GET | `/api/daw/status` | List instances + focus sequence |
 | GET | `/api/daw/midi?after_seq=N` | UI polls new MIDI events |
 
