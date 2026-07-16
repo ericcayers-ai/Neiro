@@ -106,8 +106,14 @@ export async function fetchWaveform(
   return readJson(res)
 }
 
-export async function fetchSpectrogram(fileId: string): Promise<SpectrogramData> {
-  const res = await fetch(`/api/spectrogram?file_id=${encodeURIComponent(fileId)}`)
+export async function fetchSpectrogram(
+  fileId: string,
+  range?: { start?: number; end?: number },
+): Promise<SpectrogramData> {
+  const q = new URLSearchParams({ file_id: fileId })
+  if (range?.start != null) q.set('start', String(range.start))
+  if (range?.end != null) q.set('end', String(range.end))
+  const res = await fetch(`/api/spectrogram?${q}`)
   return readJson(res)
 }
 

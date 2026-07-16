@@ -220,6 +220,9 @@ def test_waveform_and_spectrogram(server):
     assert len(wf["max"]) == 300
     spec = json.loads(_get(base + "/api/spectrogram?file_id=" + fid)[1])
     assert spec["rows"] * spec["cols"] == len(spec["data"])
+    window = json.loads(_get(base + "/api/spectrogram?file_id=" + fid + "&start=0.1&end=0.5")[1])
+    assert window["rows"] * window["cols"] == len(window["data"])
+    assert window["duration"] == spec["duration"]
 
 
 def test_edit_trim_creates_new_file(server):

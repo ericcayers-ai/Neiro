@@ -111,6 +111,16 @@ def test_spectrogram_dimensions_and_bytes():
     assert all(0 <= v <= 255 for v in spec["data"][:50])
 
 
+def test_spectrogram_time_range():
+    a = _audio(2.0, freq=1000.0)
+    full = spectrogram_image(a, max_frames=200, freq_bins=128)
+    window = spectrogram_image(a, max_frames=200, freq_bins=128, start=0.25, end=0.75)
+    assert window["rows"] == 128
+    assert 0 < window["cols"] < full["cols"]
+    assert len(window["data"]) == window["rows"] * window["cols"]
+    assert abs(window["duration"] - 2.0) < 0.01
+
+
 def test_spectrogram_locates_tone_frequency():
     # A 1 kHz tone should light up near its log-frequency row, not at the extremes.
     a = _audio(2.0, freq=1000.0)

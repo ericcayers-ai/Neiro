@@ -677,7 +677,9 @@ def _make_handler(state: _State):
             if file_id not in state.files:
                 self._error(400, "unknown file_id")
                 return
-            self._json(spectrogram_image(state.load(file_id)))
+            start = float(q["start"]) if "start" in q else None
+            end = float(q["end"]) if "end" in q else None
+            self._json(spectrogram_image(state.load(file_id), start=start, end=end))
 
         def _handle_export(self) -> None:
             from neiro.io import write_audio
