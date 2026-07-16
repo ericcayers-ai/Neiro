@@ -1,25 +1,25 @@
 {
   "manifest_version": 2,
-  "id": "medley-vox",
+  "id": "crowd-roformer",
   "task": "separate",
   "stems": [
-    "singer1",
-    "singer2"
+    "no_crowd",
+    "crowd"
   ],
-  "display_name": "Chorus Male/Female (Medley Vox class)",
+  "display_name": "Mel-RoFormer Crowd (aufr33/viperx)",
   "adapter": "neiro.adapters.audio_separator_adapter:AudioSeparatorModel",
   "requires": [
     "audio_separator"
   ],
   "params": {
-    "model_filename": "model_chorus_bs_roformer_ep_267_sdr_24.1275.ckpt",
+    "model_filename": "mel_band_roformer_crowd_aufr33_viperx_sdr_8.7144.ckpt",
     "stems": [
-      "singer1",
-      "singer2"
+      "no_crowd",
+      "crowd"
     ],
     "stem_labels": {
-      "singer1": "male",
-      "singer2": "female"
+      "no_crowd": "nocrowd",
+      "crowd": "crowd"
     },
     "quality_class": "reference",
     "license_spdx": "MIT",
@@ -38,7 +38,7 @@
     "source": "https://github.com/nomadkaraoke/python-audio-separator"
   },
   "provenance": {
-    "author": "Sucial",
-    "purpose": "multi-singer / overlapping vocalists (male vs female)"
+    "author": "aufr33 / viperx",
+    "purpose": "crowd removal (RoFormer)"
   }
 }

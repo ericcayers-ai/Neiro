@@ -1,25 +1,25 @@
 {
   "manifest_version": 2,
-  "id": "medley-vox",
+  "id": "mel-roformer-kim",
   "task": "separate",
   "stems": [
-    "singer1",
-    "singer2"
+    "vocals",
+    "instrumental"
   ],
-  "display_name": "Chorus Male/Female (Medley Vox class)",
+  "display_name": "Mel-Band RoFormer (Kimberley Jensen)",
   "adapter": "neiro.adapters.audio_separator_adapter:AudioSeparatorModel",
   "requires": [
     "audio_separator"
   ],
   "params": {
-    "model_filename": "model_chorus_bs_roformer_ep_267_sdr_24.1275.ckpt",
+    "model_filename": "vocals_mel_band_roformer.ckpt",
     "stems": [
-      "singer1",
-      "singer2"
+      "vocals",
+      "instrumental"
     ],
     "stem_labels": {
-      "singer1": "male",
-      "singer2": "female"
+      "vocals": "Vocals",
+      "instrumental": "Instrumental"
     },
     "quality_class": "reference",
     "license_spdx": "MIT",
@@ -38,7 +38,7 @@
     "source": "https://github.com/nomadkaraoke/python-audio-separator"
   },
   "provenance": {
-    "author": "Sucial",
-    "purpose": "multi-singer / overlapping vocalists (male vs female)"
+    "author": "Kimberley Jensen",
+    "purpose": "Kim Mel-RoFormer vocals"
   }
 }

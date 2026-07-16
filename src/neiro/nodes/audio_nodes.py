@@ -386,8 +386,18 @@ class CascadeCenterNode(Node):
                 self.separator.unload()
 
         stems = _reserve_and_run(self.vram, profile, _do)
-        target = stems.get("vocals") or next(iter(stems.values()))
-        others = [v for k, v in stems.items() if k != "vocals"]
+        # Prefer a stem matching the cascade target (kuielab-bass -> "bass",
+        # vocals models -> "vocals"); fall back to the legacy vocals key, then
+        # the first stem the model produced.
+        target_key = None
+        for candidate in (self.target_name, "vocals", "dialog"):
+            if candidate in stems:
+                target_key = candidate
+                break
+        if target_key is None:
+            target_key = next(iter(stems))
+        target = stems[target_key]
+        others = [v for k, v in stems.items() if k != target_key]
         if others:
             merged = others[0].samples.copy()
             for o in others[1:]:

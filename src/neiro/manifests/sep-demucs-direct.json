@@ -1,0 +1,14 @@
+{
+  "manifest_version": 2,
+  "id": "demucs-direct",
+  "task": "separate",
+  "stems": ["drums", "bass", "other", "vocals"],
+  "display_name": "Demucs (direct facebookresearch backend)",
+  "adapter": "neiro.adapters.demucs_adapter:DemucsSeparator",
+  "requires": ["demucs", "torch"],
+  "params": { "variant": "htdemucs_ft" },
+  "quality_class": "standard",
+  "vram": { "fp32_gb": 4.0, "fp16_gb": 2.2, "supports_fp16": true },
+  "license": { "spdx": "MIT", "source": "https://github.com/facebookresearch/demucs" },
+  "provenance": { "author": "facebookresearch", "note": "direct demucs package; alternative to audio-separator HTDemucs" }
+}

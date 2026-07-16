@@ -59,12 +59,17 @@ class SCNetSeparator:
         self.checkpoint_path = checkpoint_path
         self.variant = variant
         self._model = None
+        vram = {
+            "scnet": (3.5, 2.0),
+            "scnet-xl": (6.0, 3.5),
+            "scnet-xl-ihf": (7.0, 4.0),
+        }.get(variant, (3.5, 2.0))
         self.profile = ModelProfile(
             model_id=model_id,
             task="separate",
             stems=self.STEMS,
-            fp32_gb=3.5,
-            fp16_gb=2.0,
+            fp32_gb=vram[0],
+            fp16_gb=vram[1],
             supports_fp16=True,
             sample_rate=44100,
             quality_class="reference",

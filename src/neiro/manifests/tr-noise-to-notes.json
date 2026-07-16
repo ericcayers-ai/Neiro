@@ -1,0 +1,13 @@
+{
+  "manifest_version": 2,
+  "id": "noise-to-notes",
+  "task": "transcribe",
+  "display_name": "Noise-to-Notes (diffusion drums, opt-in)",
+  "adapter": "neiro.adapters.noise_to_notes_adapter:NoiseToNotesTranscriber",
+  "requires": ["noise_to_notes"],
+  "params": { "track": "drums" },
+  "quality_class": "reference",
+  "vram": { "fp32_gb": 2.0 },
+  "license": { "spdx": "unknown", "note": "research diffusion drum decoder; verify license of any checkpoint", "source": "https://arxiv.org/abs/2509.21739" },
+  "provenance": { "author": "Noise-to-Notes", "polyphony": "drums / percussion velocity-aware" }
+}

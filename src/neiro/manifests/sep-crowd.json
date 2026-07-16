@@ -1,25 +1,25 @@
 {
   "manifest_version": 2,
-  "id": "medley-vox",
+  "id": "crowd-mdx",
   "task": "separate",
   "stems": [
-    "singer1",
-    "singer2"
+    "no_crowd",
+    "crowd"
   ],
-  "display_name": "Chorus Male/Female (Medley Vox class)",
+  "display_name": "UVR MDX Crowd HQ",
   "adapter": "neiro.adapters.audio_separator_adapter:AudioSeparatorModel",
   "requires": [
     "audio_separator"
   ],
   "params": {
-    "model_filename": "model_chorus_bs_roformer_ep_267_sdr_24.1275.ckpt",
+    "model_filename": "UVR-MDX-NET_Crowd_HQ_1.onnx",
     "stems": [
-      "singer1",
-      "singer2"
+      "no_crowd",
+      "crowd"
     ],
     "stem_labels": {
-      "singer1": "male",
-      "singer2": "female"
+      "no_crowd": "no crowd",
+      "crowd": "crowd"
     },
     "quality_class": "reference",
     "license_spdx": "MIT",
@@ -38,7 +38,7 @@
     "source": "https://github.com/nomadkaraoke/python-audio-separator"
   },
   "provenance": {
-    "author": "Sucial",
-    "purpose": "multi-singer / overlapping vocalists (male vs female)"
+    "author": "aufr33",
+    "purpose": "crowd removal"
   }
 }

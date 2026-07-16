@@ -1,0 +1,13 @@
+{
+  "manifest_version": 2,
+  "id": "timbre-amt",
+  "task": "transcribe",
+  "display_name": "TimbreAMT-class guitar (string/fret aware, opt-in)",
+  "adapter": "neiro.adapters.timbre_amt_adapter:TimbreAMTTranscriber",
+  "requires": ["timbre_amt"],
+  "params": { "track": "guitar" },
+  "quality_class": "reference",
+  "vram": { "fp32_gb": 1.5 },
+  "license": { "spdx": "unknown", "note": "verify upstream TimbreAMT license; falls back via router to Basic Pitch", "source": "https://github.com/madderscientist/timbreAMT" },
+  "provenance": { "author": "TimbreAMT", "polyphony": "guitar tablature-aware" }
+}

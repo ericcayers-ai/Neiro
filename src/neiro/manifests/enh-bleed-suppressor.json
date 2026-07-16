@@ -1,0 +1,37 @@
+{
+  "manifest_version": 2,
+  "id": "bleed-suppressor",
+  "task": "enhance",
+  "display_name": "Mel-RoFormer Bleed Suppressor",
+  "adapter": "neiro.adapters.audio_separator_adapter:AudioSeparatorEnhancer",
+  "requires": [
+    "audio_separator"
+  ],
+  "params": {
+    "model_filename": "mel_band_roformer_bleed_suppressor_v1.ckpt",
+    "target_stem": "dry",
+    "stem_labels": {
+      "dry": "dry",
+      "bleed": "bleed"
+    },
+    "quality_class": "reference",
+    "license_spdx": "MIT",
+    "license_note": "credit UVR/aufr33; verify commercial terms"
+  },
+  "weights": [
+    {
+      "kind": "managed",
+      "cache_param": "model_file_dir"
+    }
+  ],
+  "quality_class": "reference",
+  "license": {
+    "spdx": "MIT",
+    "note": "credit UVR; verify commercial terms",
+    "source": "https://github.com/nomadkaraoke/python-audio-separator"
+  },
+  "provenance": {
+    "author": "unwa-97chris",
+    "fixes": "post-separation bleed suppression"
+  }
+}

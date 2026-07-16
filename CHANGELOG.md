@@ -4,9 +4,23 @@
 
 ### Added
 - Shared-window **DAW VST injector** (`plugins/neiro-vst`, VST2): multiple track
-  inserts open one Neiro Learn window via `/api/daw/*`; MIDI from the host feeds
-  Learn wait mode. Install with `./scripts/install_daw_plugin.sh`.
+  inserts open one Neiro window via `/api/daw/*` for every mode; Edison-style capture
+  uploads track audio for Separate/Restore/Transcribe; host MIDI feeds Learn wait mode.
+  Install with `./scripts/install_daw_plugin.sh`.
 - Learn rail unlocks automatically when a DAW injector is connected (even in Simple mode)
+- Full roadmap model zoo wiring: BS-RoFormer SW/1296, Mel-RoFormer Kim/FT, MDX-B & VR karaoke,
+  Demucs3 MMI, Kuielab instrument isolators, woodwinds, crowd removal, aspiration/de-breath,
+  VR denoise/dereverb/de-echo, bleed suppressor, VoiceFixer, YourMT3 (`mt3-infer`), SVT melody,
+  TimbreAMT / Noise-to-Notes / LarsNet / SCNet-XL opt-in adapters, direct Demucs manifest
+- Planner presets for bass/guitar/piano/woodwinds/crowd; enhancement steps `debreath`, `deecho`,
+  `bleed`, `crowd`, `voicefixer`; router specialists for the new decoders
+- `scripts/generate_zoo_manifests.py` to regenerate audio-separator zoo manifests
+
+### Changed
+- Medley Vox preset uses installable chorus male/female RoFormer (residual = bed)
+- Apollo adapter uses `look2hear.models.BaseModel.from_pretrain("JusperLee/Apollo")`
+- Multi-instrument adapter prefers YourMT3 via `mt3-infer` before omnizart / Basic Pitch
+- Cascade center node selects the stem matching the cascade target (not always `vocals`)
 
 ## 1.0.0 — Full roadmap product (2026-07-16)
 

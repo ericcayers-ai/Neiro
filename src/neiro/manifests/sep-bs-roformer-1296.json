@@ -1,25 +1,25 @@
 {
   "manifest_version": 2,
-  "id": "medley-vox",
+  "id": "bs-roformer-1296",
   "task": "separate",
   "stems": [
-    "singer1",
-    "singer2"
+    "vocals",
+    "instrumental"
   ],
-  "display_name": "Chorus Male/Female (Medley Vox class)",
+  "display_name": "BS-RoFormer (ep 368, SDR 12.96)",
   "adapter": "neiro.adapters.audio_separator_adapter:AudioSeparatorModel",
   "requires": [
     "audio_separator"
   ],
   "params": {
-    "model_filename": "model_chorus_bs_roformer_ep_267_sdr_24.1275.ckpt",
+    "model_filename": "model_bs_roformer_ep_368_sdr_12.9628.ckpt",
     "stems": [
-      "singer1",
-      "singer2"
+      "vocals",
+      "instrumental"
     ],
     "stem_labels": {
-      "singer1": "male",
-      "singer2": "female"
+      "vocals": "Vocals",
+      "instrumental": "Instrumental"
     },
     "quality_class": "reference",
     "license_spdx": "MIT",
@@ -38,7 +38,10 @@
     "source": "https://github.com/nomadkaraoke/python-audio-separator"
   },
   "provenance": {
-    "author": "Sucial",
-    "purpose": "multi-singer / overlapping vocalists (male vs female)"
+    "author": "UVR / viperx",
+    "leaderboard_sdr": {
+      "vocals": 11.7,
+      "instrumental": 16.4
+    }
   }
 }

@@ -1,27 +1,27 @@
 {
   "manifest_version": 2,
-  "id": "medley-vox",
+  "id": "wind-inst",
   "task": "separate",
   "stems": [
-    "singer1",
-    "singer2"
+    "woodwinds",
+    "no_woodwinds"
   ],
-  "display_name": "Chorus Male/Female (Medley Vox class)",
+  "display_name": "VR Arch Woodwinds",
   "adapter": "neiro.adapters.audio_separator_adapter:AudioSeparatorModel",
   "requires": [
     "audio_separator"
   ],
   "params": {
-    "model_filename": "model_chorus_bs_roformer_ep_267_sdr_24.1275.ckpt",
+    "model_filename": "17_HP-Wind_Inst-UVR.pth",
     "stems": [
-      "singer1",
-      "singer2"
+      "woodwinds",
+      "no_woodwinds"
     ],
     "stem_labels": {
-      "singer1": "male",
-      "singer2": "female"
+      "woodwinds": "woodwinds",
+      "no_woodwinds": "no woodwinds"
     },
-    "quality_class": "reference",
+    "quality_class": "standard",
     "license_spdx": "MIT",
     "license_note": "credit UVR; verify commercial terms"
   },
@@ -31,14 +31,14 @@
       "cache_param": "model_file_dir"
     }
   ],
-  "quality_class": "reference",
+  "quality_class": "standard",
   "license": {
     "spdx": "MIT",
     "note": "credit UVR; verify commercial terms",
     "source": "https://github.com/nomadkaraoke/python-audio-separator"
   },
   "provenance": {
-    "author": "Sucial",
-    "purpose": "multi-singer / overlapping vocalists (male vs female)"
+    "author": "UVR",
+    "purpose": "strings/winds family isolation"
   }
 }
