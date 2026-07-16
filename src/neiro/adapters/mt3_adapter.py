@@ -86,7 +86,9 @@ class YourMT3Transcriber:
         from pathlib import Path
 
         # Path-like MIDI output
-        if isinstance(notes, (str, Path)) or (hasattr(notes, "exists") and Path(str(notes)).is_file()):
+        if isinstance(notes, (str, Path)) or (
+            hasattr(notes, "exists") and Path(str(notes)).is_file()
+        ):
             from neiro.symbolic.midi import read_midi_notes
 
             stream = read_midi_notes(Path(str(notes)), track=self.track)

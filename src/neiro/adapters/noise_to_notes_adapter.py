@@ -67,9 +67,7 @@ class NoiseToNotesTranscriber:
         with tempfile.TemporaryDirectory() as tmp:
             wav = Path(tmp) / "in.wav"
             sf.write(str(wav), audio.to_mono().samples.T, audio.sample_rate)
-            raw = n2n_transcribe(
-                str(wav), checkpoint=self.checkpoint_path, seed=self.seed
-            )
+            raw = n2n_transcribe(str(wav), checkpoint=self.checkpoint_path, seed=self.seed)
         events = tuple(
             NoteEvent(
                 onset=round(float(n["onset"] if isinstance(n, dict) else n.onset), 6),
@@ -84,7 +82,9 @@ class NoiseToNotesTranscriber:
             )
             for n in raw
         )
-        return NoteStream(tuple(sorted(events, key=lambda e: e.onset)), source=self.profile.model_id)
+        return NoteStream(
+            tuple(sorted(events, key=lambda e: e.onset)), source=self.profile.model_id
+        )
 
     def unload(self) -> None:
         self._ready = False

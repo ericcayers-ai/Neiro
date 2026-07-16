@@ -82,7 +82,9 @@ class TimbreAMTTranscriber:
             )
             for n in raw
         )
-        return NoteStream(tuple(sorted(events, key=lambda e: e.onset)), source=self.profile.model_id)
+        return NoteStream(
+            tuple(sorted(events, key=lambda e: e.onset)), source=self.profile.model_id
+        )
 
     def unload(self) -> None:
         self._ready = False

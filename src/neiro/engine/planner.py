@@ -543,7 +543,13 @@ def _plan_detect_all(
         model_ids = [joint_entry.id]
         notes.append(f"using joint multi-stem model {joint_entry.id} instead of the DSP cascade")
     else:
-        step_kind = {"vocals": "center", "drums": "center", "bass": "center", "guitar": "center", "piano": "center"}
+        step_kind = {
+            "vocals": "center",
+            "drums": "center",
+            "bass": "center",
+            "guitar": "center",
+            "piano": "center",
+        }
         step_params = {
             "vocals": {"prefer": PRESETS["vocals-best"]["prefer"]},
             "drums": {"prefer": ["kuielab-drums", "mdx23c-drumsep"]},
