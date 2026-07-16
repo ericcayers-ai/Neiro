@@ -89,3 +89,13 @@ the local engine origin. This is deliberate — broadening it is a security-rele
 change and should go through [`SECURITY.md`](../SECURITY.md)'s reporting process
 if you believe there's a gap, or a normal PR with review if you're proposing a
 new, deliberately-scoped command.
+
+## 6. DAW VST injector (implemented — shared window)
+
+See [`docs/daw-vst.md`](daw-vst.md). A VST2 effect (`plugins/neiro-vst`) inserts
+into any DAW as a pass-through injector. Opening its editor focuses the **single**
+Neiro window (Learn) via `POST /api/daw/show-ui` instead of embedding a second UI.
+Install with `./scripts/install_daw_plugin.sh`.
+
+**Trust boundary:** the plug-in only talks to `127.0.0.1:8377` (the local engine).
+It does not load third-party code beyond what Neiro already runs.

@@ -1,0 +1,15 @@
+[package]
+name = "neiro-daw-vst"
+version = "1.0.0"
+edition = "2021"
+rust-version = "1.77"
+description = "Neiro shared-window DAW injector (VST2) — opens one Neiro Learn UI for all instances"
+license = "MIT"
+authors = ["Neiro contributors"]
+
+[lib]
+crate-type = ["cdylib"]
+name = "neiro_daw"
+
+[dependencies]
+vst = "0.3.0"

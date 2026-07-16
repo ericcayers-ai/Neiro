@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- Shared-window **DAW VST injector** (`plugins/neiro-vst`, VST2): multiple track
+  inserts open one Neiro Learn window via `/api/daw/*`; MIDI from the host feeds
+  Learn wait mode. Install with `./scripts/install_daw_plugin.sh`.
+- Learn rail unlocks automatically when a DAW injector is connected (even in Simple mode)
+
 ## 1.0.0 — Full roadmap product (2026-07-16)
 
 Completes the Neiro 1.0 program across phases 1–10 / milestones M0–M7: engine
