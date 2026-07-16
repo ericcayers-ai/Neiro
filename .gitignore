@@ -19,6 +19,7 @@ frontend/dist/
 
 # Tauri / Rust
 src-tauri/target/
+plugins/*/target/
 
 # Model weights & caches (never commit multi-GB downloads)
 models/**/*.ckpt

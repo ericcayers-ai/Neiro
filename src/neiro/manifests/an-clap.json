@@ -1,0 +1,24 @@
+{
+  "manifest_version": 2,
+  "id": "an-clap",
+  "task": "analyze",
+  "display_name": "CLAP zero-shot analyzer",
+  "adapter": "neiro.adapters.clap_analyze_adapter:CLAPAnalyzeAdapter",
+  "framework": "laion-clap",
+  "params": {
+    "top_k": 6,
+    "threshold": 0.08,
+    "asserted_threshold": 0.22
+  },
+  "quality_class": "standard",
+  "vram": { "fp32_gb": 1.0, "supports_fp16": false },
+  "license": {
+    "spdx": "MIT",
+    "note": "Adapter is MIT; LAION-CLAP dependency and weights are optional.",
+    "source": "https://github.com/LAION-AI/CLAP"
+  },
+  "provenance": {
+    "author": "LAION / Neiro",
+    "method": "zero-shot audio-text similarity for instrument tags"
+  }
+}

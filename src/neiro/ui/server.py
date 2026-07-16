@@ -18,6 +18,8 @@ Endpoints:
     GET  /api/waveform          ?file_id&width[&start&end] -> peak envelope
     GET  /api/spectrogram       ?file_id            -> quantised log-freq grid
     POST /api/edit              {file_id, op, ...}  -> new (edited) file_id
+    GET  /api/plugins           list local user Python plugins + grants
+    POST /api/plugins           update plugin grants
     GET  /api/export            ?file_id&format     -> wav16|wav24|flac download
     GET  /api/daw/status        shared-window DAW injector status
     GET  /api/daw/midi          ?after_seq=N        Learn MIDI from DAW injectors
@@ -455,6 +457,9 @@ def _make_handler(state: _State):
                     }
                 )
                 return
+            if path == "/api/plugins":
+                self._handle_plugins_get()
+                return
             if path.startswith("/assets/") or path.startswith("/static/"):
                 rel = path.lstrip("/")
                 if rel.startswith("static/"):
@@ -531,6 +536,8 @@ def _make_handler(state: _State):
                     self._handle_ingest_url()
                 elif self.path == "/api/edit":
                     self._handle_edit()
+                elif self.path == "/api/plugins":
+                    self._handle_plugins_post()
                 elif self.path.startswith("/api/job/") and self.path.endswith("/cancel"):
                     job_id = self.path.rstrip("/").rsplit("/", 2)[-2]
                     self._handle_cancel(job_id)
@@ -656,6 +663,27 @@ def _make_handler(state: _State):
             except KeyError:
                 self._error(404, "unknown job")
 
+        def _handle_plugins_get(self) -> None:
+            from neiro.engine.user_plugins import discover_plugins
+
+            self._json({"plugins": [plugin.as_dict() for plugin in discover_plugins()]})
+
+        def _handle_plugins_post(self) -> None:
+            from neiro.engine.user_plugins import set_plugin_grants
+
+            body = json.loads(self._read_body() or b"{}")
+            if isinstance(body.get("grants"), dict):
+                updates = {str(key): bool(value) for key, value in body["grants"].items()}
+            elif "plugin" in body:
+                updates = {str(body["plugin"]): bool(body.get("granted", True))}
+            else:
+                self._error(400, "expected {'grants': {id: bool}} or {'plugin': id}")
+                return
+            plugins = set_plugin_grants(updates)
+            with state.lock:
+                state.registry = default_registry()
+            self._json({"ok": True, "plugins": [plugin.as_dict() for plugin in plugins]})
+
         def _handle_waveform(self) -> None:
             from neiro.dsp import waveform_peaks
 
@@ -751,7 +779,7 @@ def _make_handler(state: _State):
             from neiro.io import load_audio
 
             audio = load_audio(dest)
-            report = analyze(audio)
+            report = analyze(audio, registry=state.registry)
             file_id = uuid.uuid4().hex[:12]
             state.files[file_id] = dest
             return {

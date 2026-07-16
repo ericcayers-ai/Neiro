@@ -99,7 +99,7 @@ def cmd_analyze(args: argparse.Namespace) -> int:
     from neiro.io import load_audio
 
     audio = load_audio(_resolve_input_arg(args.input, quiet=args.quiet))
-    report = analyze(audio)
+    report = analyze(audio, registry=default_registry())
     print(json.dumps(report.as_dict(), indent=2))
     return 0
 

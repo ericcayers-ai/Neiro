@@ -2,7 +2,7 @@
 
 Neiro's Learn mode is available in the desktop/browser UI (**Advanced** rail, or
 automatically when a DAW injector connects). This page describes the installable
-**Neiro DAW Bridge** VST2 plug-in that injects into any DAW while still using
+**Neiro DAW Bridge** DAW plug-ins that inject into a host while still using
 **one** Neiro window for every function.
 
 ## Contract
@@ -22,7 +22,7 @@ automatically when a DAW injector connects). This page describes the installable
 
 1. Neiro engine UI running locally (`neiro ui` or the Tauri desktop app) on
    `127.0.0.1:8377`.
-2. Rust toolchain (1.85+ recommended for the plug-in crate).
+2. Rust toolchain (1.85+ recommended for the plug-in crates).
 
 ## Build & install
 
@@ -31,14 +31,23 @@ chmod +x scripts/install_daw_plugin.sh
 ./scripts/install_daw_plugin.sh
 ```
 
-This builds `plugins/neiro-vst` as a VST2 `cdylib` and copies it to a standard
-user plug-in path:
+This builds `plugins/neiro-vst` as the production VST2 `cdylib` and
+`plugins/neiro-clap` as a lightweight CLAP/VST3 bridge-preview library, then
+copies them to standard user plug-in paths:
 
 | OS | Install location |
 |---|---|
 | Linux | `~/.vst/neiro_daw.so` |
 | macOS | `~/Library/Audio/Plug-Ins/VST/Neiro DAW Bridge.vst` |
 | Windows | `%COMMONPROGRAMFILES%/VST2/neiro_daw.dll` |
+
+CLAP/VST3 preview paths:
+
+| OS | CLAP preview | VST3 preview |
+|---|---|---|
+| Linux | `~/.clap/neiro_clap.clap` | `~/.vst3/Neiro DAW Bridge.vst3/Contents/x86_64-linux/Neiro DAW Bridge.so` |
+| macOS | `~/Library/Audio/Plug-Ins/CLAP/Neiro DAW Bridge.clap` | `~/Library/Audio/Plug-Ins/VST3/Neiro DAW Bridge.vst3` |
+| Windows | `%COMMONPROGRAMFILES%/CLAP/neiro_clap.clap` | `%COMMONPROGRAMFILES%/VST3/Neiro DAW Bridge.vst3` |
 
 Rescan plug-ins in your DAW after installing.
 
@@ -66,6 +75,9 @@ Nothing is exposed beyond `127.0.0.1` (roadmap principle 2).
 
 ## VST3 / CLAP
 
-This release ships a VST2 injector (broad DAW coverage). A CLAP/VST3 variant can
-reuse the same HTTP bridge; open a feature request if you need a specific format
-bundle for your host.
+`plugins/neiro-clap` is included as a CLAP/VST3-shaped bridge preview for the 1.1
+MVP. It builds quickly without a heavy plug-in SDK and shares the same local HTTP
+bridge helpers as the VST2 injector (`/api/daw/register`, `/api/daw/show-ui`,
+`/api/daw/heartbeat`). The exported CLAP/VST3 entry points are placeholders, so
+use the VST2 injector for production DAW injection until this crate is upgraded
+to a full CLAP/VST3 SDK implementation.

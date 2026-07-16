@@ -336,7 +336,7 @@ def _maybe_prepend_restoration(
     if not enabled:
         return upstream
     try:
-        report = _quick_analysis(input_path)
+        report = _quick_analysis(input_path, registry=registry)
     except Exception:
         return upstream
     if report.bandwidth_hz is None or report.bandwidth_hz >= 16000:
@@ -493,7 +493,7 @@ def _plan_detect_all(
     """Detect-all cascade (roadmap §5.5): separate every asserted instrument,
     in confidence order, via cascaded extract-subtract; residual last."""
     notes: list[str] = []
-    report = _quick_analysis(input_path)
+    report = _quick_analysis(input_path, registry=registry)
     asserted = [h["instrument"] for h in report.instruments if h["status"] == "asserted"]
     # Broadband sources first (roadmap §5.5), then delicate extractions.
     supported = ("drums", "bass", "vocals", "guitar", "electric guitar", "piano", "keys")
@@ -933,12 +933,12 @@ class TranscriptionPlan:
     notes: list[str] = field(default_factory=list)
 
 
-def _quick_analysis(input_path: str | Path):
+def _quick_analysis(input_path: str | Path, *, registry: Registry | None = None):
     """Plan-time analysis: cheap enough to run while planning (roadmap §2.3)."""
     from neiro.analysis import analyze
     from neiro.io import load_audio
 
-    return analyze(load_audio(input_path))
+    return analyze(load_audio(input_path), registry=registry)
 
 
 # Transcription model preference: specialists > MT3 family > general polyphonic > DSP floor.
@@ -1010,7 +1010,7 @@ def plan_transcription(
     if mode == "split":
         use_split = True
     elif mode == "auto":
-        report = _quick_analysis(input_path)
+        report = _quick_analysis(input_path, registry=registry)
         use_split = report.channels >= 2 and not report.is_effectively_mono
         if use_split:
             notes.append("auto-split: extracting the centre stem before transcription")
@@ -1129,7 +1129,7 @@ def plan_enhancement(
         # but opt-in: detected conditions that a neural model would fix best are
         # surfaced as suggestions, and applied when the user asks for them
         # explicitly (an explicit --chain, or the UI's restore options).
-        report = _quick_analysis(input_path)
+        report = _quick_analysis(input_path, registry=registry)
         if report.clipping_ratio > 0.0005:
             steps.append(("declip", {}))
             notes.append("clipping detected -> declip")

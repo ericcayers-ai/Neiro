@@ -63,19 +63,63 @@ into Neiro's own process.
 as any other CLI command; it does not load third-party code beyond the models
 you've already installed.
 
-## 4. Custom processing-node plugins (roadmap-only, not implemented)
+## 4. Custom Python adapter plugins (MVP)
 
-Roadmap §10.1 (`R-0108`) describes power-user pre/post-processing nodes
-registered as restricted Python entry points (audio-in/audio-out, or NoteStream
-transforms) with an **explicit, per-plugin permission grant** — the UI stating
-plainly that a plugin is code before it's enabled. This does not exist yet: there
-is no entry-point discovery, no permission model, and no sandboxing in the
-current engine. Model manifests (§1) remain the only way to add behavior today.
-If you need this, please open a
-[feature request](../.github/ISSUE_TEMPLATE/feature_request.yml) describing your
-use case rather than routing around the registry — a first-class permission model
-is worth designing deliberately rather than growing organically from one PR's
-needs.
+Roadmap §10.1 (`R-0108`) now has a small local-only MVP for power users who want
+to register their own Python adapters without editing the packaged manifest
+directory. Neiro scans:
+
+```text
+~/.neiro/plugins/*/plugin.json
+~/.neiro/plugins/grants.json
+```
+
+Each `plugin.json` uses this schema:
+
+```json
+{
+  "name": "My Separator",
+  "adapter": "my_package.neiro_plugin:MySeparator",
+  "role": "separator",
+  "enabled": true
+}
+```
+
+`role` must be one of:
+
+| Role | Registry task |
+|---|---|
+| `enhancer` | `enhance` |
+| `separator` | `separate` |
+| `transcriber` | `transcribe` |
+
+Descriptors are visible through `GET /api/plugins`, but a plugin only becomes a
+registry entry when **both** `enabled` is true and `grants.json` explicitly grants
+it:
+
+```json
+{
+  "granted": {
+    "my-separator": true
+  }
+}
+```
+
+You can update grants with `POST /api/plugins`:
+
+```json
+{ "plugin": "my-separator", "granted": true }
+```
+
+or:
+
+```json
+{ "grants": { "my-separator": true, "old-plugin": false } }
+```
+
+**Trust boundary:** a granted adapter is ordinary Python running in the Neiro
+process. There is no sandbox. Only grant plugins whose source you trust; review
+them like any other dependency.
 
 ## 5. Desktop shell IPC surface (implemented, intentionally minimal)
 
