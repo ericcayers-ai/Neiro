@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSession } from '../state/session'
+import { useDawBridge } from '../hooks/useDawBridge'
 import './modules.css'
 
 /** Learn mode — pitch-preserving practice over the session audio / transcription. */
@@ -9,12 +10,14 @@ export function LearnModule() {
   const [looping, setLooping] = useState(false)
   const [countIn, setCountIn] = useState(true)
   const [metronome, setMetronome] = useState(false)
-  const [waitMode, setWaitMode] = useState<'key' | 'webmidi' | 'none'>('key')
+  const [waitMode, setWaitMode] = useState<'key' | 'webmidi' | 'daw' | 'none'>('key')
   const [feedback, setFeedback] = useState('')
   const [noteIndex, setNoteIndex] = useState(0)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const noteIndexRef = useRef(0)
   const pitchesRef = useRef<number[]>([])
+  const waitModeRef = useRef(waitMode)
+  waitModeRef.current = waitMode
 
   const targetPitches = transcribeResult
     ? Object.values(transcribeResult.tracks || {})
@@ -34,6 +37,26 @@ export function LearnModule() {
       return next
     })
   }
+
+  const { status: dawStatus, dawConnected } = useDawBridge({
+    onMidiNoteOn: (pitch, _velocity, instanceId) => {
+      if (waitModeRef.current !== 'daw' && waitModeRef.current !== 'webmidi') return
+      const expected = pitchesRef.current[noteIndexRef.current]
+      if (expected == null) {
+        setFeedback(`DAW MIDI ${pitch} from ${instanceId} (no remaining target notes)`)
+        return
+      }
+      if (pitch === expected) {
+        advance(`DAW injector (${instanceId})`)
+      } else {
+        setFeedback(`DAW heard ${pitch}, expected ${expected} — try again`)
+      }
+    },
+  })
+
+  useEffect(() => {
+    if (dawConnected && waitMode === 'key') setWaitMode('daw')
+  }, [dawConnected, waitMode])
 
   useEffect(() => {
     const el = audioRef.current
@@ -105,22 +128,42 @@ export function LearnModule() {
     }
   }, [waitMode])
 
-  if (!file) {
+  if (!file && !dawConnected) {
     return (
       <div className="module-panel">
         <h2>Learn</h2>
-        <div className="gate muted">Import a file and optionally transcribe it first.</div>
+        <div className="gate muted">
+          Import a file and optionally transcribe it first — or open the Neiro VST injector from
+          your DAW to practice against a track.
+        </div>
       </div>
     )
   }
 
   return (
     <div className="module-panel">
-      <h2>Learn — {file.name}</h2>
+      <h2>Learn{file ? ` — ${file.name}` : ' — DAW injector'}</h2>
       <p className="lede">
         Practice with pitch-preserving speed control, loop regions, count-in, metronome, and wait
-        mode. Wrong-note feedback is informative, not punitive.
+        mode. Wrong-note feedback is informative, not punitive. DAW VST injectors share this single
+        window — opening the plugin editor focuses Neiro rather than embedding a second UI.
       </p>
+
+      {dawConnected && dawStatus && (
+        <div className="gate" role="status" aria-live="polite">
+          <strong>DAW bridge active</strong> — {dawStatus.instance_count} injector
+          {dawStatus.instance_count === 1 ? '' : 's'}; focused{' '}
+          {dawStatus.focus_instance || 'none'}.
+          <ul className="intent" style={{ marginTop: 8 }}>
+            {dawStatus.instances.map((inst) => (
+              <li key={inst.instance_id}>
+                {inst.track_name} ({inst.host}) — {inst.instance_id}
+                {inst.instance_id === dawStatus.focus_instance ? ' · focused' : ''}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {!transcribeResult && (
         <div className="gate">
@@ -177,24 +220,28 @@ export function LearnModule() {
           >
             <option value="key">Step with Space / Enter</option>
             <option value="webmidi">WebMIDI keyboard</option>
+            <option value="daw">DAW VST injector MIDI</option>
             <option value="none">Continuous play</option>
           </select>
         </label>
         <span id="wait-hint" className="intent">
-          Playback waits at each note group until Space/Enter or the matching MIDI pitch.
+          Playback waits at each note group until Space/Enter, WebMIDI, or matching MIDI from a
+          Neiro VST insert.
           {targetPitches.length > 0
             ? ` Target ${Math.min(noteIndex + 1, targetPitches.length)}/${targetPitches.length}: MIDI ${targetPitches[Math.min(noteIndex, targetPitches.length - 1)]}.`
             : ''}
         </span>
       </div>
 
-      <audio
-        ref={audioRef}
-        controls
-        loop={looping}
-        src={file.audioUrl}
-        style={{ width: '100%', marginTop: 12 }}
-      />
+      {file && (
+        <audio
+          ref={audioRef}
+          controls
+          loop={looping}
+          src={file.audioUrl}
+          style={{ width: '100%', marginTop: 12 }}
+        />
+      )}
       {feedback && (
         <p className="muted" role="status" aria-live="polite">
           {feedback}

@@ -30,7 +30,7 @@ unreachable" indicator if the local API stops responding.
 | 5 | **Restore** | Auto (conditioning-chain) or explicit enhancement chains (declip, dehum, denoise, dereverb, superres, master). |
 | 6 | **Transcribe** | Audio → MIDI, with a piano-roll-style event view of the result. |
 | 7 | **Mixer** | Per-stem mute/solo/gain preview, A/B against the source, null-test audition, "Open in Studio" for any stem. |
-| 8 | **Learn** *(Advanced mode only)* | Practice controls over a transcription result: pitch-preserving speed, loop section, count-in, metronome, step or WebMIDI wait mode. |
+| 8 | **Learn** *(Advanced — or whenever a DAW injector is connected)* | Practice controls over a transcription result: pitch-preserving speed, loop section, count-in, metronome, step / WebMIDI / **DAW VST injector** wait mode. Multiple DAW inserts share this **one** window. |
 | 9 | **Preferences** | Theme/density/font-scale/motion, cache budget and warm-pool TTL fields, and a privacy statement. |
 | — | **About** | Version, licensing note, and (desktop only) the engine supervisor's live status. |
 
@@ -71,7 +71,8 @@ Simple and Advanced drive identical Separate/Restore/Transcribe requests today.
 
 Sheet-music export is available as MusicXML (plus SVG/PDF when Verovio or
 MuseScore is present). Advanced mode reveals quality-tier / condition controls
-across modules; Learn mode supports Space/Enter stepping and WebMIDI pitch
-wait. See [`roadmap.md`](../roadmap.md) and
+across modules; Learn mode supports Space/Enter stepping, WebMIDI pitch wait,
+and MIDI from the optional [DAW VST injector](daw-vst.md) (shared single window).
+See [`roadmap.md`](../roadmap.md) and
 [`docs/roadmap-traceability.md`](roadmap-traceability.md) for the authoritative
 1.0 ledger.

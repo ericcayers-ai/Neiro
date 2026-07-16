@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import type { ModuleId } from '../api/types'
 import { useSession } from '../state/session'
+import { useDawBridge } from '../hooks/useDawBridge'
 import { fmtTime } from '../constants/options'
 import './shell.css'
 
@@ -31,7 +32,12 @@ export function AppShell({ children }: { children: ReactNode }) {
     engineStatus,
   } = useSession()
 
-  const visible = MODULES.filter((m) => workspaceMode === 'advanced' || !m.advanced)
+  // Shared-window focus from VST injectors (also unlocks Learn in Simple mode).
+  const { dawConnected, status: dawStatus } = useDawBridge()
+
+  const visible = MODULES.filter(
+    (m) => workspaceMode === 'advanced' || !m.advanced || (m.id === 'learn' && dawConnected),
+  )
 
   return (
     <div className="shell">
@@ -97,6 +103,12 @@ export function AppShell({ children }: { children: ReactNode }) {
             )}
           </div>
           <div className="session-actions">
+            {dawConnected && (
+              <span className="job-pill" role="status" aria-live="polite" title={dawStatus?.contract}>
+                DAW · {dawStatus?.instance_count || 0} injector
+                {(dawStatus?.instance_count || 0) === 1 ? '' : 's'}
+              </span>
+            )}
             {engineStatus === 'down' && (
               <span className="job-pill danger" role="status" aria-live="assertive">
                 Engine unreachable

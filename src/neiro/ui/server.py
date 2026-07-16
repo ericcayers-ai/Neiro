@@ -19,6 +19,13 @@ Endpoints:
     GET  /api/spectrogram       ?file_id            -> quantised log-freq grid
     POST /api/edit              {file_id, op, ...}  -> new (edited) file_id
     GET  /api/export            ?file_id&format     -> wav16|wav24|flac download
+    GET  /api/daw/status        shared-window DAW injector status
+    GET  /api/daw/midi          ?after_seq=N        Learn MIDI from DAW injectors
+    POST /api/daw/register      register a VST/CLAP injector instance
+    POST /api/daw/unregister    drop an injector
+    POST /api/daw/heartbeat     keep-alive + optional peak meter
+    POST /api/daw/show-ui       focus the single Neiro window (Learn)
+    POST /api/daw/midi          push a MIDI note from the DAW into Learn
     GET  /files/<...>           artifacts (stems, MIDI, edits) from the workspace
 """
 
@@ -87,6 +94,7 @@ class _State:
         self.jobs: dict[str, dict] = {}
         self.job_contexts: dict[str, ExecutionContext] = {}
         self.lock = threading.Lock()
+        self.port = 8377
         # Optional: set by serve() when the WS control channel is enabled, so
         # progress lines get pushed there too, not just appended for polling.
         self.ws_hub = None
@@ -473,6 +481,18 @@ def _make_handler(state: _State):
             if path.startswith("/api/export"):
                 self._handle_export()
                 return
+            if path == "/api/daw/status":
+                from neiro.ui.daw_bridge import default_bridge
+
+                self._json(default_bridge().status())
+                return
+            if path == "/api/daw/midi":
+                from neiro.ui.daw_bridge import default_bridge
+
+                q = self._query()
+                after = int(q.get("after_seq", "0") or 0)
+                self._json(default_bridge().poll_midi(after))
+                return
             if path.startswith("/api/job/"):
                 job_id = path.rstrip("/").rsplit("/", 1)[-1]
                 payload = job_status(state, job_id)
@@ -514,10 +534,75 @@ def _make_handler(state: _State):
                     self._handle_cancel(job_id)
                 elif self.path in ("/api/separate", "/api/transcribe", "/api/enhance"):
                     self._handle_job(self.path.rsplit("/", 1)[-1])
+                elif self.path.startswith("/api/daw/"):
+                    self._handle_daw(self.path)
                 else:
                     self._error(404, "not found")
             except Exception as exc:  # surface, don't crash the server
                 self._error(500, str(exc))
+
+        def _handle_daw(self, path: str) -> None:
+            from neiro.ui.daw_bridge import default_bridge
+
+            bridge = default_bridge()
+            body = json.loads(self._read_body() or b"{}")
+            if path == "/api/daw/register":
+                inst = bridge.register(
+                    track_name=str(body.get("track_name", "DAW track")),
+                    plugin_role=str(body.get("plugin_role", "injector")),
+                    host=str(body.get("host", "unknown")),
+                    sample_rate=int(body.get("sample_rate", 44100)),
+                    channels=int(body.get("channels", 2)),
+                    instance_id=body.get("instance_id"),
+                )
+                self._json({"ok": True, "instance": inst.to_public(), "status": bridge.status()})
+                return
+            if path == "/api/daw/unregister":
+                iid = str(body.get("instance_id", ""))
+                self._json({"ok": bridge.unregister(iid), "status": bridge.status()})
+                return
+            if path == "/api/daw/heartbeat":
+                iid = str(body.get("instance_id", ""))
+                ok = bridge.heartbeat(
+                    iid,
+                    peak=body.get("peak"),
+                    frames=int(body.get("frames", 0) or 0),
+                )
+                if not ok:
+                    self._error(404, "unknown instance")
+                    return
+                self._json({"ok": True, "status": bridge.status()})
+                return
+            if path == "/api/daw/show-ui":
+                status = bridge.request_show_ui(
+                    body.get("instance_id"),
+                    module=str(body.get("module", "learn")),
+                    launch_if_needed=bool(body.get("launch_if_needed", True)),
+                )
+                # Best-effort open of the single shared window if a client isn't
+                # already connected (browser tab or Tauri shell).
+                if bridge.consume_launch_request():
+                    try:
+                        webbrowser.open(f"http://127.0.0.1:{state.port}/")
+                    except Exception:
+                        pass
+                self._json({"ok": True, "status": status})
+                return
+            if path == "/api/daw/midi":
+                iid = str(body.get("instance_id", ""))
+                try:
+                    result = bridge.push_midi(
+                        iid,
+                        pitch=int(body.get("pitch", 60)),
+                        velocity=int(body.get("velocity", 100)),
+                        note_on=bool(body.get("note_on", True)),
+                    )
+                except KeyError:
+                    self._error(404, "unknown instance")
+                    return
+                self._json(result)
+                return
+            self._error(404, "not found")
 
         def _handle_cancel(self, job_id: str) -> None:
             try:
@@ -720,6 +805,7 @@ def _start_ws_control_plane(state: _State, ws_port: int) -> None:
 
 def serve(port: int = 8377, open_browser: bool = True, ws_port: int | None = None) -> int:
     state = _State()
+    state.port = port
     server = ThreadingHTTPServer(("127.0.0.1", port), _make_handler(state))
     url = f"http://127.0.0.1:{port}/"
     print(f"Neiro interface at {url} (local only — Ctrl+C to stop)")
