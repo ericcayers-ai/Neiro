@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- Full roadmap model zoo wiring: BS-RoFormer SW/1296, Mel-RoFormer Kim/FT, MDX-B & VR karaoke,
+  Demucs3 MMI, Kuielab instrument isolators, woodwinds, crowd removal, aspiration/de-breath,
+  VR denoise/dereverb/de-echo, bleed suppressor, VoiceFixer, YourMT3 (`mt3-infer`), SVT melody,
+  TimbreAMT / Noise-to-Notes / LarsNet / SCNet-XL opt-in adapters, direct Demucs manifest
+- Planner presets for bass/guitar/piano/woodwinds/crowd; enhancement steps `debreath`, `deecho`,
+  `bleed`, `crowd`, `voicefixer`; router specialists for the new decoders
+- `scripts/generate_zoo_manifests.py` to regenerate audio-separator zoo manifests
+
+### Changed
+- Medley Vox preset uses installable chorus male/female RoFormer (residual = bed)
+- Apollo adapter uses `look2hear.models.BaseModel.from_pretrain("JusperLee/Apollo")`
+- Multi-instrument adapter prefers YourMT3 via `mt3-infer` before omnizart / Basic Pitch
+- Cascade center node selects the stem matching the cascade target (not always `vocals`)
+
 ## 1.0.0 — Full roadmap product (2026-07-16)
 
 Completes the Neiro 1.0 program across phases 1–10 / milestones M0–M7: engine

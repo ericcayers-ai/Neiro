@@ -36,28 +36,30 @@ __all__ = [
 
 # Primary/fallback decoder ids per instrument family. Order matters: the first
 # *available* (dependency installed) entry wins. "dsp-yin" terminates every
-# list — it has no dependency and no weights, so it is always available and
-# every instrument has an honest floor even with nothing downloaded.
+# pitched list — it has no dependency and no weights, so it is always available
+# and every instrument has an honest floor even with nothing downloaded.
 INSTRUMENT_DECODERS: dict[str, list[str]] = {
-    "piano": ["piano-transcription", "transkun-piano", "basic-pitch", "dsp-yin"],
-    "keys": ["piano-transcription", "transkun-piano", "basic-pitch", "dsp-yin"],
-    "keyboard": ["piano-transcription", "transkun-piano", "basic-pitch", "dsp-yin"],
-    "organ": ["piano-transcription", "basic-pitch", "dsp-yin"],
-    "electric guitar": ["basic-pitch", "dsp-yin"],
-    "acoustic guitar": ["basic-pitch", "dsp-yin"],
-    "guitar": ["basic-pitch", "dsp-yin"],
-    "bass": ["basic-pitch", "dsp-yin"],
-    "drums": ["drums-neural", "drums-dsp"],
-    "percussion": ["drums-neural", "drums-dsp"],
-    "kit": ["drums-neural", "drums-dsp"],
-    "vocals": ["basic-pitch", "dsp-yin"],
-    "lead vocal": ["basic-pitch", "dsp-yin"],
-    "strings": ["basic-pitch", "dsp-yin"],
-    "violin": ["basic-pitch", "dsp-yin"],
-    "winds": ["basic-pitch", "dsp-yin"],
-    "brass": ["basic-pitch", "dsp-yin"],
-    "saxophone": ["basic-pitch", "dsp-yin"],
-    "flute": ["basic-pitch", "dsp-yin"],
+    "piano": ["transkun-piano", "piano-transcription", "yourmt3", "basic-pitch", "dsp-yin"],
+    "keys": ["transkun-piano", "piano-transcription", "yourmt3", "basic-pitch", "dsp-yin"],
+    "keyboard": ["transkun-piano", "piano-transcription", "yourmt3", "basic-pitch", "dsp-yin"],
+    "organ": ["piano-transcription", "yourmt3", "basic-pitch", "dsp-yin"],
+    "electric guitar": ["timbre-amt", "yourmt3", "basic-pitch", "dsp-yin"],
+    "acoustic guitar": ["timbre-amt", "yourmt3", "basic-pitch", "dsp-yin"],
+    "guitar": ["timbre-amt", "yourmt3", "basic-pitch", "dsp-yin"],
+    "bass": ["yourmt3", "basic-pitch", "dsp-yin"],
+    "drums": ["noise-to-notes", "drums-neural", "drums-dsp"],
+    "percussion": ["noise-to-notes", "drums-neural", "drums-dsp"],
+    "kit": ["noise-to-notes", "drums-neural", "drums-dsp"],
+    "vocals": ["svt-melody", "basic-pitch", "dsp-yin"],
+    "lead vocal": ["svt-melody", "basic-pitch", "dsp-yin"],
+    "strings": ["yourmt3", "multi-instrument", "basic-pitch", "dsp-yin"],
+    "violin": ["yourmt3", "basic-pitch", "dsp-yin"],
+    "winds": ["yourmt3", "basic-pitch", "dsp-yin"],
+    "brass": ["yourmt3", "basic-pitch", "dsp-yin"],
+    "saxophone": ["yourmt3", "basic-pitch", "dsp-yin"],
+    "flute": ["yourmt3", "basic-pitch", "dsp-yin"],
+    "synth": ["yourmt3", "multi-instrument", "basic-pitch", "dsp-yin"],
+    "woodwinds": ["yourmt3", "basic-pitch", "dsp-yin"],
 }
 
 # Lyrics are a separate track family (text, not pitched notes) — routed
@@ -66,7 +68,7 @@ LYRICS_DECODERS: list[str] = ["whisper-lyrics"]
 
 # Multi-instrument / whole-mix decode (roadmap §7.2's "hears context" pass, and
 # the fallback when an instrument has no dedicated entry above).
-DEFAULT_DECODERS: list[str] = ["multi-instrument", "basic-pitch", "dsp-yin"]
+DEFAULT_DECODERS: list[str] = ["yourmt3", "multi-instrument", "basic-pitch", "dsp-yin"]
 
 # Per-model algorithmic latency (seconds) measured by impulse/click calibration
 # (see :func:`neiro.symbolic.orchestrate.calibrate_latency`). Values default to
@@ -80,7 +82,11 @@ LATENCY_SECONDS: dict[str, float] = {
     "transkun-piano": 0.0,
     "drums-dsp": 0.0,
     "drums-neural": 0.0,
+    "noise-to-notes": 0.0,
     "multi-instrument": 0.0,
+    "yourmt3": 0.0,
+    "svt-melody": 0.0,
+    "timbre-amt": 0.0,
     "whisper-lyrics": 0.0,
 }
 

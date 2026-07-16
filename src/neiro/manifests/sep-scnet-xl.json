@@ -1,0 +1,14 @@
+{
+  "manifest_version": 2,
+  "id": "scnet-xl",
+  "task": "separate",
+  "stems": ["drums", "bass", "other", "vocals"],
+  "display_name": "SCNet-XL (4-stem, opt-in checkpoint)",
+  "adapter": "neiro.adapters.scnet_adapter:SCNetSeparator",
+  "requires": ["scnet"],
+  "params": { "variant": "scnet-xl" },
+  "quality_class": "reference",
+  "vram": { "fp32_gb": 6.0, "fp16_gb": 3.5, "supports_fp16": true },
+  "license": { "spdx": "unknown", "note": "no bundled checkpoint; verify license of any weights you configure", "source": "https://github.com/yoyololicon/SCNet" },
+  "provenance": { "author": "yoyololicon (SCNet)", "note": "requires user-supplied checkpoint_path; unavailable until configured" }
+}

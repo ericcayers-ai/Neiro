@@ -31,14 +31,21 @@ REQUIRES_TO_EXTRA: dict[str, str] = {
     "huggingface_hub": "downloader",
     "demucs": "demucs",
     "torch": "demucs",
+    "torchaudio": "apollo",
     "whisper": "lyrics",
     "df": "deepfilternet",
+    "look2hear": "apollo",
     "apollo": "apollo",
     "scnet": "scnet",
+    "larsnet": "larsnet",
     "medley_vox": "medley_vox",
     "sonicmaster": "sonicmaster",
     "transkun": "transkun",
     "omnizart": "omnizart",
+    "voicefixer": "voicefixer",
+    "mt3_infer": "mt3",
+    "timbre_amt": "timbre_amt",
+    "noise_to_notes": "noise_to_notes",
 }
 
 WEIGHT_KINDS = {"http", "hf_hub", "managed"}

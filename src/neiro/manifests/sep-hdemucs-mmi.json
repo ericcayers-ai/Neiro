@@ -1,0 +1,50 @@
+{
+  "manifest_version": 2,
+  "id": "hdemucs-mmi",
+  "task": "separate",
+  "stems": [
+    "drums",
+    "bass",
+    "other",
+    "vocals"
+  ],
+  "display_name": "Demucs3 MMI (hdemucs_mmi)",
+  "adapter": "neiro.adapters.audio_separator_adapter:AudioSeparatorModel",
+  "requires": [
+    "audio_separator"
+  ],
+  "params": {
+    "model_filename": "hdemucs_mmi.yaml",
+    "stems": [
+      "drums",
+      "bass",
+      "other",
+      "vocals"
+    ],
+    "stem_labels": {
+      "drums": "Drums",
+      "bass": "Bass",
+      "other": "Other",
+      "vocals": "Vocals"
+    },
+    "quality_class": "standard",
+    "license_spdx": "MIT",
+    "license_note": "Demucs MIT (facebookresearch)"
+  },
+  "weights": [
+    {
+      "kind": "managed",
+      "cache_param": "model_file_dir"
+    }
+  ],
+  "quality_class": "standard",
+  "license": {
+    "spdx": "MIT",
+    "note": "Demucs MIT (facebookresearch)",
+    "source": "https://github.com/nomadkaraoke/python-audio-separator"
+  },
+  "provenance": {
+    "author": "facebookresearch",
+    "purpose": "Demucs3 MMI diversity / draft-lane alternative"
+  }
+}

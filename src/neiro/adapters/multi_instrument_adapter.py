@@ -1,19 +1,14 @@
-"""Multi-instrument (YourMT3 / MIROS-class) whole-mix decoder, with a Basic
-Pitch fallback (roadmap §7.2 "full-mix decoder, which hears context").
+"""Multi-instrument (YourMT3 / MIROS-class) whole-mix decoder.
 
-No YourMT3/MIROS pip package is currently installable in a maintained,
-inference-ready form (see roadmap §15 references) — this adapter is
-consequently a *real, wired* integration point rather than a promise: it
-tries `omnizart <https://pypi.org/project/omnizart/>`_'s multi-instrument
-model (``omnizart.music.app.MusicTranscription``, ``model_path="Stream"``,
-trained on MusicNet's 11 instrument classes) first, since it is an actual
-pip-installable multi-instrument transcriber. If that import or its
-checkpoints aren't available, it falls back to
-:class:`~neiro.adapters.basic_pitch_adapter.BasicPitchTranscriber` — still a
-genuine polyphonic, instrument-agnostic full-mix decode, just without
-per-instrument channel separation. Either way the profile's ``extras``
-records which backend actually ran, so provenance is never misleading about
-what produced the notes.
+Roadmap §7.2 "full-mix decoder, which hears context". Preference order:
+
+1. ``mt3-infer`` YourMT3 (Apache-2.0, auto-downloads checkpoints)
+2. ``omnizart`` MusicTranscription (``model_path="Stream"``)
+3. Basic Pitch, then YIN
+
+The dedicated ``yourmt3`` manifest uses :class:`YourMT3Transcriber` directly;
+this adapter remains the always-available DEFAULT_DECODERS entry that degrades
+honestly when optional backends are missing.
 """
 
 from __future__ import annotations
@@ -55,33 +50,46 @@ class MultiInstrumentAdapter:
 
     def load(self, device: str, precision: str) -> None:
         try:
+            from neiro.adapters.mt3_adapter import YourMT3Transcriber
+
+            self._fallback = YourMT3Transcriber(track=self.track)
+            self._fallback.load(device, precision)
+            self._backend = "yourmt3"
+            self.profile.extras["backend_used"] = self._backend
+            return
+        except (ImportError, RuntimeError):
+            self._fallback = None
+
+        try:
             from omnizart.music.app import MusicTranscription  # type: ignore
 
             self._omnizart_app = MusicTranscription()
             self._backend = "omnizart"
+            self.profile.extras["backend_used"] = self._backend
+            return
         except ImportError:
-            try:
-                from neiro.adapters.basic_pitch_adapter import BasicPitchTranscriber
+            pass
 
-                self._fallback = BasicPitchTranscriber(track=self.track)
-                self._fallback.load(device, precision)
-                self._backend = "basic-pitch"
-            except ImportError:
-                # Neither optional backend is installed — degrade to the
-                # dependency-free DSP floor so this decoder never raises just
-                # because it was picked automatically (roadmap §7.2's promise
-                # that the app keeps running on whatever backends *are*
-                # available).
-                from neiro.adapters.dsp_transcriber import YinTranscriber
+        try:
+            from neiro.adapters.basic_pitch_adapter import BasicPitchTranscriber
 
-                self._fallback = YinTranscriber(track=self.track)
-                self._fallback.load(device, precision)
-                self._backend = "dsp-yin"
+            self._fallback = BasicPitchTranscriber(track=self.track)
+            self._fallback.load(device, precision)
+            self._backend = "basic-pitch"
+        except ImportError:
+            from neiro.adapters.dsp_transcriber import YinTranscriber
+
+            self._fallback = YinTranscriber(track=self.track)
+            self._fallback.load(device, precision)
+            self._backend = "dsp-yin"
         self.profile.extras["backend_used"] = self._backend
 
     def transcribe(self, audio: AudioTensor) -> NoteStream:
         if self._backend is None:
             self.load("cpu", "fp32")
+
+        if self._backend == "yourmt3":
+            return self._fallback.transcribe(audio)
 
         if self._backend == "omnizart":
             import tempfile

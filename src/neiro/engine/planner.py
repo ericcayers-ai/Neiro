@@ -77,41 +77,73 @@ PRESETS: dict[str, dict[str, Any]] = {
         "quality": "reference",
         "prefer": [
             "vocals-neural-ensemble",
+            "bs-roformer-sw",
             "bs-roformer-1297",
+            "mel-roformer-kim-ft",
             "mel-roformer-inst",
+            "mdx23c-8kfft",
             "mdx23c-instvoc",
+            "kim-vocal-2",
             "dsp-center-ensemble",
         ],
     },
     "karaoke": {
         "stems": {"vocals", "instrumental"},
         "quality": "reference",
-        "prefer": ["mel-roformer-karaoke", "dsp-center"],
+        "prefer": ["mel-roformer-karaoke", "mdx-b-karaoke", "vr-karaoke", "dsp-center"],
     },
     "duet-vocals": {
-        "stems": {"singer1", "singer2", "instrumental"},
+        # Residual node (on by default) supplies the accompaniment bed.
+        "stems": {"singer1", "singer2"},
         "quality": "reference",
         "prefer": ["medley-vox", "mel-roformer-karaoke", "dsp-center"],
     },
     "4stem": {
         "stems": {"drums", "bass", "other", "vocals"},
         "quality": "standard",
-        "prefer": ["scnet", "htdemucs-ft"],
+        # Installable backends first; SCNet-XL only wins when a user checkpoint is configured.
+        "prefer": ["scnet-xl", "scnet", "htdemucs-ft", "hdemucs-mmi", "demucs-direct"],
     },
     "6stem": {
         "stems": {"drums", "bass", "other", "vocals", "guitar", "piano"},
         "quality": "standard",
-        "prefer": ["htdemucs-6s"],
+        "prefer": ["bs-roformer-sw", "htdemucs-6s"],
     },
     "drums": {
         "stems": {"kick", "snare", "toms", "hh", "ride", "crash"},
         "quality": "reference",
-        "prefer": ["mdx23c-drumsep", "dsp-drumkit"],
+        "prefer": ["larsnet", "mdx23c-drumsep", "dsp-drumkit"],
     },
     "drums-deep-dive": {
         "stems": {"kick", "snare", "toms", "hh", "drum_other", "bass", "vocals", "other"},
         "quality": "reference",
         "prefer": [],  # built by _plan_drums_deep_dive
+    },
+    # Targeted instrument family isolators (roadmap §5.1 guitar/keys/… nodes).
+    "bass": {
+        "stems": {"bass", "instrumental"},
+        "quality": "standard",
+        "prefer": ["kuielab-bass", "htdemucs-ft", "dsp-hpss"],
+    },
+    "guitar": {
+        "stems": {"guitar", "other", "vocals", "drums", "bass", "piano"},
+        "quality": "standard",
+        "prefer": ["htdemucs-6s"],
+    },
+    "piano": {
+        "stems": {"piano", "other", "vocals", "drums", "bass", "guitar"},
+        "quality": "standard",
+        "prefer": ["htdemucs-6s"],
+    },
+    "woodwinds": {
+        "stems": {"woodwinds", "no_woodwinds"},
+        "quality": "standard",
+        "prefer": ["wind-inst", "dsp-hpss"],
+    },
+    "crowd": {
+        "stems": {"no_crowd", "crowd"},
+        "quality": "reference",
+        "prefer": ["crowd-roformer", "crowd-mdx", "dsp-center"],
     },
     "detect-all": {
         "stems": {"vocals", "drums", "bass", "other"},
@@ -280,7 +312,7 @@ def _probe_duration_seconds(path: str | Path) -> float | None:
 # lossy-codec bandwidth ceiling is detected (roadmap §6.2). Never auto-
 # downloaded here — only used if already present, so a Simple-mode job never
 # silently triggers a multi-GB download; otherwise it's surfaced as a note.
-RESTORE_BEFORE_SEPARATION_PREFER = ["apollo", "sonicmaster", "audiosr"]
+RESTORE_BEFORE_SEPARATION_PREFER = ["apollo", "sonicmaster", "audiosr", "voicefixer"]
 
 
 def _maybe_prepend_restoration(
@@ -463,15 +495,29 @@ def _plan_detect_all(
     notes: list[str] = []
     report = _quick_analysis(input_path)
     asserted = [h["instrument"] for h in report.instruments if h["status"] == "asserted"]
-    order = [name for name in asserted if name in ("vocals", "drums", "bass")]
+    # Broadband sources first (roadmap §5.5), then delicate extractions.
+    supported = ("drums", "bass", "vocals", "guitar", "electric guitar", "piano", "keys")
+    alias = {
+        "electric guitar": "guitar",
+        "acoustic guitar": "guitar",
+        "keys": "piano",
+        "keyboard": "piano",
+    }
+    order = []
+    for name in asserted:
+        if name in supported:
+            order.append(alias.get(name, name))
+    # Deduplicate while preserving confidence order.
+    order = list(dict.fromkeys(order))
     if not order:
-        order = ["vocals", "drums", "bass"]
+        order = ["drums", "bass", "vocals"]
         notes.append(
-            "no confidently-asserted instruments; using the default vocals/drums/bass order"
+            "no confidently-asserted instruments; using the default drums/bass/vocals order"
         )
     else:
         notes.append("detect-all cascade order (by confidence): " + ", ".join(order))
-    skipped = [name for name in asserted if name not in ("vocals", "drums", "bass")]
+    known = set(supported) | set(alias.values())
+    skipped = [name for name in asserted if name not in known and alias.get(name) not in known]
     if skipped:
         notes.append(
             "no dedicated separator for " + ", ".join(skipped) + " — folded into the 'other' stem"
@@ -483,7 +529,11 @@ def _plan_detect_all(
     lane = ("lane", "audio")
 
     joint_entry, _ = _resolve(
-        registry, ["scnet", "htdemucs-ft"], notes, auto_download=auto_download, progress=progress
+        registry,
+        ["scnet-xl", "scnet", "htdemucs-6s", "htdemucs-ft", "hdemucs-mmi"],
+        notes,
+        auto_download=auto_download,
+        progress=progress,
     )
     if joint_entry is not None and joint_entry.downloaded():
         sep = _apply_quality_tier(joint_entry.instantiate(), quality, notes)
@@ -493,12 +543,19 @@ def _plan_detect_all(
         model_ids = [joint_entry.id]
         notes.append(f"using joint multi-stem model {joint_entry.id} instead of the DSP cascade")
     else:
-        step_kind = {"vocals": "center", "drums": "hpss", "bass": "band"}
+        step_kind = {"vocals": "center", "drums": "center", "bass": "center", "guitar": "center", "piano": "center"}
         step_params = {
             "vocals": {"prefer": PRESETS["vocals-best"]["prefer"]},
-            "drums": {},
-            "bass": {"cutoff_hz": 220.0},
+            "drums": {"prefer": ["kuielab-drums", "mdx23c-drumsep"]},
+            "bass": {"prefer": ["kuielab-bass"], "cutoff_hz": 220.0},
+            "guitar": {"prefer": ["htdemucs-6s"]},
+            "piano": {"prefer": ["htdemucs-6s"]},
         }
+        # Instruments without a neural prefer entry keep the DSP cascade kinds.
+        for name in order:
+            if name not in step_kind:
+                step_kind[name] = "hpss" if name in {"drums", "percussion"} else "center"
+                step_params.setdefault(name, {})
         steps = [(step_kind[name], name, step_params[name]) for name in order]
         stem_sources, model_ids = _build_extract_cascade(
             g,
@@ -598,7 +655,11 @@ def _plan_drums_deep_dive(
     lane = ("lane", "audio")
 
     joint_entry, _ = _resolve(
-        registry, ["scnet", "htdemucs-ft"], notes, auto_download=auto_download, progress=progress
+        registry,
+        ["scnet-xl", "scnet", "htdemucs-ft", "hdemucs-mmi", "demucs-direct"],
+        notes,
+        auto_download=auto_download,
+        progress=progress,
     )
     if joint_entry is not None and joint_entry.downloaded():
         stage1 = _apply_quality_tier(joint_entry.instantiate(), quality, notes)
@@ -616,7 +677,7 @@ def _plan_drums_deep_dive(
 
     kit_entry, _ = _resolve(
         registry,
-        ["mdx23c-drumsep", "dsp-drumkit"],
+        ["larsnet", "mdx23c-drumsep", "dsp-drumkit"],
         notes,
         auto_download=auto_download,
         progress=progress,
@@ -880,8 +941,15 @@ def _quick_analysis(input_path: str | Path):
     return analyze(load_audio(input_path))
 
 
-# Transcription model preference: piano-specific > general polyphonic > DSP floor.
-TRANSCRIBE_PREFER = ["piano-transcription", "basic-pitch", "dsp-yin"]
+# Transcription model preference: specialists > MT3 family > general polyphonic > DSP floor.
+TRANSCRIBE_PREFER = [
+    "yourmt3",
+    "multi-instrument",
+    "transkun-piano",
+    "piano-transcription",
+    "basic-pitch",
+    "dsp-yin",
+]
 
 
 def plan_transcription(
@@ -1015,13 +1083,18 @@ ENHANCE_STEPS: dict[str, list[str]] = {
     "declip": ["dsp-declip"],
     "declick": ["dsp-declick"],
     "dehum": ["dsp-dehum"],
-    "denoise": ["denoise-roformer", "deepfilternet", "dsp-denoise"],
-    "dereverb": ["dereverb-roformer"],
-    "vocal-repair": ["dsp-vocal-repair"],
-    "restore": ["apollo", "sonicmaster", "audiosr"],
+    "denoise": ["denoise-roformer", "vr-denoise", "deepfilternet", "dsp-denoise"],
+    "dereverb": ["dereverb-roformer", "vr-dereverb"],
+    "deecho": ["vr-deecho", "dereverb-roformer"],
+    "debreath": ["aspiration-roformer", "dsp-vocal-repair"],
+    "bleed": ["bleed-suppressor"],
+    "crowd": ["crowd-roformer-enhance", "crowd-mdx-enhance"],
+    "vocal-repair": ["voicefixer", "aspiration-roformer", "dsp-vocal-repair"],
+    "restore": ["apollo", "sonicmaster", "voicefixer", "audiosr"],
     "superres": ["audiosr"],
     "apollo": ["apollo"],
     "sonicmaster": ["sonicmaster"],
+    "voicefixer": ["voicefixer"],
     "master": ["matchering"],
     "normalize": ["dsp-normalize"],
 }

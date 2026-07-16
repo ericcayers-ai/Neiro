@@ -1,0 +1,37 @@
+{
+  "manifest_version": 2,
+  "id": "vr-deecho",
+  "task": "enhance",
+  "display_name": "VR Arch DeEcho + DeReverb",
+  "adapter": "neiro.adapters.audio_separator_adapter:AudioSeparatorEnhancer",
+  "requires": [
+    "audio_separator"
+  ],
+  "params": {
+    "model_filename": "UVR-DeEcho-DeReverb.pth",
+    "target_stem": "dry",
+    "stem_labels": {
+      "dry": "dry",
+      "echo": "echo"
+    },
+    "quality_class": "standard",
+    "license_spdx": "MIT",
+    "license_note": "credit UVR/aufr33; verify commercial terms"
+  },
+  "weights": [
+    {
+      "kind": "managed",
+      "cache_param": "model_file_dir"
+    }
+  ],
+  "quality_class": "standard",
+  "license": {
+    "spdx": "MIT",
+    "note": "credit UVR; verify commercial terms",
+    "source": "https://github.com/nomadkaraoke/python-audio-separator"
+  },
+  "provenance": {
+    "author": "UVR",
+    "fixes": "de-echo / delay + light dereverb"
+  }
+}
