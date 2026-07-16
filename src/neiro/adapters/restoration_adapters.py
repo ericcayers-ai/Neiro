@@ -1,24 +1,15 @@
 """Optional restoration roster (roadmap §6, §15 references).
 
-Three generative restoration backends, all opt-in and all gracefully absent
-when their package isn't installed — the DSP restoration floor
-(:mod:`neiro.dsp.enhance`) always covers the same conditions (declip, dehum,
-denoise, declick, vocal repair) so none of these being missing ever blocks a
-job, per the task's "neural models are opt-in; DSP floor must always work"
-constraint.
-
 * :class:`ApolloRestorer` — Apollo-class lossy-codec / bandwidth restoration
-  (roadmap §6.2: "16 kHz codec ceiling -> suggest Apollo before separation").
-* :class:`DeepFilterNetDenoiser` — DeepFilterNet-class real-time denoiser;
-  the ``deepfilternet`` package (PyPI: ``deepfilternet``, import name ``df``)
-  is a real, installable dependency, so this adapter's :meth:`load`/
-  :meth:`enhance` are a best-effort real integration rather than a pure stub.
-* :class:`SonicMasterRestorer` — SonicMaster-class all-in-one restoration +
-  mastering (arXiv 2508.03448).
+  via ``look2hear`` (``BaseModel.from_pretrain("JusperLee/Apollo", ...)``),
+  matching the upstream inference script.
+* :class:`DeepFilterNetDenoiser` — DeepFilterNet-class real-time denoiser
+  (PyPI: ``deepfilternet``, import ``df``).
+* :class:`SonicMasterRestorer` — SonicMaster-class all-in-one restoration
+  (arXiv 2508.03448); opt-in research checkpoint.
 
-None of these ship a bundled checkpoint: every one downloads (or is pointed
-at) weights the *user* fetches, per roadmap principle 2 (nothing restricted
-ships in the package).
+DSP restoration floor (:mod:`neiro.dsp.enhance`) always covers declip/dehum/
+denoise/declick/vocal-repair so missing neural backends never block a job.
 """
 
 from __future__ import annotations
@@ -37,8 +28,9 @@ class ApolloRestorer:
     def __init__(
         self, model_id: str = "apollo", checkpoint_path: str | None = None, **_: object
     ) -> None:
-        self.checkpoint_path = checkpoint_path
+        self.checkpoint_path = checkpoint_path or "JusperLee/Apollo"
         self._model = None
+        self._device = "cpu"
         self.profile = ModelProfile(
             model_id=model_id,
             task="enhance",
@@ -48,39 +40,45 @@ class ApolloRestorer:
             license_spdx="unknown",
             extras={
                 "fixes": "lossy-codec artefacts / bandwidth ceiling",
-                "backend": "apollo",
+                "backend": "look2hear/Apollo",
                 "license_note": (
-                    "Apollo checkpoints are not bundled; no verified-license "
-                    "pip package exists at the time of writing — verify terms "
-                    "before commercial use once configured"
+                    "Apollo weights load from Hugging Face JusperLee/Apollo; "
+                    "verify terms before commercial use"
                 ),
             },
         )
 
     def load(self, device: str, precision: str) -> None:
         try:
-            import apollo  # type: ignore
+            import look2hear.models  # type: ignore
         except ImportError as exc:
             raise RuntimeError(
-                f"{self.profile.model_id}: Apollo is not installed/configured. Neiro does "
-                "not bundle an Apollo checkpoint. Install a package exposing "
-                "`apollo.inference.load_model` and set `checkpoint_path` in the manifest; "
-                "verify its license before commercial use. Until then, restoration falls "
-                "back to the DSP floor (declip/dehum/denoise) or is skipped."
+                f"{self.profile.model_id}: look2hear/Apollo is not installed. "
+                "Install the Apollo/look2hear stack from "
+                "https://github.com/JusperLee/Apollo (requires torch + torchaudio), "
+                "then `pip install -e .` in that repo so `look2hear` imports. "
+                "Until then, 'restore' falls back to AudioSR / DSP floor."
             ) from exc
-        if not self.checkpoint_path:
-            raise RuntimeError(f"{self.profile.model_id}: no checkpoint_path configured")
-        self._model = apollo.inference.load_model(
-            self.checkpoint_path, device="cuda" if device == "cuda" else "cpu"
+        self._device = "cuda" if device == "cuda" else "cpu"
+        model = look2hear.models.BaseModel.from_pretrain(
+            self.checkpoint_path, sr=44100, win=20, feature_dim=256, layer=6
         )
+        self._model = model.to(self._device)
+        self._model.eval()
 
     def enhance(self, audio: AudioTensor) -> AudioTensor:
+        import torch
+
         if self._model is None:
             self.load("cpu", "fp32")
-        out = self._model.restore(audio.samples, audio.sample_rate)
-        return AudioTensor(np.asarray(out, dtype=np.float32), audio.sample_rate).with_provenance(
-            self.profile.model_id
-        )
+        mono = audio.to_mono().samples[0].astype(np.float32)
+        tensor = torch.from_numpy(mono).unsqueeze(0).unsqueeze(0).to(self._device)
+        with torch.no_grad():
+            out = self._model(tensor)
+        arr = out.squeeze().detach().cpu().numpy().astype(np.float32)
+        if arr.ndim == 1:
+            arr = arr[np.newaxis, :]
+        return AudioTensor(arr, audio.sample_rate).with_provenance(self.profile.model_id)
 
     def unload(self) -> None:
         self._model = None

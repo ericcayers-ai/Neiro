@@ -64,6 +64,34 @@ export function LearnModule() {
     el.playbackRate = speed
   }, [speed])
 
+  // Metronome clicks via Web Audio (independent of pitch-preserving stretch).
+  useEffect(() => {
+    if (!metronome) return
+    const bpm = transcribeResult?.tempo_bpm || file?.report?.estimated_bpm || 100
+    const intervalMs = Math.max(200, (60_000 / Number(bpm)) * (countIn ? 1 : 1))
+    let ctx: AudioContext | null = null
+    try {
+      ctx = new AudioContext()
+    } catch {
+      return
+    }
+    const id = window.setInterval(() => {
+      if (!ctx) return
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.frequency.value = 880
+      gain.gain.value = 0.05
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start()
+      osc.stop(ctx.currentTime + 0.04)
+    }, intervalMs)
+    return () => {
+      window.clearInterval(id)
+      void ctx?.close()
+    }
+  }, [metronome, countIn, transcribeResult?.tempo_bpm, file?.report?.estimated_bpm])
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (waitMode !== 'key') return
@@ -144,9 +172,10 @@ export function LearnModule() {
     <div className="module-panel">
       <h2>Learn{file ? ` — ${file.name}` : ' — DAW injector'}</h2>
       <p className="lede">
-        Practice with pitch-preserving speed control, loop regions, count-in, metronome, and wait
-        mode. Wrong-note feedback is informative, not punitive. DAW VST injectors share this single
-        window — opening the plugin editor focuses Neiro rather than embedding a second UI.
+        Practice with loop regions, count-in, metronome clicks, and wait mode. Speed currently uses
+        browser playbackRate (not engine pitch-preserving stretch). Wrong-note feedback is
+        informative, not punitive. DAW injectors share this single window for every mode — capture
+        a take, then Separate / Restore / Transcribe here.
       </p>
 
       {dawConnected && dawStatus && (

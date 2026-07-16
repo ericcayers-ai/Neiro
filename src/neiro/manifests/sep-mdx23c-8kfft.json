@@ -1,0 +1,47 @@
+{
+  "manifest_version": 2,
+  "id": "mdx23c-8kfft",
+  "task": "separate",
+  "stems": [
+    "vocals",
+    "instrumental"
+  ],
+  "display_name": "MDX23C 8KFFT Inst/Voc HQ",
+  "adapter": "neiro.adapters.audio_separator_adapter:AudioSeparatorModel",
+  "requires": [
+    "audio_separator"
+  ],
+  "params": {
+    "model_filename": "MDX23C-8KFFT-InstVoc_HQ.ckpt",
+    "stems": [
+      "vocals",
+      "instrumental"
+    ],
+    "stem_labels": {
+      "vocals": "Vocals",
+      "instrumental": "Instrumental"
+    },
+    "quality_class": "reference",
+    "license_spdx": "MIT",
+    "license_note": "credit UVR; verify commercial terms"
+  },
+  "weights": [
+    {
+      "kind": "managed",
+      "cache_param": "model_file_dir"
+    }
+  ],
+  "quality_class": "reference",
+  "license": {
+    "spdx": "MIT",
+    "note": "credit UVR; verify commercial terms",
+    "source": "https://github.com/nomadkaraoke/python-audio-separator"
+  },
+  "provenance": {
+    "author": "ZFTurbo / UVR",
+    "leaderboard_sdr": {
+      "vocals": 10.6,
+      "instrumental": 15.8
+    }
+  }
+}

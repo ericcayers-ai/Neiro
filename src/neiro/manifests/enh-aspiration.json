@@ -1,0 +1,37 @@
+{
+  "manifest_version": 2,
+  "id": "aspiration-roformer",
+  "task": "enhance",
+  "display_name": "Aspiration / de-breath (Mel-RoFormer)",
+  "adapter": "neiro.adapters.audio_separator_adapter:AudioSeparatorEnhancer",
+  "requires": [
+    "audio_separator"
+  ],
+  "params": {
+    "model_filename": "aspiration_mel_band_roformer_sdr_18.9845.ckpt",
+    "target_stem": "other",
+    "stem_labels": {
+      "aspiration": "aspiration",
+      "other": "other"
+    },
+    "quality_class": "reference",
+    "license_spdx": "MIT",
+    "license_note": "credit UVR/aufr33; verify commercial terms"
+  },
+  "weights": [
+    {
+      "kind": "managed",
+      "cache_param": "model_file_dir"
+    }
+  ],
+  "quality_class": "reference",
+  "license": {
+    "spdx": "MIT",
+    "note": "credit UVR; verify commercial terms",
+    "source": "https://github.com/nomadkaraoke/python-audio-separator"
+  },
+  "provenance": {
+    "author": "Sucial",
+    "fixes": "de-breath / aspiration removal"
+  }
+}

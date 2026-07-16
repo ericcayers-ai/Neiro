@@ -2,13 +2,43 @@
   "manifest_version": 2,
   "id": "medley-vox",
   "task": "separate",
-  "stems": ["singer1", "singer2", "instrumental"],
-  "display_name": "Medley Vox (multi-singer, opt-in checkpoint)",
-  "adapter": "neiro.adapters.medleyvox_adapter:MedleyVoxSeparator",
-  "requires": ["medley_vox"],
-  "params": {},
+  "stems": [
+    "singer1",
+    "singer2"
+  ],
+  "display_name": "Chorus Male/Female (Medley Vox class)",
+  "adapter": "neiro.adapters.audio_separator_adapter:AudioSeparatorModel",
+  "requires": [
+    "audio_separator"
+  ],
+  "params": {
+    "model_filename": "model_chorus_bs_roformer_ep_267_sdr_24.1275.ckpt",
+    "stems": [
+      "singer1",
+      "singer2"
+    ],
+    "stem_labels": {
+      "singer1": "male",
+      "singer2": "female"
+    },
+    "quality_class": "reference",
+    "license_spdx": "MIT",
+    "license_note": "credit UVR; verify commercial terms"
+  },
+  "weights": [
+    {
+      "kind": "managed",
+      "cache_param": "model_file_dir"
+    }
+  ],
   "quality_class": "reference",
-  "vram": { "fp32_gb": 3.0, "supports_fp16": false },
-  "license": { "spdx": "unknown", "note": "no bundled checkpoint; verify license of any weights you configure", "source": "https://mvsep.com/algorithms/60" },
-  "provenance": { "author": "Medley Vox", "note": "requires a user-supplied checkpoint_path; unavailable until configured" }
+  "license": {
+    "spdx": "MIT",
+    "note": "credit UVR; verify commercial terms",
+    "source": "https://github.com/nomadkaraoke/python-audio-separator"
+  },
+  "provenance": {
+    "author": "Sucial",
+    "purpose": "multi-singer / overlapping vocalists (male vs female)"
+  }
 }

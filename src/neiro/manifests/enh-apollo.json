@@ -2,12 +2,21 @@
   "manifest_version": 2,
   "id": "apollo",
   "task": "enhance",
-  "display_name": "Apollo (lossy-codec / bandwidth restoration, opt-in)",
+  "display_name": "Apollo (lossy-codec / bandwidth restoration)",
   "adapter": "neiro.adapters.restoration_adapters:ApolloRestorer",
-  "requires": ["apollo"],
-  "params": {},
+  "requires": ["look2hear", "torch", "torchaudio"],
+  "params": { "checkpoint_path": "JusperLee/Apollo" },
+  "weights": [{ "kind": "hf_hub", "repo": "JusperLee/Apollo", "note": "loaded by look2hear BaseModel.from_pretrain" }],
   "quality_class": "reference",
   "vram": { "fp32_gb": 2.0, "supports_fp16": false },
-  "license": { "spdx": "unknown", "note": "no bundled checkpoint; verify license of any weights you configure" },
-  "provenance": { "author": "Apollo", "fixes": "lossy-codec artefacts / bandwidth ceiling", "note": "requires a user-supplied checkpoint_path; unavailable until configured" }
+  "license": {
+    "spdx": "unknown",
+    "note": "weights from Hugging Face JusperLee/Apollo; verify terms before commercial use",
+    "source": "https://github.com/JusperLee/Apollo"
+  },
+  "provenance": {
+    "author": "JusperLee / Kai Li",
+    "fixes": "lossy-codec artefacts / bandwidth ceiling",
+    "note": "requires look2hear from the Apollo repo; AudioSR remains the installable restore fallback"
+  }
 }

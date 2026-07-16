@@ -18,14 +18,12 @@ open-source model development without rewrites. It ships with a **pure-DSP floor
 that works with **no model downloads**, and neural backends (Demucs, RoFormer,
 Basic Pitch, AudioSR, Matchering, …) plug in through JSON manifests.
 
-> **Status: Neiro 1.0.0** completes phases 1–10 / milestones M0–M7 in
-> [`roadmap.md`](roadmap.md): analysis, separation (+ensembles / quality tiers),
-> restoration, transcription (+MIDI/MusicXML/score), Learn with WebMIDI wait mode,
-> Simple/Advanced React + Tauri worksuite, CLI, evaluation harness, and
-> documentation/governance. Neural weights stay opt-in (not redistributed); full
-> MUSDB/MAESTRO score tables need a provisioned eval machine. See
-> [`docs/roadmap-traceability.md`](docs/roadmap-traceability.md) for the
-> item-by-item ledger.
+> **Status: Neiro 1.1.0** builds on the 1.0 program with a shared-window DAW
+> injector (all modes + Edison capture), full model-zoo wiring, Advanced plan
+> strip, WebGL canvases, note editing, in-app score SVG, user plugins, and
+> session Save/Open. Neural weights stay opt-in (not redistributed). See
+> [`CHANGELOG.md`](CHANGELOG.md) and
+> [`docs/roadmap-traceability.md`](docs/roadmap-traceability.md).
 
 ---
 
@@ -230,16 +228,17 @@ core changes ([guide](docs/adding-models.md)).
 | Transcription — neural (Basic Pitch, piano with pedal) | ✅ adapters |
 | Audio editor (Studio) — waveform + spectrogram + edits | ✅ |
 | Desktop shell (Tauri 2 + React worksuite) with engine health supervision | ✅ |
-| Mixer (A/B, null test, Open in Studio), Learn module UI, Preferences UI | ✅ UI; deeper wiring (WebMIDI, playback speed engine) in progress |
+| Mixer (A/B, null test, Open in Studio), Learn module UI, Preferences UI | ✅ UI; WebMIDI + DAW MIDI wait; Learn speed uses browser playbackRate |
 | Disk-backed artifact cache, export license sidecars | ✅ |
 | Symbolic export — MusicXML, ASCII tab, LRC lyrics, best-effort engraved PDF/SVG | ✅ dependency-free writers; real engraving PDF needs Verovio/MuseScore on `PATH` |
-| Portable session format (provenance, model pinning, checkpoints) | ✅ format + store; not yet wired into the UI's save/open flow |
+| Portable session format (provenance, model pinning, checkpoints) | ✅ format + store + UI Save/Open |
 | Watch-folder batch daemon (`neiro watch`) | ✅ |
-| Bleed suppression, mid/side stereo-integrity helpers | ✅ DSP primitives + tests; not yet auto-inserted by the planner |
+| Bleed suppression, mid/side stereo-integrity helpers | ✅ DSP + planner + UI wiring |
+| DAW shared-window injector (VST2 + CLAP bridge), Edison capture, all modes | ✅ |
 | Signed model index verification | ✅ HMAC sign/verify helpers; registry doesn't fetch a remote index yet |
 | Evaluation harness — synthetic goldens (SDR/SI-SDR/F1) + fault injection, always in CI | ✅ |
 | Evaluation harness — full MUSDB18-HQ / MAESTRO runs | ⏳ requires user-provisioned datasets (see [docs/evaluation.md](docs/evaluation.md)) |
-| Sheet-music *in-app* rendering, Advanced mode pipeline editor | ⏳ deferred (roadmap) |
+| Sheet-music *in-app* rendering (SVG when Verovio available), Advanced plan strip | ✅ 1.1.0 MVP |
 
 ## Licensing note
 

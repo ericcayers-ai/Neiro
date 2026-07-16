@@ -1,0 +1,13 @@
+{
+  "manifest_version": 2,
+  "id": "voicefixer",
+  "task": "enhance",
+  "display_name": "VoiceFixer (vocal restoration)",
+  "adapter": "neiro.adapters.voicefixer_adapter:VoiceFixerRestorer",
+  "requires": ["voicefixer"],
+  "params": {},
+  "quality_class": "reference",
+  "vram": { "fp32_gb": 1.5, "supports_fp16": false },
+  "license": { "spdx": "unknown", "note": "verify upstream VoiceFixer license before commercial use", "source": "https://github.com/haoheliu/voicefixer" },
+  "provenance": { "author": "haoheliu", "fixes": "damaged vocal stems / speech restoration" }
+}

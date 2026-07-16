@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { flushCompute } from '../api/client'
 import { useLocalPref } from '../api/hooks'
 import { IntentField } from '../components/IntentField'
 import './modules.css'
@@ -11,6 +12,7 @@ export function PreferencesModule() {
   const [cacheBudget, setCacheBudget] = useLocalPref('neiro.pref.cacheBudgetGb', '20')
   const [warmPoolTtl, setWarmPoolTtl] = useLocalPref('neiro.pref.warmPoolTtl', '300')
   const [status, setStatus] = useState('')
+  const [flushing, setFlushing] = useState(false)
 
   useEffect(() => {
     const root = document.documentElement
@@ -22,12 +24,29 @@ export function PreferencesModule() {
     else delete root.dataset.reducedMotion
   }, [theme, density, fontScale, reducedMotion])
 
+  const onFlush = async () => {
+    setFlushing(true)
+    try {
+      const res = await flushCompute()
+      const n = res.flushed?.length ?? 0
+      setStatus(
+        n
+          ? `Flushed ${n} resident model${n === 1 ? '' : 's'} from the warm pool.`
+          : 'Warm pool already empty — nothing to flush.',
+      )
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : String(err))
+    } finally {
+      setFlushing(false)
+    }
+  }
+
   return (
     <div className="module-panel">
       <h2>Preferences</h2>
       <p className="lede">
-        Compute, storage, audio defaults, themes, and accessibility. Changes persist in this
-        browser profile.
+        Compute, storage, themes, and accessibility. Interface choices persist in this browser
+        profile; warm-pool flush talks to the local engine.
       </p>
 
       <h3>Interface</h3>
@@ -93,7 +112,7 @@ export function PreferencesModule() {
         </IntentField>
         <IntentField
           label="Warm-pool TTL (s)"
-          intent="How long models stay resident between jobs."
+          intent="Preferred idle residency hint stored locally; Flush releases residents now."
           htmlFor="warm-ttl"
         >
           <input
@@ -105,18 +124,16 @@ export function PreferencesModule() {
             onChange={(e) => setWarmPoolTtl(e.target.value)}
           />
         </IntentField>
-        <button
-          type="button"
-          onClick={() => setStatus('Flush request recorded — engine will drop idle residents on next job.')}
-        >
-          Flush warm pool
+        <button type="button" disabled={flushing} onClick={() => void onFlush()}>
+          {flushing ? 'Flushing…' : 'Flush warm pool'}
         </button>
       </div>
 
       <h3>Privacy</h3>
       <p className="muted">
         No network access except model downloads and app updates, both user-initiated. No telemetry
-        by default.
+        by default. Custom Python plugins under <span className="mono">~/.neiro/plugins</span> require
+        an explicit grant.
       </p>
 
       {status && (

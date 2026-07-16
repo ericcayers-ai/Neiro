@@ -241,8 +241,16 @@ class Registry:
 
 
 def default_registry() -> Registry:
-    """A registry seeded from the packaged manifests directory."""
+    """A registry seeded from packaged manifests plus granted user plugins."""
     reg = Registry()
     manifest_dir = Path(__file__).resolve().parent.parent / "manifests"
     reg.scan_dir(manifest_dir)
+    try:
+        from neiro.engine.user_plugins import register_user_plugins
+
+        register_user_plugins(reg)
+    except Exception:
+        # A malformed local plugin file must not stop the built-in registry from
+        # loading; invalid descriptors remain visible through /api/plugins.
+        pass
     return reg

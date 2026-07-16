@@ -1,0 +1,44 @@
+{
+  "manifest_version": 2,
+  "id": "kuielab-drums",
+  "task": "separate",
+  "stems": [
+    "drums",
+    "instrumental"
+  ],
+  "display_name": "Kuielab MDX Drums",
+  "adapter": "neiro.adapters.audio_separator_adapter:AudioSeparatorModel",
+  "requires": [
+    "audio_separator"
+  ],
+  "params": {
+    "model_filename": "kuielab_a_drums.onnx",
+    "stems": [
+      "drums",
+      "instrumental"
+    ],
+    "stem_labels": {
+      "drums": "Drums",
+      "instrumental": "Instrumental"
+    },
+    "quality_class": "standard",
+    "license_spdx": "MIT",
+    "license_note": "credit UVR; verify commercial terms"
+  },
+  "weights": [
+    {
+      "kind": "managed",
+      "cache_param": "model_file_dir"
+    }
+  ],
+  "quality_class": "standard",
+  "license": {
+    "spdx": "MIT",
+    "note": "credit UVR; verify commercial terms",
+    "source": "https://github.com/nomadkaraoke/python-audio-separator"
+  },
+  "provenance": {
+    "author": "kuielab",
+    "purpose": "drums isolation node"
+  }
+}

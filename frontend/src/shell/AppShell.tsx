@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
+import { listSessions, openSession, saveSession } from '../api/client'
 import type { ModuleId } from '../api/types'
 import { useSession } from '../state/session'
 import { useDawBridge } from '../hooks/useDawBridge'
@@ -32,12 +33,52 @@ export function AppShell({ children }: { children: ReactNode }) {
     engineStatus,
   } = useSession()
 
-  // Shared-window focus from VST injectors (also unlocks Learn in Simple mode).
   const { dawConnected, status: dawStatus } = useDawBridge()
+  const [sessionMsg, setSessionMsg] = useState('')
 
-  const visible = MODULES.filter(
-    (m) => workspaceMode === 'advanced' || !m.advanced || (m.id === 'learn' && dawConnected),
-  )
+  // DAW injectors unlock the full rail (all modes) even in Simple workspace.
+  const visible = MODULES.filter((m) => workspaceMode === 'advanced' || !m.advanced || dawConnected)
+
+  const recording = Boolean(dawStatus?.instances?.some((i) => i.recording))
+
+  const onSave = async () => {
+    const name = window.prompt('Session name', file?.name?.replace(/\.[^.]+$/, '') || 'untitled')
+    if (!name) return
+    try {
+      const res = await saveSession({
+        name,
+        file_id: file?.fileId,
+        graph_config: { module, workspaceMode },
+      })
+      setSessionMsg(`Saved session “${res.name}”`)
+    } catch (err) {
+      setSessionMsg(err instanceof Error ? err.message : String(err))
+    }
+  }
+
+  const onOpen = async () => {
+    try {
+      const { sessions } = await listSessions()
+      if (!sessions.length) {
+        setSessionMsg('No saved sessions on this machine yet.')
+        return
+      }
+      const name = window.prompt(
+        `Open session:\n${sessions.map((s) => s.name).join('\n')}`,
+        sessions[0]?.name,
+      )
+      if (!name) return
+      const res = await openSession(name)
+      const cfg = (res.session?.graph_config || {}) as { module?: ModuleId; workspaceMode?: string }
+      if (cfg.workspaceMode === 'advanced' || cfg.workspaceMode === 'simple') {
+        setWorkspaceMode(cfg.workspaceMode)
+      }
+      if (cfg.module) setModule(cfg.module)
+      setSessionMsg(`Opened session “${name}” (metadata restored; re-import source if needed).`)
+    } catch (err) {
+      setSessionMsg(err instanceof Error ? err.message : String(err))
+    }
+  }
 
   return (
     <div className="shell">
@@ -99,14 +140,25 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </span>
               </>
             ) : (
-              <span className="muted">No file loaded — Import a track to begin</span>
+              <span className="muted">No file loaded — Import a track or capture from DAW</span>
+            )}
+            {sessionMsg && (
+              <span className="muted" role="status" aria-live="polite">
+                {sessionMsg}
+              </span>
             )}
           </div>
           <div className="session-actions">
             {dawConnected && (
-              <span className="job-pill" role="status" aria-live="polite" title={dawStatus?.contract}>
+              <span
+                className={`job-pill${recording ? ' recording' : ''}`}
+                role="status"
+                aria-live="polite"
+                title={dawStatus?.contract}
+              >
                 DAW · {dawStatus?.instance_count || 0} injector
                 {(dawStatus?.instance_count || 0) === 1 ? '' : 's'}
+                {recording ? ' · recording' : ''}
               </span>
             )}
             {engineStatus === 'down' && (
@@ -124,6 +176,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                 Cancel
               </button>
             )}
+            <button type="button" onClick={() => void onSave()} disabled={jobRunning} title="Save portable session">
+              Save
+            </button>
+            <button type="button" onClick={() => void onOpen()} disabled={jobRunning} title="Open portable session">
+              Open
+            </button>
             <button
               type="button"
               onClick={() => clearSession()}

@@ -1,0 +1,14 @@
+{
+  "manifest_version": 2,
+  "id": "svt-melody",
+  "task": "transcribe",
+  "display_name": "SVT-class vocal melody (SpeechBrain / Basic Pitch fallback)",
+  "adapter": "neiro.adapters.svt_adapter:SVTMelodyTranscriber",
+  "requires": [],
+  "framework": "numpy",
+  "params": { "track": "vocals" },
+  "quality_class": "standard",
+  "vram": { "fp32_gb": 1.0 },
+  "license": { "spdx": "MIT", "note": "prefers speechbrain SVT when installed; falls back to Basic Pitch / YIN", "source": "builtin" },
+  "provenance": { "author": "neiro", "polyphony": "vocal melody", "note": "roadmap §7.1 SVT_SpeechBrain with honest fallback" }
+}

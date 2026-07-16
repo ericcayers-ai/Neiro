@@ -44,7 +44,10 @@ def waveform_peaks(
         if b0 < a0:
             a0, b0 = b0, a0
         if b0 == a0:
-            b0 = min(n, a0 + 1)
+            if a0 >= n:
+                a0, b0 = n - 1, n
+            else:
+                b0 = min(n, a0 + 1)
         mono = mono[a0:b0]
         n = mono.size
     edges = np.linspace(0, n, width + 1, dtype=int)
@@ -70,15 +73,39 @@ def spectrogram_image(
     freq_bins: int = 256,
     top_db: float = 80.0,
     fmax: float | None = None,
+    start: float | None = None,
+    end: float | None = None,
 ) -> dict:
     """Return a quantised log-frequency spectrogram.
 
     ``data`` is a row-major ``rows x cols`` byte grid (row 0 = highest frequency),
     values 0–255 mapping [-top_db, 0] dBFS. Frequencies are mapped onto a log axis
-    so bass detail is visible, matching how the editor displays it.
+    so bass detail is visible, matching how the editor displays it. Optional
+    ``start``/``end`` values crop the analysis window in seconds.
     """
     sr = audio.sample_rate
     mono = audio.samples.mean(axis=0)
+    n = mono.size
+    if n == 0:
+        return {
+            "rows": int(freq_bins),
+            "cols": 0,
+            "fmin": 40.0,
+            "fmax": float(fmax or sr / 2),
+            "duration": 0.0,
+            "data": [],
+        }
+    if start is not None or end is not None:
+        a0 = 0 if start is None else max(0, min(n, int(round(float(start) * sr))))
+        b0 = n if end is None else max(0, min(n, int(round(float(end) * sr))))
+        if b0 < a0:
+            a0, b0 = b0, a0
+        if b0 == a0:
+            if a0 >= n:
+                a0, b0 = n - 1, n
+            else:
+                b0 = min(n, a0 + 1)
+        mono = mono[a0:b0]
     n_fft = 2048
     hop = max(1, mono.size // max_frames) if mono.size > max_frames * 4 else 512
     S = np.abs(stft(mono, n_fft=n_fft, hop=hop))

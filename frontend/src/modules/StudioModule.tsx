@@ -6,9 +6,10 @@ import {
   fetchWaveform,
   type EditOp,
 } from '../api/client'
-import type { WaveformData } from '../api/types'
+import type { SpectrogramData, WaveformData } from '../api/types'
 import { EXPORT_FORMATS, fmtTimecode } from '../constants/options'
 import { useSession } from '../state/session'
+import { drawWebGLSpectrogram, drawWebGLWaveform } from '../viz/webgl'
 import './modules.css'
 
 interface Sel {
@@ -28,7 +29,19 @@ const TOOLS: { op: EditOp; label: string; intent: string; db?: number; needsSel?
   { op: 'reverse', label: 'Reverse', intent: 'Reverse the whole file in time.' },
 ]
 
-function drawWave(canvas: HTMLCanvasElement, wave: WaveformData) {
+function cssToken(name: string, fallback: string): string {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback
+}
+
+function studioColors() {
+  return {
+    background: cssToken('--bg0', '#0e1116'),
+    grid: cssToken('--line', '#1f242e'),
+    accent: cssToken('--accent', '#56B4E9'),
+  }
+}
+
+function drawWaveCanvas(canvas: HTMLCanvasElement, wave: WaveformData) {
   const dpr = window.devicePixelRatio || 1
   const cssW = canvas.clientWidth
   const cssH = 160
@@ -55,10 +68,12 @@ function drawWave(canvas: HTMLCanvasElement, wave: WaveformData) {
   }
 }
 
-function drawSpec(
-  canvas: HTMLCanvasElement,
-  data: { cols: number; rows: number; data: number[] },
-) {
+function drawWave(canvas: HTMLCanvasElement, wave: WaveformData) {
+  if (drawWebGLWaveform(canvas, wave, studioColors())) return
+  drawWaveCanvas(canvas, wave)
+}
+
+function drawSpecCanvas(canvas: HTMLCanvasElement, data: SpectrogramData) {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
   canvas.width = data.cols
@@ -74,6 +89,11 @@ function drawSpec(
   ctx.putImageData(img, 0, 0)
   canvas.style.height = '160px'
   canvas.style.width = '100%'
+}
+
+function drawSpec(canvas: HTMLCanvasElement, data: SpectrogramData) {
+  if (drawWebGLSpectrogram(canvas, data, studioColors())) return
+  drawSpecCanvas(canvas, data)
 }
 
 export function StudioModule() {
@@ -131,7 +151,7 @@ export function StudioModule() {
         setDuration(wave.duration)
         if (!viewEnd) setViewEnd(wave.duration)
         if (waveRef.current) drawWave(waveRef.current, wave)
-        const spec = await fetchSpectrogram(id)
+        const spec = await fetchSpectrogram(id, range)
         if (specRef.current) drawSpec(specRef.current, spec)
       } catch (err) {
         setVisualError(err instanceof Error ? err.message : String(err))

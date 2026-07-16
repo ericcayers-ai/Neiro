@@ -1,0 +1,44 @@
+{
+  "manifest_version": 2,
+  "id": "kuielab-bass",
+  "task": "separate",
+  "stems": [
+    "bass",
+    "instrumental"
+  ],
+  "display_name": "Kuielab MDX Bass",
+  "adapter": "neiro.adapters.audio_separator_adapter:AudioSeparatorModel",
+  "requires": [
+    "audio_separator"
+  ],
+  "params": {
+    "model_filename": "kuielab_a_bass.onnx",
+    "stems": [
+      "bass",
+      "instrumental"
+    ],
+    "stem_labels": {
+      "bass": "Bass",
+      "instrumental": "Instrumental"
+    },
+    "quality_class": "standard",
+    "license_spdx": "MIT",
+    "license_note": "credit UVR; verify commercial terms"
+  },
+  "weights": [
+    {
+      "kind": "managed",
+      "cache_param": "model_file_dir"
+    }
+  ],
+  "quality_class": "standard",
+  "license": {
+    "spdx": "MIT",
+    "note": "credit UVR; verify commercial terms",
+    "source": "https://github.com/nomadkaraoke/python-audio-separator"
+  },
+  "provenance": {
+    "author": "kuielab",
+    "purpose": "bass isolation node"
+  }
+}

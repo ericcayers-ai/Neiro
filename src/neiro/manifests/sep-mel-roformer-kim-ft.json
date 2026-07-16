@@ -1,0 +1,43 @@
+{
+  "manifest_version": 2,
+  "id": "mel-roformer-kim-ft",
+  "task": "separate",
+  "stems": [
+    "vocals",
+    "instrumental"
+  ],
+  "display_name": "Mel-Band RoFormer Kim FT3 (unwa)",
+  "adapter": "neiro.adapters.audio_separator_adapter:AudioSeparatorModel",
+  "requires": [
+    "audio_separator"
+  ],
+  "params": {
+    "model_filename": "mel_band_roformer_kim_ft3_unwa.ckpt",
+    "stems": [
+      "vocals",
+      "instrumental"
+    ],
+    "stem_labels": {
+      "vocals": "Vocals",
+      "instrumental": "Instrumental"
+    },
+    "quality_class": "reference",
+    "license_spdx": "MIT",
+    "license_note": "credit UVR; verify commercial terms"
+  },
+  "weights": [
+    {
+      "kind": "managed",
+      "cache_param": "model_file_dir"
+    }
+  ],
+  "quality_class": "reference",
+  "license": {
+    "spdx": "MIT",
+    "note": "credit UVR; verify commercial terms",
+    "source": "https://github.com/nomadkaraoke/python-audio-separator"
+  },
+  "provenance": {
+    "author": "unwa / Kimberley Jensen"
+  }
+}

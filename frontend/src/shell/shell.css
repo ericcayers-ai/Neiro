@@ -43,6 +43,11 @@
   border-color: #f07178;
 }
 
+.job-pill.recording {
+  color: #e6b17a;
+  border-color: #e6b17a;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;

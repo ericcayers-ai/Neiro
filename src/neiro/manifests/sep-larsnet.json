@@ -1,0 +1,14 @@
+{
+  "manifest_version": 2,
+  "id": "larsnet",
+  "task": "separate",
+  "stems": ["kick", "snare", "toms", "hh", "cymbals"],
+  "display_name": "LarsNet (drum kit, opt-in checkpoint)",
+  "adapter": "neiro.adapters.larsnet_adapter:LarsNetSeparator",
+  "requires": ["larsnet"],
+  "params": {},
+  "quality_class": "reference",
+  "vram": { "fp32_gb": 3.0, "supports_fp16": false },
+  "license": { "spdx": "unknown", "note": "no bundled checkpoint; verify license of any weights you configure", "source": "https://mvsep.com/en/algorithms" },
+  "provenance": { "author": "LarsNet", "purpose": "drum-kit decomposition", "note": "requires user-supplied checkpoint_path; unavailable until configured" }
+}

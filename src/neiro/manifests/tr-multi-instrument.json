@@ -8,6 +8,6 @@
   "params": {"track": "multi"},
   "quality_class": "standard",
   "vram": { "fp32_gb": 1.2 },
-  "license": { "spdx": "MIT", "note": "prefers omnizart when installed; always falls back to Basic Pitch", "source": "builtin" },
-  "provenance": { "author": "neiro", "polyphony": "polyphonic, multi-instrument (whole mix)", "note": "no YourMT3/MIROS pip-installable inference package exists yet; wired for when one lands" }
+  "license": { "spdx": "MIT", "note": "prefers mt3-infer YourMT3, then omnizart, then Basic Pitch / YIN", "source": "builtin" },
+  "provenance": { "author": "neiro", "polyphony": "polyphonic, multi-instrument (whole mix)", "note": "YourMT3 via neiro[mt3]; always degrades to Basic Pitch / YIN" }
 }

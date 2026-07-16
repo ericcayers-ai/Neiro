@@ -1,0 +1,44 @@
+{
+  "manifest_version": 2,
+  "id": "wind-inst",
+  "task": "separate",
+  "stems": [
+    "woodwinds",
+    "no_woodwinds"
+  ],
+  "display_name": "VR Arch Woodwinds",
+  "adapter": "neiro.adapters.audio_separator_adapter:AudioSeparatorModel",
+  "requires": [
+    "audio_separator"
+  ],
+  "params": {
+    "model_filename": "17_HP-Wind_Inst-UVR.pth",
+    "stems": [
+      "woodwinds",
+      "no_woodwinds"
+    ],
+    "stem_labels": {
+      "woodwinds": "woodwinds",
+      "no_woodwinds": "no woodwinds"
+    },
+    "quality_class": "standard",
+    "license_spdx": "MIT",
+    "license_note": "credit UVR; verify commercial terms"
+  },
+  "weights": [
+    {
+      "kind": "managed",
+      "cache_param": "model_file_dir"
+    }
+  ],
+  "quality_class": "standard",
+  "license": {
+    "spdx": "MIT",
+    "note": "credit UVR; verify commercial terms",
+    "source": "https://github.com/nomadkaraoke/python-audio-separator"
+  },
+  "provenance": {
+    "author": "UVR",
+    "purpose": "strings/winds family isolation"
+  }
+}

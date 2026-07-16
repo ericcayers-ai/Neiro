@@ -106,6 +106,8 @@ export interface TranscribeResult {
   event_count: number
   midi_url: string
   tracks: Record<string, MidiEvent[]>
+  job_id?: string
+  svg_url?: string
 }
 
 export interface EnhanceResult {

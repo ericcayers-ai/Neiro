@@ -12,7 +12,10 @@ from neiro.symbolic.timeline import quantize_stream
 
 def test_router_piano_prefers_specialist():
     prefs = decoders_for("piano")
-    assert prefs[0] == "piano-transcription"
+    # Roadmap §7.1: Transkun primary, Kong/ByteDance piano as fallback.
+    assert prefs[0] == "transkun-piano"
+    assert "piano-transcription" in prefs
+    assert "timbre-amt" in decoders_for("guitar")
     assert "dsp-yin" in decoders_for("guitar")
 
 

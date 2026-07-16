@@ -301,23 +301,26 @@ def _neural_instrument_tags(
     it is expected to expose ``instantiate().tag(audio) -> Iterable[dict]``
     yielding the same ``{instrument, confidence, status}`` hint shape as the
     DSP heuristic below, so callers never need to branch on which backend
-    produced the tags. No such manifest ships today (there is no bundled
-    neural tagger yet) — this is a genuine extension point, not a
-    placeholder: dropping a manifest + adapter in is enough to upgrade
-    tagging without touching :func:`analyze`. Any failure (missing model,
-    adapter error, …) degrades silently to the DSP floor.
+    produced the tags. Any failure (missing model, adapter error, …) degrades
+    silently to the DSP floor.
     """
     if registry is None:
         return None
+    best_for = getattr(registry, "best_for", None)
+    if not callable(best_for):
+        return None
     try:
-        entry = registry.best_for("analyze", "standard")
+        entry = best_for("analyze", "standard")
     except Exception:
         return None
-    if entry is None or not entry.available():
+    if entry is None:
+        return None
+    available = getattr(entry, "available", None)
+    if callable(available) and not available():
         return None
     try:
         adapter = entry.instantiate()
-        tagger = getattr(adapter, "tag", None)
+        tagger = getattr(adapter, "tag", None) or getattr(adapter, "analyze", None)
         if tagger is None:
             return None
         tags = tuple(tagger(audio))

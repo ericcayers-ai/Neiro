@@ -1,0 +1,44 @@
+{
+  "manifest_version": 2,
+  "id": "kim-vocal-2",
+  "task": "separate",
+  "stems": [
+    "vocals",
+    "instrumental"
+  ],
+  "display_name": "Kim Vocal 2 (MDX)",
+  "adapter": "neiro.adapters.audio_separator_adapter:AudioSeparatorModel",
+  "requires": [
+    "audio_separator"
+  ],
+  "params": {
+    "model_filename": "Kim_Vocal_2.onnx",
+    "stems": [
+      "vocals",
+      "instrumental"
+    ],
+    "stem_labels": {
+      "vocals": "Vocals",
+      "instrumental": "Instrumental"
+    },
+    "quality_class": "standard",
+    "license_spdx": "MIT",
+    "license_note": "credit UVR; verify commercial terms"
+  },
+  "weights": [
+    {
+      "kind": "managed",
+      "cache_param": "model_file_dir"
+    }
+  ],
+  "quality_class": "standard",
+  "license": {
+    "spdx": "MIT",
+    "note": "credit UVR; verify commercial terms",
+    "source": "https://github.com/nomadkaraoke/python-audio-separator"
+  },
+  "provenance": {
+    "author": "Kimberley Jensen",
+    "purpose": "ensemble diversity member"
+  }
+}

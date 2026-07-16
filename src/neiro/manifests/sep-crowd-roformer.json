@@ -1,0 +1,44 @@
+{
+  "manifest_version": 2,
+  "id": "crowd-roformer",
+  "task": "separate",
+  "stems": [
+    "no_crowd",
+    "crowd"
+  ],
+  "display_name": "Mel-RoFormer Crowd (aufr33/viperx)",
+  "adapter": "neiro.adapters.audio_separator_adapter:AudioSeparatorModel",
+  "requires": [
+    "audio_separator"
+  ],
+  "params": {
+    "model_filename": "mel_band_roformer_crowd_aufr33_viperx_sdr_8.7144.ckpt",
+    "stems": [
+      "no_crowd",
+      "crowd"
+    ],
+    "stem_labels": {
+      "no_crowd": "nocrowd",
+      "crowd": "crowd"
+    },
+    "quality_class": "reference",
+    "license_spdx": "MIT",
+    "license_note": "credit UVR; verify commercial terms"
+  },
+  "weights": [
+    {
+      "kind": "managed",
+      "cache_param": "model_file_dir"
+    }
+  ],
+  "quality_class": "reference",
+  "license": {
+    "spdx": "MIT",
+    "note": "credit UVR; verify commercial terms",
+    "source": "https://github.com/nomadkaraoke/python-audio-separator"
+  },
+  "provenance": {
+    "author": "aufr33 / viperx",
+    "purpose": "crowd removal (RoFormer)"
+  }
+}

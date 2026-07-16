@@ -1,0 +1,13 @@
+{
+  "manifest_version": 2,
+  "id": "yourmt3",
+  "task": "transcribe",
+  "display_name": "YourMT3+ (multi-instrument MT3 family)",
+  "adapter": "neiro.adapters.mt3_adapter:YourMT3Transcriber",
+  "requires": ["mt3_infer"],
+  "params": { "model": "yourmt3", "track": "multi" },
+  "quality_class": "reference",
+  "vram": { "fp32_gb": 2.5, "fp16_gb": 1.5, "supports_fp16": true },
+  "license": { "spdx": "Apache-2.0", "note": "YourMT3 Apache-2.0; mt3-infer vendors checkpoints", "source": "https://github.com/openmirlab/mt3-infer" },
+  "provenance": { "author": "mimbres / openmirlab", "polyphony": "polyphonic, multi-instrument (whole mix)" }
+}
