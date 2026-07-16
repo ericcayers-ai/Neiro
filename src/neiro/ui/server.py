@@ -32,6 +32,7 @@ Endpoints:
 
 from __future__ import annotations
 
+import contextlib
 import json
 import mimetypes
 import re
@@ -588,10 +589,8 @@ def _make_handler(state: _State):
                 # Best-effort open of the single shared window if a client isn't
                 # already connected (browser tab or Tauri shell).
                 if bridge.consume_launch_request():
-                    try:
+                    with contextlib.suppress(Exception):
                         webbrowser.open(f"http://127.0.0.1:{state.port}/")
-                    except Exception:
-                        pass
                 self._json({"ok": True, "status": status})
                 return
             if path == "/api/daw/midi":
@@ -647,10 +646,8 @@ def _make_handler(state: _State):
                 launch_if_needed=True,
             )
             if bridge.consume_launch_request():
-                try:
+                with contextlib.suppress(Exception):
                     webbrowser.open(f"http://127.0.0.1:{state.port}/")
-                except Exception:
-                    pass
             self._json({"ok": True, "capture": status.get("last_capture"), "status": status})
 
         def _handle_cancel(self, job_id: str) -> None:

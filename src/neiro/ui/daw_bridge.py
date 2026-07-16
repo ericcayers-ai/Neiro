@@ -329,9 +329,7 @@ class DawBridgeState:
     def _gc_locked(self) -> None:
         now = time.monotonic()
         stale = [
-            iid
-            for iid, inst in self._instances.items()
-            if (now - inst.last_seen) > _STALE_SECONDS
+            iid for iid, inst in self._instances.items() if (now - inst.last_seen) > _STALE_SECONDS
         ]
         for iid in stale:
             self._instances.pop(iid, None)

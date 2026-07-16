@@ -1,10 +1,29 @@
 import { useEffect, useRef, useState } from 'react'
 import { fetchDawStatus, pollDawMidi, type DawMidiEvent, type DawStatus } from '../api/daw'
+import type { ModuleId } from '../api/types'
 import { useSession } from '../state/session'
+
+const MODULES: ModuleId[] = [
+  'import',
+  'analysis',
+  'studio',
+  'separate',
+  'restore',
+  'transcribe',
+  'mixer',
+  'learn',
+  'preferences',
+  'about',
+]
+
+function asModule(id: string | undefined | null, fallback: ModuleId): ModuleId {
+  return MODULES.includes(id as ModuleId) ? (id as ModuleId) : fallback
+}
 
 /**
  * Polls the DAW injector bridge. When a plugin calls show-ui, focuses this
- * single Neiro window, switches to Advanced + Learn, and feeds MIDI into Learn.
+ * single Neiro window on the requested module. Captures load into the session
+ * for Separate / Restore / Transcribe / etc. MIDI feeds Learn wait mode.
  */
 export function useDawBridge(opts?: {
   onMidiNoteOn?: (pitch: number, velocity: number, instanceId: string) => void
@@ -27,7 +46,7 @@ export function useDawBridge(opts?: {
         if (next.focus_seq > focusSeqRef.current) {
           focusSeqRef.current = next.focus_seq
           setWorkspaceMode('advanced')
-          setModule((next.focus_module as any) || 'learn')
+          setModule(asModule(next.focus_module, 'learn'))
           try {
             window.focus()
           } catch {
@@ -36,17 +55,15 @@ export function useDawBridge(opts?: {
         }
         if ((next.capture_seq || 0) > captureSeqRef.current && next.last_capture) {
           captureSeqRef.current = next.capture_seq || 0
-          // Load captured file into session and navigate to requested module
           const cap = next.last_capture
           setWorkspaceMode('advanced')
           setFile({
             fileId: cap.file_id,
             name: cap.name,
             audioUrl: cap.audio_url,
-            // @ts-expect-error AnalysisReport shape compatible
             report: cap.report,
           })
-          setModule((cap.module as any) || 'separate')
+          setModule(asModule(cap.module, 'separate'))
           try {
             window.focus()
           } catch {
@@ -63,7 +80,7 @@ export function useDawBridge(opts?: {
       cancelled = true
       window.clearInterval(id)
     }
-  }, [setModule, setWorkspaceMode])
+  }, [setModule, setWorkspaceMode, setFile])
 
   useEffect(() => {
     if (!status?.connected) return
