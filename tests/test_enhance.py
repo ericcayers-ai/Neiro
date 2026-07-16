@@ -106,3 +106,168 @@ def test_analysis_detects_hum_and_echo():
     report2 = analyze(AudioTensor(echoed[np.newaxis, :], SR))
     got = report2.vocal_conditions.get("echo_delay_s")
     assert got is not None and abs(got - 0.375) < 0.03
+    conf = report2.vocal_conditions.get("echo_confidence")
+    assert conf is not None and conf > 0.35
+
+
+def test_stem_preview_echo_prefers_vocal_stem():
+    """Draft preview split runs; stem echo is surfaced with preview-split provenance."""
+    from neiro.analysis import analyze
+    from neiro.analysis.report import _draft_preview_stems, _echo_detect, _stem_echo_conditions
+    from neiro.engine.artifacts import AudioTensor
+
+    # Same aperiodic burst+echo fixture as the mix-level test (proven stable).
+    rng = np.random.default_rng(3)
+    env = np.zeros(int(3.5 * SR), dtype=np.float32)
+    for start in (0.2, 1.3, 2.15):
+        i = int(start * SR)
+        env[i : i + int(0.15 * SR)] = 1.0
+    burst = env * rng.normal(0, 0.3, env.shape).astype(np.float32)
+    delay = int(0.375 * SR)
+    echoed = burst.copy()
+    echoed[delay:] += 0.7 * burst[:-delay]
+    # Stereo-identical: centre_extract keeps the vocal proxy; HPSS still runs.
+    stereo = np.stack([echoed, echoed]).astype(np.float32)
+
+    stems = _draft_preview_stems(stereo, SR)
+    assert stems is not None and "vocals" in stems and "drums" in stems
+    vocal_hit = _echo_detect(stems["vocals"], SR)
+    assert vocal_hit is not None
+    v_delay, v_conf = vocal_hit
+    assert abs(v_delay - 0.375) < 0.03
+    assert v_conf > 0.35
+
+    cond = _stem_echo_conditions(stereo, SR)
+    assert cond.get("echo_based_on_preview_split") is True
+    assert isinstance(cond.get("stem_echo"), dict)
+    assert "vocals" in cond["stem_echo"]
+    assert abs(float(cond["stem_echo"]["vocals"]["delay_s"]) - 0.375) < 0.03
+    assert cond["echo_source"].startswith("preview_split_")
+    assert abs(float(cond["echo_delay_s"]) - 0.375) < 0.03
+
+    report = analyze(AudioTensor(stereo, SR))
+    assert report.vocal_conditions.get("echo_based_on_preview_split") is True
+    assert any("preview split" in n for n in report.notes)
+
+
+
+def test_analysis_corrections_apply_and_reset():
+    from neiro.analysis import AnalysisCorrections, analyze
+    from neiro.engine.artifacts import AudioTensor
+
+    tone = _sine(440.0, amp=0.2, seconds=1.5)
+    report = analyze(AudioTensor(tone[np.newaxis, :], SR))
+    corr = AnalysisCorrections()
+    corr.set("estimated_key", "D minor", reason="user")
+    corr.set("estimated_bpm", 96.0, reason="user")
+    corr.set(
+        "instruments",
+        ({"instrument": "piano", "confidence": 1.0, "status": "asserted"},),
+        reason="user",
+    )
+    applied = corr.apply(report)
+    assert applied.estimated_key == "D minor"
+    assert applied.estimated_bpm == 96.0
+    assert applied.instruments[0]["instrument"] == "piano"
+    assert any(n.startswith("corrected:") for n in applied.notes)
+    # Original report untouched (frozen overlay).
+    orig_key, orig_bpm = report.estimated_key, report.estimated_bpm
+    assert report is not applied
+    assert report.estimated_key == orig_key
+    assert report.estimated_bpm == orig_bpm
+
+    corr.clear("estimated_key")
+    corr.clear("estimated_bpm")
+    corr.clear("instruments")
+    assert corr.is_empty()
+    reset = corr.apply(report)
+    assert reset is report
+    assert reset.estimated_key == report.estimated_key
+    assert reset.estimated_bpm == report.estimated_bpm
+
+
+def test_planner_prefers_stem_conditioned_echo_notes(tmp_path, monkeypatch):
+    from neiro.engine import planner as planner_mod
+    from neiro.engine.vram import VRAMManager
+    from neiro.engine.registry import default_registry
+
+    class _FakeReport:
+        clipping_ratio = 0.0
+        bandwidth_hz = 20000.0
+        vocal_conditions = {
+            "echo_delay_s": 0.28,
+            "echo_confidence": 0.62,
+            "echo_based_on_preview_split": True,
+            "echo_source": "preview_split_vocals",
+            "stem_echo": {
+                "vocals": {"delay_s": 0.28, "confidence": 0.62},
+                "drums": {"delay_s": 0.31, "confidence": 0.4},
+            },
+        }
+
+    monkeypatch.setattr(
+        planner_mod,
+        "_quick_analysis",
+        lambda _path, corrections=None, **_kw: _FakeReport(),
+    )
+    wav = tmp_path / "x.wav"
+    wav.write_bytes(b"RIFF")  # path only; analysis is stubbed
+    plan = planner_mod.plan_enhancement(
+        wav, default_registry(), VRAMManager(), chain=None, auto_download=False
+    )
+    joined = " | ".join(plan.notes)
+    assert "stem-conditioned echo/delay on preview split" in joined
+    assert "vocals ~280 ms" in joined
+    assert "drums ~310 ms" in joined
+
+
+def test_planner_consumes_analysis_corrections_for_detect_all(tmp_path, monkeypatch):
+    """User instrument corrections must drive detect-all cascade order."""
+    from neiro.analysis import AnalysisCorrections
+    from neiro.engine import planner as planner_mod
+    from neiro.engine.artifacts import AnalysisReport
+    from neiro.engine.registry import default_registry
+    from neiro.engine.vram import VRAMManager
+
+    def _qa(_path, corrections=None, **_kw):
+        report = AnalysisReport(
+            duration_seconds=1.0,
+            sample_rate=44100,
+            channels=2,
+            is_effectively_mono=False,
+            integrated_lufs=-14.0,
+            peak_dbfs=-1.0,
+            bandwidth_hz=20000.0,
+            instruments=(
+                {"instrument": "vocals", "confidence": 0.9, "status": "asserted"},
+                {"instrument": "drums", "confidence": 0.8, "status": "asserted"},
+            ),
+        )
+        if corrections:
+            return AnalysisCorrections.from_dict(corrections).apply(report)
+        return report
+
+    monkeypatch.setattr(planner_mod, "_quick_analysis", _qa)
+    wav = tmp_path / "x.wav"
+    wav.write_bytes(b"RIFF")
+    corr = {
+        "overrides": {
+            "instruments": [
+                {"instrument": "drums", "confidence": 1.0, "status": "asserted"},
+                {"instrument": "bass", "confidence": 1.0, "status": "asserted"},
+            ]
+        },
+        "reasons": {"instruments": "user"},
+    }
+    plan = planner_mod.plan_separation(
+        wav,
+        "detect-all",
+        default_registry(),
+        VRAMManager(),
+        auto_download=False,
+        corrections=corr,
+    )
+    joined = " | ".join(plan.notes)
+    assert "using Analysis corrections for instrument routing" in joined
+    assert "detect-all cascade order (by confidence): drums, bass" in joined
+

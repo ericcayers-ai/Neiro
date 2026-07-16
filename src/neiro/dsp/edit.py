@@ -22,6 +22,8 @@ __all__ = [
     "fade",
     "reverse",
     "normalize",
+    "bounce",
+    "split_at",
 ]
 
 
@@ -99,3 +101,69 @@ def normalize(audio: AudioTensor, target_dbfs: float = -1.0) -> AudioTensor:
     return AudioTensor(
         peak_normalize(audio.samples, target_dbfs), audio.sample_rate
     ).with_provenance(f"normalize({target_dbfs:+.1f}dBFS)")
+
+
+def split_at(audio: AudioTensor, at_s: float) -> tuple[AudioTensor, AudioTensor]:
+    """Split ``audio`` at ``at_s`` into (left, right) buffers."""
+    at_s = max(0.0, min(audio.duration_seconds, float(at_s)))
+    left = trim(audio, 0.0, at_s)
+    right = trim(audio, at_s, audio.duration_seconds)
+    return (
+        left.with_provenance(f"split-left@{at_s:.3f}"),
+        right.with_provenance(f"split-right@{at_s:.3f}"),
+    )
+
+
+def _to_stereo(samples: np.ndarray) -> np.ndarray:
+    if samples.shape[0] == 1:
+        return np.vstack([samples, samples])
+    if samples.shape[0] >= 2:
+        return samples[:2]
+    return samples
+
+
+def bounce(
+    layers: list[tuple[AudioTensor, float, float, float]],
+    *,
+    sample_rate: int | None = None,
+) -> AudioTensor:
+    """Mix layers of ``(audio, gain_linear, pan[-1..1], offset_s)`` into stereo.
+
+    Constant-power pan; offsets pad the start of each layer. Empty ``layers``
+    yields 0.1 s of silence at 48 kHz (or ``sample_rate``).
+    """
+    if not layers:
+        sr = sample_rate or 48000
+        return AudioTensor(np.zeros((2, int(0.1 * sr)), dtype=np.float32), sr).with_provenance(
+            "bounce(empty)"
+        )
+
+    sr = sample_rate or layers[0][0].sample_rate
+    end_frames = 0
+    prepared: list[tuple[np.ndarray, int]] = []
+    for audio, gain_lin, pan, offset_s in layers:
+        if audio.sample_rate != sr:
+            raise ValueError(
+                f"bounce sample-rate mismatch: got {audio.sample_rate}, expected {sr}"
+            )
+        stereo = _to_stereo(audio.samples).astype(np.float32, copy=True)
+        g = float(gain_lin)
+        p = max(-1.0, min(1.0, float(pan)))
+        # Constant-power: pan -1 = full L, +1 = full R
+        angle = (p + 1.0) * (np.pi / 4.0)
+        l_gain = g * float(np.cos(angle))
+        r_gain = g * float(np.sin(angle))
+        stereo[0] *= l_gain
+        stereo[1] *= r_gain
+        off = max(0, int(round(float(offset_s) * sr)))
+        prepared.append((stereo, off))
+        end_frames = max(end_frames, off + stereo.shape[1])
+
+    out = np.zeros((2, end_frames), dtype=np.float32)
+    for stereo, off in prepared:
+        n = stereo.shape[1]
+        out[:, off : off + n] += stereo
+    peak = float(np.max(np.abs(out))) if end_frames else 0.0
+    if peak > 1.0:
+        out /= peak
+    return AudioTensor(out, sr).with_provenance(f"bounce({len(layers)} layers)")

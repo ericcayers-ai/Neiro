@@ -62,6 +62,58 @@ export function AboutModule() {
           </span>
         )}
       </div>
+
+      <h3 style={{ marginTop: 28 }}>Headless / batch</h3>
+      <p className="muted" style={{ marginTop: 0 }}>
+        These paths are functional today via the CLI (not fake UI stubs). The desktop shell does
+        not host a watch-folder daemon panel.
+      </p>
+      <ul className="muted" style={{ lineHeight: 1.7, paddingLeft: 18 }}>
+        <li>
+          <strong>Watch folder</strong> —{' '}
+          <code>neiro watch ./inbox --out ./done --job separate --preset vocals</code> (also
+          <code> transcribe</code> / <code>enhance</code>; <code>--once</code> for a single pass).
+        </li>
+        <li>
+          <strong>DAWproject</strong> — engine helper writes a minimal zip +{' '}
+          <code>provenance.json</code> (see <code>neiro.io.dawproject</code>); Studio Mix exports
+          stems/WAV/FLAC with sidecar provenance today.
+        </li>
+      </ul>
+
+      <h3 id="studio-shortcuts" style={{ marginTop: 28 }}>
+        Studio shortcuts
+      </h3>
+      <p className="muted" style={{ marginTop: 0 }}>
+        Focus is ignored while typing in a text field. Numeric keys switch modules (1–6;
+        7 opens Studio Mix; 8 opens Learn / Practice; 9 Prefs). DAW injectors can focus Learn.
+      </p>
+      <ul className="muted" style={{ lineHeight: 1.7, paddingLeft: 18 }}>
+        <li>
+          <strong>Space</strong> — play / pause
+        </li>
+        <li>
+          <strong>V</strong> Select · <strong>A</strong> Scrub · <strong>C</strong> Split tool
+        </li>
+        <li>
+          <strong>Del</strong> silence selection · <strong>Shift+Del</strong> delete / splice
+        </li>
+        <li>
+          <strong>Ctrl+Z</strong> / <strong>Ctrl+Y</strong> undo / redo
+        </li>
+        <li>
+          <strong>[</strong> / <strong>]</strong> nudge selection or clip ±50 ms
+        </li>
+        <li>
+          <strong>Esc</strong> clear selection
+        </li>
+        <li>
+          <strong>=</strong> / <strong>-</strong> zoom · scroll pan · Ctrl+scroll zoom
+        </li>
+        <li>
+          <strong>M</strong> toggle Mix drawer
+        </li>
+      </ul>
       <p style={{ marginTop: 20 }}>
         <a href="https://github.com/ericcayers-ai/Neiro" target="_blank" rel="noreferrer">
           Source on GitHub

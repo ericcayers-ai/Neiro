@@ -11,13 +11,19 @@ Endpoints:
     POST /api/upload            raw audio bytes (X-Filename header) -> analysis
     POST /api/ingest-url        {url}               -> analysis (yt-dlp)
     POST /api/separate          {file_id, preset}   -> job id
-    POST /api/transcribe        {file_id, mode, model?} -> job id
+    GET  /api/models            ?task=transcribe -> registry status (ready/needs-install)
+    POST /api/transcribe        {file_id, mode, model?, members?, ensemble?} -> job id
     POST /api/enhance           {file_id, chain?}   -> job id
     GET  /api/job/<id>          job status, progress lines, result
     POST /api/job/<id>/cancel   cooperative cancel
+    GET  /api/prefs             cache budget, warm-pool TTL, residents
+    POST /api/prefs             update cache_budget_gb / warm_pool_ttl_s
+    POST /api/prefs/flush       drop warm-pool residents (+ optional cache clear)
     GET  /api/waveform          ?file_id&width[&start&end] -> peak envelope
     GET  /api/spectrogram       ?file_id            -> quantised log-freq grid
     POST /api/edit              {file_id, op, ...}  -> new (edited) file_id
+                            bounce: {op:bounce, tracks:[{file_id,gain,pan,offset}]}
+                            split:  {file_id, op:split, at} -> {left, right}
     GET  /api/plugins           list local user Python plugins + grants
     POST /api/plugins           update plugin grants
     GET  /api/compute           warm-pool / VRAM residency status
@@ -48,6 +54,7 @@ import mimetypes
 import re
 import tempfile
 import threading
+import time
 import uuid
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -112,6 +119,49 @@ class _State:
         # Optional: set by serve() when the WS control channel is enabled, so
         # progress lines get pushed there too, not just appended for polling.
         self.ws_hub = None
+        # Compute prefs — mirrored to ArtifactCache / VRAMManager on update.
+        self.prefs: dict = {
+            "cache_budget_gb": 20.0,
+            "warm_pool_ttl_s": 300.0,
+        }
+        self._apply_prefs()
+
+    def _apply_prefs(self) -> None:
+        budget_gb = float(self.prefs.get("cache_budget_gb", 20.0))
+        ttl = float(self.prefs.get("warm_pool_ttl_s", 300.0))
+        self.cache.disk_budget_bytes = int(max(0.1, budget_gb) * 1_000_000_000)
+        self.vram.warm_pool_ttl_s = max(0.0, ttl)
+        self.vram.evict_expired()
+
+    def prefs_snapshot(self) -> dict:
+        self.vram.evict_expired()
+        return {
+            "cache_budget_gb": float(self.prefs["cache_budget_gb"]),
+            "warm_pool_ttl_s": float(self.prefs["warm_pool_ttl_s"]),
+            "cache_entries": len(self.cache),
+            "cache_hits": self.cache.hits,
+            "cache_misses": self.cache.misses,
+            "cache_disk_usage_bytes": self.cache.disk_usage_bytes(),
+            "resident_models": self.vram.resident_models(),
+        }
+
+    def update_prefs(self, body: dict) -> dict:
+        if "cache_budget_gb" in body:
+            self.prefs["cache_budget_gb"] = float(body["cache_budget_gb"])
+        if "warm_pool_ttl_s" in body:
+            self.prefs["warm_pool_ttl_s"] = float(body["warm_pool_ttl_s"])
+        self._apply_prefs()
+        return self.prefs_snapshot()
+
+    def flush_compute(self, *, clear_cache: bool = False) -> dict:
+        flushed = self.vram.flush()
+        if clear_cache:
+            self.cache.clear()
+        return {
+            "flushed_models": flushed,
+            "cache_cleared": clear_cache,
+            **self.prefs_snapshot(),
+        }
 
     def load(self, file_id: str):
         from neiro.io import load_audio
@@ -139,16 +189,47 @@ def _safe_name(name: str) -> str:
 
 
 def _job_progress(state: _State, job_id: str):
+    started = time.monotonic()
+
     def _cb(prog: Progress) -> None:
         line = f"{prog.node_id}: {prog.stage}" + (f" — {prog.message}" if prog.message else "")
+        eta_s = None
+        if prog.fraction and prog.fraction > 0.02:
+            elapsed = time.monotonic() - started
+            eta_s = round(elapsed * (1.0 - prog.fraction) / prog.fraction, 1)
+        event = {
+            "stage": prog.stage,
+            "fraction": prog.fraction,
+            "eta_s": eta_s,
+            "line": line,
+            "node_id": prog.node_id,
+            "message": prog.message or "",
+        }
         with state.lock:
             job = state.jobs.get(job_id)
             if job is not None:
                 job["progress"].append(line)
+                job.setdefault("progress_events", []).append(event)
+                job["stage"] = prog.stage
+                job["fraction"] = prog.fraction
+                job["eta_s"] = eta_s
         if state.ws_hub is not None:
             state.ws_hub.publish(job_id, line)
 
     return _cb
+
+
+def _normalize_corrections(raw) -> dict | None:
+    """Accept a corrections overlay dict from the job body, or None."""
+    if not raw or not isinstance(raw, dict):
+        return None
+    overrides = raw.get("overrides")
+    if not isinstance(overrides, dict) or not overrides:
+        return None
+    return {
+        "overrides": overrides,
+        "reasons": dict(raw.get("reasons") or {}),
+    }
 
 
 def _run_separation(
@@ -158,6 +239,7 @@ def _run_separation(
     preset: str,
     quality: str | None = None,
     bleed_suppress: bool = True,
+    corrections: dict | None = None,
 ) -> None:
     import numpy as np
 
@@ -172,8 +254,13 @@ def _run_separation(
         state.vram,
         quality=quality,
         bleed_suppress=bleed_suppress,
+        corrections=corrections,
     )
-    ctx = ExecutionContext(cache=state.cache, progress=_job_progress(state, job_id))
+    ctx = ExecutionContext(
+        cache=state.cache,
+        progress=_job_progress(state, job_id),
+        extras={"analysis_corrections": corrections} if corrections else {},
+    )
     with state.lock:
         state.job_contexts[job_id] = ctx
     try:
@@ -226,16 +313,33 @@ def _run_separation(
 
 
 def _run_transcription(
-    state: _State, job_id: str, file_id: str, mode: str, model: str | None
+    state: _State,
+    job_id: str,
+    file_id: str,
+    mode: str,
+    model: str | None,
+    members: list | None = None,
+    corrections: dict | None = None,
 ) -> None:
     from neiro.engine.planner import plan_transcription
-    from neiro.symbolic import write_midi
+    from neiro.io import write_export_metadata
+    from neiro.symbolic import export_score, write_midi
 
     job_dir = state.workspace / "jobs" / job_id
     plan = plan_transcription(
-        state.files[file_id], state.registry, state.vram, mode=mode, model=model
+        state.files[file_id],
+        state.registry,
+        state.vram,
+        mode=mode,
+        model=model,
+        members=members,
+        corrections=corrections,
     )
-    ctx = ExecutionContext(cache=state.cache, progress=_job_progress(state, job_id))
+    ctx = ExecutionContext(
+        cache=state.cache,
+        progress=_job_progress(state, job_id),
+        extras={"analysis_corrections": corrections} if corrections else {},
+    )
     with state.lock:
         state.job_contexts[job_id] = ctx
     try:
@@ -252,17 +356,34 @@ def _run_transcription(
     with state.lock:
         state.transcription_sessions[job_id] = tsession
 
-    svg_url = None
+    # MusicXML (+ best-effort SVG/PDF) — expose download URLs from Transcribe.
+    key = None
+    if corrections and isinstance(corrections.get("overrides"), dict):
+        key = corrections["overrides"].get("estimated_key")
+    score = export_score(
+        timeline,
+        job_dir / "transcription",
+        key=str(key) if key else None,
+        title=state.files[file_id].stem,
+        want_pdf=True,
+    )
     try:
-        from neiro.symbolic.score import export_score
-
-        score_info = export_score(timeline, job_dir / "score", want_pdf=False)
-        svg_path = score_info.get("svg_path")
-        if svg_path:
-            svg_url = f"/files/jobs/{job_id}/{Path(svg_path).name}"
-    except Exception:
-        svg_url = None
-
+        entry = state.registry.get(plan.model_id)
+    except KeyError:
+        entry = None
+    meta = write_export_metadata(
+        midi_path,
+        model_id=plan.model_id,
+        license_spdx=entry.license_spdx if entry else "unknown",
+        license_note=entry.license_note if entry else "",
+        provenance=(plan.model_id,),
+        extras={
+            "musicxml": score.get("musicxml_path"),
+            "score_renderer": score.get("renderer"),
+            "score_notes": score.get("notes", []),
+            "used_split": plan.used_split,
+        },
+    )
     tracks = {
         name: [
             {
@@ -280,28 +401,50 @@ def _run_transcription(
     result = {
         "model": plan.model_id,
         "used_split": plan.used_split,
-        "notes": plan.notes,
+        "notes": list(plan.notes) + list(score.get("notes") or []),
         "tempo_bpm": timeline.tempo_bpm,
         "event_count": timeline.total_events(),
         "midi_url": f"/files/jobs/{job_id}/{midi_path.name}",
+        "musicxml_url": f"/files/jobs/{job_id}/transcription.musicxml",
+        "provenance_url": f"/files/jobs/{job_id}/{meta.name}",
         "tracks": tracks,
+        "score_renderer": score.get("renderer"),
         "job_id": job_id,
     }
-    if svg_url:
-        result["svg_url"] = svg_url
+    if score.get("svg_path"):
+        result["score_svg_url"] = f"/files/jobs/{job_id}/{Path(score['svg_path']).name}"
+        result["svg_url"] = result["score_svg_url"]
+    if score.get("pdf_path"):
+        result["score_pdf_url"] = f"/files/jobs/{job_id}/{Path(score['pdf_path']).name}"
     with state.lock:
         state.jobs[job_id].update(status="done", result=result)
 
 
-def _run_enhancement(state: _State, job_id: str, file_id: str, chain: list[str] | None) -> None:
+def _run_enhancement(
+    state: _State,
+    job_id: str,
+    file_id: str,
+    chain: list[str] | None,
+    corrections: dict | None = None,
+) -> None:
     from neiro.engine.planner import plan_enhancement
     from neiro.io import write_audio
 
     job_dir = state.workspace / "jobs" / job_id
-    plan = plan_enhancement(state.files[file_id], state.registry, state.vram, chain=chain)
+    plan = plan_enhancement(
+        state.files[file_id],
+        state.registry,
+        state.vram,
+        chain=chain,
+        corrections=corrections,
+    )
     result: dict = {"chain": plan.chain, "notes": plan.notes}
     if plan.chain:
-        ctx = ExecutionContext(cache=state.cache, progress=_job_progress(state, job_id))
+        ctx = ExecutionContext(
+            cache=state.cache,
+            progress=_job_progress(state, job_id),
+            extras={"analysis_corrections": corrections} if corrections else {},
+        )
         with state.lock:
             state.job_contexts[job_id] = ctx
         try:
@@ -341,7 +484,16 @@ def start_job(state: _State, kind: str, file_id: str, body: dict) -> str:
         raise ValueError(f"unknown job kind {kind!r}")
     job_id = uuid.uuid4().hex[:12]
     with state.lock:
-        state.jobs[job_id] = {"status": "running", "kind": kind, "progress": []}
+        state.jobs[job_id] = {
+            "status": "running",
+            "kind": kind,
+            "progress": [],
+            "progress_events": [],
+            "stage": "queued",
+            "fraction": 0.0,
+            "eta_s": None,
+        }
+    corrections = _normalize_corrections(body.get("corrections"))
     if kind == "separate":
         quality = body.get("quality")
         bleed_raw = body.get("bleed_suppress", body.get("bleed"))
@@ -351,11 +503,19 @@ def start_job(state: _State, kind: str, file_id: str, body: dict) -> str:
             bleed_suppress = bleed_raw.lower() not in {"off", "false", "0", "no"}
         else:
             bleed_suppress = bool(bleed_raw)
-        args = (body.get("preset", "vocals"), quality, bleed_suppress)
+        args = (body.get("preset", "vocals"), quality, bleed_suppress, corrections)
     elif kind == "transcribe":
-        args = (body.get("mode", "auto"), body.get("model"))
+        tr_mode = body.get("mode", "auto")
+        tr_model = body.get("model")
+        tr_members = body.get("members")
+        if body.get("ensemble") and not tr_members:
+            tr_mode = "ensemble"
+            tr_model = tr_model or "tr-ensemble-default"
+        elif tr_members and len(tr_members) >= 2:
+            tr_mode = "ensemble"
+        args = (tr_mode, tr_model, tr_members, corrections)
     else:
-        args = (_parse_enhance_chain(body.get("chain")),)
+        args = (_parse_enhance_chain(body.get("chain")), corrections)
 
     def _work() -> None:
         try:
@@ -383,6 +543,10 @@ def job_status(state: _State, job_id: str) -> dict | None:
             "status": job["status"],
             "kind": job["kind"],
             "progress": list(job["progress"]),
+            "progress_events": list(job.get("progress_events", [])),
+            "stage": job.get("stage"),
+            "fraction": job.get("fraction"),
+            "eta_s": job.get("eta_s"),
             "result": job.get("result"),
             "error": job.get("error"),
         }
@@ -509,6 +673,9 @@ def _make_handler(state: _State):
                     }
                 )
                 return
+            if path.startswith("/api/models"):
+                self._handle_models()
+                return
             if path == "/api/plugins":
                 self._handle_plugins_get()
                 return
@@ -579,6 +746,9 @@ def _make_handler(state: _State):
                 else:
                     self._json(payload)
                 return
+            if path == "/api/prefs":
+                self._json(state.prefs_snapshot())
+                return
             if path.startswith("/files/"):
                 rel = path[len("/files/") :]
                 target = (state.workspace / rel).resolve()
@@ -607,6 +777,10 @@ def _make_handler(state: _State):
                     self._handle_ingest_url()
                 elif self.path == "/api/edit":
                     self._handle_edit()
+                elif self.path == "/api/prefs":
+                    self._handle_prefs_update()
+                elif self.path == "/api/prefs/flush":
+                    self._handle_prefs_flush()
                 elif self.path == "/api/plugins":
                     self._handle_plugins_post()
                 elif self.path == "/api/compute":
@@ -735,6 +909,17 @@ def _make_handler(state: _State):
                 with contextlib.suppress(Exception):
                     webbrowser.open(f"http://127.0.0.1:{state.port}/")
             self._json({"ok": True, "capture": status.get("last_capture"), "status": status})
+        def _handle_prefs_update(self) -> None:
+            body = json.loads(self._read_body() or b"{}")
+            try:
+                self._json(state.update_prefs(body))
+            except (TypeError, ValueError) as exc:
+                self._error(400, str(exc))
+
+        def _handle_prefs_flush(self) -> None:
+            body = json.loads(self._read_body() or b"{}")
+            clear_cache = bool(body.get("clear_cache", False))
+            self._json(state.flush_compute(clear_cache=clear_cache))
 
         def _handle_cancel(self, job_id: str) -> None:
             try:
@@ -935,6 +1120,40 @@ def _make_handler(state: _State):
                     job["result"]["event_count"] = sum(len(v) for v in public["tracks"].values())
                     job["result"]["midi_url"] = f"/files/jobs/{job_id}/{midi_path.name}"
             self._json({"ok": True, "job_id": job_id, **public})
+        def _handle_models(self) -> None:
+            q = self._query()
+            task = q.get("task")
+            models = []
+            for entry in state.registry.all():
+                if task:
+                    if task == "transcribe":
+                        if entry.task not in ("transcribe", "transcribe-lyrics") and entry.id != "whisper-lyrics":
+                            continue
+                    elif entry.task != task:
+                        continue
+                available = entry.available()
+                downloaded = entry.downloaded() if available else False
+                if not available:
+                    status = "needs-install"
+                elif entry.needs_download and not downloaded:
+                    status = "needs-download"
+                else:
+                    status = "ready"
+                models.append(
+                    {
+                        "id": entry.id,
+                        "task": entry.task,
+                        "display_name": entry.display_name,
+                        "quality_class": entry.quality_class,
+                        "available": available,
+                        "downloaded": downloaded,
+                        "needs_download": entry.needs_download,
+                        "status": status,
+                        "requires": list(entry.manifest.get("requires", [])),
+                        "license_spdx": entry.license_spdx,
+                    }
+                )
+            self._json({"models": models})
 
         def _handle_waveform(self) -> None:
             from neiro.dsp import waveform_peaks
@@ -982,15 +1201,99 @@ def _make_handler(state: _State):
 
         def _handle_edit(self) -> None:
             from neiro.dsp import edit as ed
+            from neiro.dsp import waveform_peaks
 
             body = json.loads(self._read_body() or b"{}")
-            file_id = body.get("file_id", "")
             op = body.get("op", "")
+
+            if op in ("bounce", "combine"):
+                tracks = body.get("tracks") or []
+                if not isinstance(tracks, list) or not tracks:
+                    self._error(400, "bounce requires a non-empty tracks list")
+                    return
+                layers = []
+                parent_ids: list[str] = []
+                for i, t in enumerate(tracks):
+                    if not isinstance(t, dict):
+                        self._error(400, f"tracks[{i}] must be an object")
+                        return
+                    tid = t.get("file_id", "")
+                    if tid not in state.files:
+                        self._error(400, f"unknown file_id in tracks[{i}]")
+                        return
+                    parent_ids.append(tid)
+                    layers.append(
+                        (
+                            state.load(tid),
+                            float(t.get("gain", 1.0)),
+                            float(t.get("pan", 0.0)),
+                            float(t.get("offset", 0.0)),
+                        )
+                    )
+                try:
+                    result = ed.bounce(layers)
+                except ValueError as exc:
+                    self._error(400, str(exc))
+                    return
+                name = _safe_name("bounce.wav")
+                new_id = state.register(name, result)
+                if parent_ids:
+                    state.parents[new_id] = parent_ids[0]
+                self._json(
+                    {
+                        "file_id": new_id,
+                        "parent": parent_ids[0] if parent_ids else "",
+                        "parents": parent_ids,
+                        "op": "bounce",
+                        "audio_url": f"/files/edits/{new_id}/{name}",
+                        "duration": result.duration_seconds,
+                        "waveform": waveform_peaks(result, width=1200),
+                    }
+                )
+                return
+
+            file_id = body.get("file_id", "")
             if file_id not in state.files:
                 self._error(400, "unknown file_id")
                 return
             audio = state.load(file_id)
             s, e = body.get("start"), body.get("end")
+
+            if op == "split":
+                at = body.get("at", s)
+                if at is None:
+                    self._error(400, "split requires at (or start)")
+                    return
+                left, right = ed.split_at(audio, float(at))
+                stem = Path(state.files[file_id]).stem
+                left_name = _safe_name(f"{stem}.split-L.wav")
+                right_name = _safe_name(f"{stem}.split-R.wav")
+                left_id = state.register(left_name, left)
+                right_id = state.register(right_name, right)
+                state.parents[left_id] = file_id
+                state.parents[right_id] = file_id
+                self._json(
+                    {
+                        "file_id": left_id,
+                        "parent": file_id,
+                        "op": "split",
+                        "audio_url": f"/files/edits/{left_id}/{left_name}",
+                        "duration": left.duration_seconds,
+                        "waveform": waveform_peaks(left, width=1200),
+                        "left": {
+                            "file_id": left_id,
+                            "audio_url": f"/files/edits/{left_id}/{left_name}",
+                            "duration": left.duration_seconds,
+                        },
+                        "right": {
+                            "file_id": right_id,
+                            "audio_url": f"/files/edits/{right_id}/{right_name}",
+                            "duration": right.duration_seconds,
+                        },
+                    }
+                )
+                return
+
             ops = {
                 "trim": lambda a: ed.trim(a, s, e),
                 "delete": lambda a: ed.delete_region(a, s, e),
@@ -1013,8 +1316,6 @@ def _make_handler(state: _State):
             name = _safe_name(Path(state.files[file_id]).stem + f".{op}.wav")
             new_id = state.register(name, result)
             state.parents[new_id] = file_id
-            from neiro.dsp import waveform_peaks
-
             self._json(
                 {
                     "file_id": new_id,

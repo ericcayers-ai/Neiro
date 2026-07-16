@@ -1,0 +1,25 @@
+{
+  "manifest_version": 2,
+  "id": "tr-ensemble-default",
+  "task": "transcribe",
+  "display_name": "Ensemble / hybrid vote (default)",
+  "adapter": "neiro.adapters.ensemble_transcriber:EnsembleTranscriber",
+  "framework": "numpy",
+  "params": {
+    "members": [
+      { "model_id": "basic-pitch", "weight": 1.0 },
+      { "model_id": "dsp-yin", "weight": 0.55 },
+      { "model_id": "piano-transcription", "weight": 1.15 },
+      { "model_id": "drums-dsp", "weight": 0.45 }
+    ]
+  },
+  "audio": { "sample_rate": 16000, "channels": 1 },
+  "quality_class": "reference",
+  "vram": { "fp32_gb": 1.5, "supports_fp16": false },
+  "license": { "spdx": "MIT", "source": "builtin", "note": "members keep their own licenses; only installed members run" },
+  "provenance": {
+    "author": "neiro",
+    "method": "weighted ensemble_merge across mix/specialist decoders",
+    "note": "planner expands members into parallel TranscribeNodes with per-member progress"
+  }
+}

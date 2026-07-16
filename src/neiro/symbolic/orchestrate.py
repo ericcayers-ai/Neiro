@@ -19,10 +19,13 @@ Pipeline, in order:
    mix model heard something separation attenuated away), including notes
    an octave off from what the stem found (mix decoders confuse octaves more
    than the isolated stem's decoder does).
+5. :func:`ensemble_merge` — weighted vote across ≥2 mix/specialist decoders
+   on the same audio (UI ensemble mode / ``tr-ensemble-default``).
 """
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import replace
 
 from neiro.engine.artifacts import AudioTensor, NoteEvent, NoteStream
@@ -34,6 +37,7 @@ __all__ = [
     "dedup_across_tracks",
     "hybrid_merge",
     "hybrid_merge_many",
+    "ensemble_merge",
     "normalize_instrument",
     "STEM_ALIASES",
 ]
@@ -231,3 +235,82 @@ def hybrid_merge_many(
         used_fills = {id(e) for e in merged.events} - {id(e) for e in stem.events}
         remaining = [e for e in remaining if id(e) not in used_fills]
     return out
+
+
+def ensemble_merge(
+    streams: Sequence[NoteStream],
+    *,
+    weights: Sequence[float] | None = None,
+    onset_tolerance: float = 0.05,
+) -> NoteStream:
+    """Weighted multi-decoder fuse for ensemble / hybrid-vote transcription.
+
+    Clusters notes that share a pitch and lie within ``onset_tolerance`` on
+    onset. Within a cluster the weighted-confidence winner keeps onset/pitch;
+    offset and velocity are confidence-weighted averages. Agreement across
+    members boosts the kept confidence (soft OR: unique notes from any member
+    still contribute as fill-ins so a specialist that heard something others
+    missed is not silenced).
+    """
+    if not streams:
+        return NoteStream((), source="ensemble()")
+    if len(streams) == 1:
+        return streams[0]
+
+    w = list(weights) if weights is not None else [1.0] * len(streams)
+    if len(w) != len(streams):
+        raise ValueError("weights must match the number of streams")
+    if any(x < 0 for x in w):
+        raise ValueError("weights must be non-negative")
+    if sum(w) <= 0:
+        raise ValueError("weights must sum to a positive value")
+
+    # (weight, event) pairs from every member.
+    tagged: list[tuple[float, NoteEvent]] = []
+    for stream, weight in zip(streams, w, strict=True):
+        if weight <= 0:
+            continue
+        for e in stream.events:
+            tagged.append((weight, e))
+    tagged.sort(key=lambda t: (t[1].pitch, t[1].onset))
+
+    clusters: list[list[tuple[float, NoteEvent]]] = []
+    for item in tagged:
+        if (
+            clusters
+            and clusters[-1][-1][1].pitch == item[1].pitch
+            and abs(clusters[-1][-1][1].onset - item[1].onset) <= onset_tolerance
+        ):
+            clusters[-1].append(item)
+            continue
+        clusters.append([item])
+
+    merged: list[NoteEvent] = []
+    for cluster in clusters:
+        total_w = sum(cw for cw, _ in cluster)
+        # Winner by weight × confidence; averages for continuous fields.
+        best_e = max(cluster, key=lambda t: t[0] * t[1].confidence)[1]
+        onset = sum(cw * e.onset for cw, e in cluster) / total_w
+        offset = sum(cw * e.offset for cw, e in cluster) / total_w
+        velocity = int(round(sum(cw * e.velocity for cw, e in cluster) / total_w))
+        base_conf = sum(cw * e.confidence for cw, e in cluster) / total_w
+        # Agreement boost: more supporting members → closer to 1.0.
+        agreement = min(1.0, len(cluster) / max(2, len(streams)))
+        confidence = min(1.0, base_conf * (0.75 + 0.25 * agreement + 0.15 * (len(cluster) - 1)))
+        provenances = sorted({e.provenance for _, e in cluster if e.provenance})
+        provenance = "+".join(provenances) if provenances else best_e.provenance
+        merged.append(
+            replace(
+                best_e,
+                onset=round(onset, 6),
+                offset=round(max(onset + 0.01, offset), 6),
+                velocity=max(1, min(127, velocity)),
+                confidence=round(confidence, 4),
+                provenance=provenance,
+            )
+        )
+
+    merged.sort(key=lambda e: (e.onset, e.pitch))
+    tempo = next((s.tempo_bpm for s in streams if s.tempo_bpm), None)
+    sources = ",".join(s.source or "?" for s in streams)
+    return NoteStream(tuple(merged), tempo_bpm=tempo, source=f"ensemble({sources})")

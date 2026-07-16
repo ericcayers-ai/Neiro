@@ -1,7 +1,9 @@
 //! Neiro Tauri shell — supervises the local Python HTTP engine with health restart.
 
+use std::fs::OpenOptions;
 use std::io::{Read, Write};
 use std::net::TcpStream;
+use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 use std::thread;
@@ -12,6 +14,10 @@ use tauri::{AppHandle, Manager, RunEvent, State};
 const PORT: u16 = 8377;
 const ENGINE_URL: &str = "http://127.0.0.1:8377/";
 const HEALTH_PATH: &str = "/api/health";
+
+/// Hide the console window when spawning the Python sidecar on Windows.
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 struct EngineProcess(Mutex<EngineState>);
 
@@ -24,29 +30,78 @@ struct EngineState {
 
 fn python_candidates() -> Vec<&'static str> {
     if cfg!(windows) {
-        vec!["python", "py", "python3"]
+        // Prefer pythonw so the sidecar never allocates a console window.
+        vec!["pythonw", "python", "py", "python3"]
     } else {
         vec!["python3", "python"]
     }
 }
 
+fn engine_log_path() -> PathBuf {
+    std::env::temp_dir().join("neiro-engine-stderr.log")
+}
+
+fn drain_stderr_to_log(mut child: Child) -> Child {
+    if let Some(mut stderr) = child.stderr.take() {
+        let path = engine_log_path();
+        thread::spawn(move || {
+            let mut file = match OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&path)
+            {
+                Ok(f) => f,
+                Err(_) => return,
+            };
+            let _ = writeln!(
+                file,
+                "\n--- neiro engine stderr @ {} ---",
+                chrono_like_stamp()
+            );
+            let mut buf = [0u8; 4096];
+            loop {
+                match stderr.read(&mut buf) {
+                    Ok(0) => break,
+                    Ok(n) => {
+                        let _ = file.write_all(&buf[..n]);
+                        let _ = file.flush();
+                    }
+                    Err(_) => break,
+                }
+            }
+        });
+    }
+    child
+}
+
+fn chrono_like_stamp() -> String {
+    // Avoid pulling chrono just for a restart delimiter; Instant-based is fine.
+    format!("{:?}", Instant::now())
+}
+
 fn spawn_engine() -> Result<Child, String> {
     let mut last_err = String::from("no Python interpreter found");
     for bin in python_candidates() {
-        match Command::new(bin)
-            .args([
-                "-m",
-                "neiro.cli",
-                "ui",
-                "--no-browser",
-                "--port",
-                &PORT.to_string(),
-            ])
-            .stdout(Stdio::null())
-            .stderr(Stdio::piped())
-            .spawn()
+        let mut cmd = Command::new(bin);
+        cmd.args([
+            "-m",
+            "neiro.cli",
+            "ui",
+            "--no-browser",
+            "--port",
+            &PORT.to_string(),
+        ])
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped());
+
+        #[cfg(windows)]
         {
-            Ok(child) => return Ok(child),
+            use std::os::windows::process::CommandExt;
+            cmd.creation_flags(CREATE_NO_WINDOW);
+        }
+
+        match cmd.spawn() {
+            Ok(child) => return Ok(drain_stderr_to_log(child)),
             Err(e) => last_err = format!("{bin}: {e}"),
         }
     }
@@ -143,6 +198,7 @@ fn engine_status(state: State<'_, EngineProcess>) -> serde_json::Value {
       "last_ok_secs_ago": guard.last_ok.map(|t| t.elapsed().as_secs()),
       "last_error": guard.last_error,
       "running": guard.child.is_some(),
+      "stderr_log": engine_log_path().to_string_lossy(),
     })
 }
 

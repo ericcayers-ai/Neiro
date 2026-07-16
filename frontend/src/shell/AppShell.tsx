@@ -1,22 +1,22 @@
 import { useState, type ReactNode } from 'react'
 import { listSessions, openSession, saveSession } from '../api/client'
 import type { ModuleId } from '../api/types'
+import { JobTray } from '../components/JobTray'
 import { useSession } from '../state/session'
 import { useDawBridge } from '../hooks/useDawBridge'
 import { fmtTime } from '../constants/options'
 import './shell.css'
 
-const MODULES: { id: ModuleId; label: string; hint: string; key?: string; advanced?: boolean }[] = [
+const MODULES: { id: ModuleId; label: string; hint: string; key?: string }[] = [
   { id: 'import', label: 'Import', hint: 'Open a file or fetch a URL', key: '1' },
   { id: 'analysis', label: 'Analysis', hint: 'Read-only report for the current file', key: '2' },
-  { id: 'studio', label: 'Studio', hint: 'Waveform editor — view and edit audio', key: '3' },
+  { id: 'studio', label: 'Studio', hint: 'Multi-track timeline, edits, and mix/export', key: '3' },
   { id: 'separate', label: 'Separate', hint: 'Stem separation jobs', key: '4' },
   { id: 'restore', label: 'Restore', hint: 'Enhancement and repair chains', key: '5' },
-  { id: 'transcribe', label: 'Transcribe', hint: 'MIDI / piano roll', key: '6' },
-  { id: 'mixer', label: 'Mixer', hint: 'Separation results and stem balance', key: '7' },
-  { id: 'learn', label: 'Learn', hint: 'Practice mode with loop and wait', key: '8', advanced: true },
+  { id: 'transcribe', label: 'Transcribe', hint: 'MIDI / piano roll / Practice', key: '6' },
+  { id: 'learn', label: 'Learn', hint: 'Practice with loop, wait mode, DAW MIDI', key: '8' },
   { id: 'preferences', label: 'Prefs', hint: 'Models, compute, themes, shortcuts', key: '9' },
-  { id: 'about', label: 'About', hint: 'Version, privacy, and local-only notes' },
+  { id: 'about', label: 'About', hint: 'Version, privacy, Studio shortcuts' },
 ]
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -28,16 +28,11 @@ export function AppShell({ children }: { children: ReactNode }) {
     jobLabel,
     requestCancel,
     clearSession,
-    workspaceMode,
-    setWorkspaceMode,
     engineStatus,
   } = useSession()
 
   const { dawConnected, status: dawStatus } = useDawBridge()
   const [sessionMsg, setSessionMsg] = useState('')
-
-  // DAW injectors unlock the full rail (all modes) even in Simple workspace.
-  const visible = MODULES.filter((m) => workspaceMode === 'advanced' || !m.advanced || dawConnected)
 
   const recording = Boolean(dawStatus?.instances?.some((i) => i.recording))
 
@@ -48,7 +43,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       const res = await saveSession({
         name,
         file_id: file?.fileId,
-        graph_config: { module, workspaceMode },
+        graph_config: { module },
       })
       setSessionMsg(`Saved session “${res.name}”`)
     } catch (err) {
@@ -69,10 +64,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       )
       if (!name) return
       const res = await openSession(name)
-      const cfg = (res.session?.graph_config || {}) as { module?: ModuleId; workspaceMode?: string }
-      if (cfg.workspaceMode === 'advanced' || cfg.workspaceMode === 'simple') {
-        setWorkspaceMode(cfg.workspaceMode)
-      }
+      const cfg = (res.session?.graph_config || {}) as { module?: ModuleId }
       if (cfg.module) setModule(cfg.module)
       setSessionMsg(`Opened session “${name}” (metadata restored; re-import source if needed).`)
     } catch (err) {
@@ -90,26 +82,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="rail-logo">Neiro</div>
           <div className="rail-tagline">local audio worksuite</div>
         </div>
-        <div className="mode-toggle" role="group" aria-label="Workspace mode">
-          <button
-            type="button"
-            className={workspaceMode === 'simple' ? 'active' : ''}
-            onClick={() => setWorkspaceMode('simple')}
-            title="Simple mode — planner decisions hidden behind defaults"
-          >
-            Simple
-          </button>
-          <button
-            type="button"
-            className={workspaceMode === 'advanced' ? 'active' : ''}
-            onClick={() => setWorkspaceMode('advanced')}
-            title="Advanced mode — inspect and override the planned graph"
-          >
-            Advanced
-          </button>
-        </div>
         <nav className="rail-nav">
-          {visible.map((m) => (
+          {MODULES.map((m) => (
             <button
               key={m.id}
               type="button"
@@ -196,6 +170,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           {children}
         </main>
       </div>
+      <JobTray />
     </div>
   )
 }

@@ -84,6 +84,33 @@ def test_out_of_range_selection_is_clamped():
     assert out.frames == a.frames
 
 
+def test_split_at_partitions_duration():
+    a = _audio(2.0)
+    left, right = ed.split_at(a, 0.75)
+    assert abs(left.duration_seconds - 0.75) < 1e-3
+    assert abs(right.duration_seconds - 1.25) < 1e-3
+
+
+def test_bounce_sums_layers_with_offset_and_gain():
+    a = _audio(1.0, amp=0.4)
+    b = _audio(1.0, amp=0.4)
+    out = ed.bounce([(a, 1.0, 0.0, 0.0), (b, 0.5, 0.0, 0.5)])
+    assert abs(out.duration_seconds - 1.5) < 1e-2
+    assert out.channels == 2
+    # Offset extends the timeline; overlap region still carries audible energy.
+    s, e = int(0.55 * SR), int(0.95 * SR)
+    assert float(np.max(np.abs(out.samples[:, s:e]))) > 0.2
+    # Tail after the first layer ends still has the delayed second layer.
+    tail = int(1.25 * SR)
+    assert float(np.max(np.abs(out.samples[:, tail : tail + 200]))) > 0.05
+
+
+def test_bounce_empty_is_short_silence():
+    out = ed.bounce([])
+    assert out.frames > 0
+    assert float(np.max(np.abs(out.samples))) == 0.0
+
+
 # ---- visualization ----------------------------------------------------------
 
 

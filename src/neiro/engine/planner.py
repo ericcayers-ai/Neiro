@@ -23,6 +23,7 @@ from neiro.nodes.audio_nodes import (
     CascadeHpssNode,
     CompileNode,
     EnhanceNode,
+    EnsembleComposeNode,
     GatherNode,
     IngestNode,
     LaneNode,
@@ -77,73 +78,41 @@ PRESETS: dict[str, dict[str, Any]] = {
         "quality": "reference",
         "prefer": [
             "vocals-neural-ensemble",
-            "bs-roformer-sw",
             "bs-roformer-1297",
-            "mel-roformer-kim-ft",
             "mel-roformer-inst",
-            "mdx23c-8kfft",
             "mdx23c-instvoc",
-            "kim-vocal-2",
             "dsp-center-ensemble",
         ],
     },
     "karaoke": {
         "stems": {"vocals", "instrumental"},
         "quality": "reference",
-        "prefer": ["mel-roformer-karaoke", "mdx-b-karaoke", "vr-karaoke", "dsp-center"],
+        "prefer": ["mel-roformer-karaoke", "dsp-center"],
     },
     "duet-vocals": {
-        # Residual node (on by default) supplies the accompaniment bed.
-        "stems": {"singer1", "singer2"},
+        "stems": {"singer1", "singer2", "instrumental"},
         "quality": "reference",
         "prefer": ["medley-vox", "mel-roformer-karaoke", "dsp-center"],
     },
     "4stem": {
         "stems": {"drums", "bass", "other", "vocals"},
         "quality": "standard",
-        # Installable backends first; SCNet-XL only wins when a user checkpoint is configured.
-        "prefer": ["scnet-xl", "scnet", "htdemucs-ft", "hdemucs-mmi", "demucs-direct"],
+        "prefer": ["scnet", "htdemucs-ft"],
     },
     "6stem": {
         "stems": {"drums", "bass", "other", "vocals", "guitar", "piano"},
         "quality": "standard",
-        "prefer": ["bs-roformer-sw", "htdemucs-6s"],
+        "prefer": ["htdemucs-6s"],
     },
     "drums": {
         "stems": {"kick", "snare", "toms", "hh", "ride", "crash"},
         "quality": "reference",
-        "prefer": ["larsnet", "mdx23c-drumsep", "dsp-drumkit"],
+        "prefer": ["mdx23c-drumsep", "dsp-drumkit"],
     },
     "drums-deep-dive": {
         "stems": {"kick", "snare", "toms", "hh", "drum_other", "bass", "vocals", "other"},
         "quality": "reference",
         "prefer": [],  # built by _plan_drums_deep_dive
-    },
-    # Targeted instrument family isolators (roadmap §5.1 guitar/keys/… nodes).
-    "bass": {
-        "stems": {"bass", "instrumental"},
-        "quality": "standard",
-        "prefer": ["kuielab-bass", "htdemucs-ft", "dsp-hpss"],
-    },
-    "guitar": {
-        "stems": {"guitar", "other", "vocals", "drums", "bass", "piano"},
-        "quality": "standard",
-        "prefer": ["htdemucs-6s"],
-    },
-    "piano": {
-        "stems": {"piano", "other", "vocals", "drums", "bass", "guitar"},
-        "quality": "standard",
-        "prefer": ["htdemucs-6s"],
-    },
-    "woodwinds": {
-        "stems": {"woodwinds", "no_woodwinds"},
-        "quality": "standard",
-        "prefer": ["wind-inst", "dsp-hpss"],
-    },
-    "crowd": {
-        "stems": {"no_crowd", "crowd"},
-        "quality": "reference",
-        "prefer": ["crowd-roformer", "crowd-mdx", "dsp-center"],
     },
     "detect-all": {
         "stems": {"vocals", "drums", "bass", "other"},
@@ -312,7 +281,7 @@ def _probe_duration_seconds(path: str | Path) -> float | None:
 # lossy-codec bandwidth ceiling is detected (roadmap §6.2). Never auto-
 # downloaded here — only used if already present, so a Simple-mode job never
 # silently triggers a multi-GB download; otherwise it's surfaced as a note.
-RESTORE_BEFORE_SEPARATION_PREFER = ["apollo", "sonicmaster", "audiosr", "voicefixer"]
+RESTORE_BEFORE_SEPARATION_PREFER = ["apollo", "sonicmaster", "audiosr"]
 
 
 def _maybe_prepend_restoration(
@@ -325,6 +294,7 @@ def _maybe_prepend_restoration(
     intermediate: dict[str, tuple[str, str]],
     *,
     enabled: bool,
+    corrections: Any = None,
 ) -> tuple[str, str]:
     """Analysis-driven pre-separation restore (roadmap §6.2, item 7).
 
@@ -336,7 +306,7 @@ def _maybe_prepend_restoration(
     if not enabled:
         return upstream
     try:
-        report = _quick_analysis(input_path, registry=registry)
+        report = _quick_analysis(input_path, corrections=corrections, registry=registry)
     except Exception:
         return upstream
     if report.bandwidth_hz is None or report.bandwidth_hz >= 16000:
@@ -489,35 +459,24 @@ def _plan_detect_all(
     with_residual: bool = True,
     bleed_suppress: bool = True,
     bleed_strength: float = 0.6,
+    corrections: Any = None,
 ) -> SeparationPlan:
     """Detect-all cascade (roadmap §5.5): separate every asserted instrument,
     in confidence order, via cascaded extract-subtract; residual last."""
     notes: list[str] = []
-    report = _quick_analysis(input_path, registry=registry)
+    report = _quick_analysis(input_path, corrections=corrections, registry=registry)
+    if _coerce_corrections(corrections) is not None:
+        notes.append("using Analysis corrections for instrument routing")
     asserted = [h["instrument"] for h in report.instruments if h["status"] == "asserted"]
-    # Broadband sources first (roadmap §5.5), then delicate extractions.
-    supported = ("drums", "bass", "vocals", "guitar", "electric guitar", "piano", "keys")
-    alias = {
-        "electric guitar": "guitar",
-        "acoustic guitar": "guitar",
-        "keys": "piano",
-        "keyboard": "piano",
-    }
-    order = []
-    for name in asserted:
-        if name in supported:
-            order.append(alias.get(name, name))
-    # Deduplicate while preserving confidence order.
-    order = list(dict.fromkeys(order))
+    order = [name for name in asserted if name in ("vocals", "drums", "bass")]
     if not order:
-        order = ["drums", "bass", "vocals"]
+        order = ["vocals", "drums", "bass"]
         notes.append(
-            "no confidently-asserted instruments; using the default drums/bass/vocals order"
+            "no confidently-asserted instruments; using the default vocals/drums/bass order"
         )
     else:
         notes.append("detect-all cascade order (by confidence): " + ", ".join(order))
-    known = set(supported) | set(alias.values())
-    skipped = [name for name in asserted if name not in known and alias.get(name) not in known]
+    skipped = [name for name in asserted if name not in ("vocals", "drums", "bass")]
     if skipped:
         notes.append(
             "no dedicated separator for " + ", ".join(skipped) + " — folded into the 'other' stem"
@@ -529,11 +488,7 @@ def _plan_detect_all(
     lane = ("lane", "audio")
 
     joint_entry, _ = _resolve(
-        registry,
-        ["scnet-xl", "scnet", "htdemucs-6s", "htdemucs-ft", "hdemucs-mmi"],
-        notes,
-        auto_download=auto_download,
-        progress=progress,
+        registry, ["scnet", "htdemucs-ft"], notes, auto_download=auto_download, progress=progress
     )
     if joint_entry is not None and joint_entry.downloaded():
         sep = _apply_quality_tier(joint_entry.instantiate(), quality, notes)
@@ -543,25 +498,12 @@ def _plan_detect_all(
         model_ids = [joint_entry.id]
         notes.append(f"using joint multi-stem model {joint_entry.id} instead of the DSP cascade")
     else:
-        step_kind = {
-            "vocals": "center",
-            "drums": "center",
-            "bass": "center",
-            "guitar": "center",
-            "piano": "center",
-        }
+        step_kind = {"vocals": "center", "drums": "hpss", "bass": "band"}
         step_params = {
             "vocals": {"prefer": PRESETS["vocals-best"]["prefer"]},
-            "drums": {"prefer": ["kuielab-drums", "mdx23c-drumsep"]},
-            "bass": {"prefer": ["kuielab-bass"], "cutoff_hz": 220.0},
-            "guitar": {"prefer": ["htdemucs-6s"]},
-            "piano": {"prefer": ["htdemucs-6s"]},
+            "drums": {},
+            "bass": {"cutoff_hz": 220.0},
         }
-        # Instruments without a neural prefer entry keep the DSP cascade kinds.
-        for name in order:
-            if name not in step_kind:
-                step_kind[name] = "hpss" if name in {"drums", "percussion"} else "center"
-                step_params.setdefault(name, {})
         steps = [(step_kind[name], name, step_params[name]) for name in order]
         stem_sources, model_ids = _build_extract_cascade(
             g,
@@ -661,11 +603,7 @@ def _plan_drums_deep_dive(
     lane = ("lane", "audio")
 
     joint_entry, _ = _resolve(
-        registry,
-        ["scnet-xl", "scnet", "htdemucs-ft", "hdemucs-mmi", "demucs-direct"],
-        notes,
-        auto_download=auto_download,
-        progress=progress,
+        registry, ["scnet", "htdemucs-ft"], notes, auto_download=auto_download, progress=progress
     )
     if joint_entry is not None and joint_entry.downloaded():
         stage1 = _apply_quality_tier(joint_entry.instantiate(), quality, notes)
@@ -683,7 +621,7 @@ def _plan_drums_deep_dive(
 
     kit_entry, _ = _resolve(
         registry,
-        ["larsnet", "mdx23c-drumsep", "dsp-drumkit"],
+        ["mdx23c-drumsep", "dsp-drumkit"],
         notes,
         auto_download=auto_download,
         progress=progress,
@@ -726,6 +664,7 @@ def plan_separation(
     bleed_suppress: bool = True,
     bleed_strength: float = 0.6,
     auto_restore: bool = True,
+    corrections: Any = None,
 ) -> SeparationPlan:
     """Plan a separation job.
 
@@ -738,6 +677,8 @@ def plan_separation(
     ``auto_restore`` lets a detected lossy-codec bandwidth ceiling
     auto-insert a restoration step before separation, but only using models
     already downloaded (never a surprise download, roadmap §6.2).
+    ``corrections`` is an optional Analysis overlay (instruments / key / BPM /
+    conditions) applied at plan time for routing.
 
     ``detect-all``, ``cinematic``, and ``drums-deep-dive`` are cascades built
     by their own dedicated planners; every other preset resolves to a single
@@ -757,6 +698,7 @@ def plan_separation(
             with_residual=with_residual,
             bleed_suppress=bleed_suppress,
             bleed_strength=bleed_strength,
+            corrections=corrections,
         )
     if preset == "cinematic":
         return _plan_cinematic(
@@ -812,7 +754,10 @@ def plan_separation(
         notes,
         intermediate,
         enabled=auto_restore,
+        corrections=corrections,
     )
+    if _coerce_corrections(corrections) is not None:
+        notes.append("using Analysis corrections for restore/routing hints")
     base_separator = getattr(separator, "inner", separator)
     g.add(LaneNode("lane", lane_source, base_separator.profile.sample_rate))
     g.add(SeparateNode("separate", ("lane", "audio"), separator, vram))
@@ -939,15 +884,43 @@ class TranscriptionPlan:
     notes: list[str] = field(default_factory=list)
 
 
-def _quick_analysis(input_path: str | Path, *, registry: Registry | None = None):
-    """Plan-time analysis: cheap enough to run while planning (roadmap §2.3)."""
+def _coerce_corrections(corrections: Any):
+    """Accept ``AnalysisCorrections``, a dict overlay, or ``None``."""
+    if corrections is None:
+        return None
+    from neiro.analysis import AnalysisCorrections
+
+    if isinstance(corrections, AnalysisCorrections):
+        return corrections if not corrections.is_empty() else None
+    if isinstance(corrections, dict):
+        corr = AnalysisCorrections.from_dict(corrections)
+        return corr if not corr.is_empty() else None
+    raise TypeError(f"corrections must be AnalysisCorrections or dict, got {type(corrections)!r}")
+
+
+def _quick_analysis(
+    input_path: str | Path,
+    corrections: Any = None,
+    *,
+    registry: Registry | None = None,
+):
+    """Plan-time analysis: cheap enough to run while planning (roadmap §2.3).
+
+    When ``corrections`` is provided (session overlay from Analysis Apply), the
+    returned report is the *effective* view used for routing — the on-disk
+    measurement is unchanged.
+    """
     from neiro.analysis import analyze
     from neiro.io import load_audio
 
-    return analyze(load_audio(input_path), registry=registry)
+    report = analyze(load_audio(input_path), registry=registry)
+    corr = _coerce_corrections(corrections)
+    if corr is not None:
+        return corr.apply(report)
+    return report
 
 
-# Transcription model preference: specialists > MT3 family > general polyphonic > DSP floor.
+# Transcription model preference: piano-specific > general polyphonic > DSP floor.
 TRANSCRIBE_PREFER = [
     "yourmt3",
     "multi-instrument",
@@ -956,6 +929,61 @@ TRANSCRIBE_PREFER = [
     "basic-pitch",
     "dsp-yin",
 ]
+ENSEMBLE_MODEL_ID = "tr-ensemble-default"
+
+
+def _ensemble_member_specs(
+    registry: Registry,
+    *,
+    model: str | None,
+    members: list[str] | list[dict] | None,
+    notes: list[str],
+) -> list[tuple[str, float]] | None:
+    """Resolve ensemble member (model_id, weight) pairs, or None for single-model path."""
+    specs: list[tuple[str, float]] = []
+    if members:
+        for item in members:
+            if isinstance(item, str):
+                specs.append((item, 1.0))
+            elif isinstance(item, dict) and item.get("model_id"):
+                specs.append((str(item["model_id"]), float(item.get("weight", 1.0))))
+    elif model == ENSEMBLE_MODEL_ID:
+        try:
+            entry = registry.get(ENSEMBLE_MODEL_ID)
+        except KeyError:
+            notes.append(f"{ENSEMBLE_MODEL_ID} manifest missing; falling back to single decoder")
+            return None
+        for item in entry.manifest.get("params", {}).get("members", []):
+            mid = item.get("model_id")
+            if mid:
+                specs.append((str(mid), float(item.get("weight", 1.0))))
+    else:
+        return None
+
+    resolved: list[tuple[str, float]] = []
+    for mid, weight in specs:
+        if mid in (ENSEMBLE_MODEL_ID, "whisper-lyrics"):
+            notes.append(f"ensemble: skipping non-MIDI member {mid}")
+            continue
+        try:
+            entry = registry.get(mid)
+        except KeyError:
+            notes.append(f"ensemble: unknown member {mid}, skipped")
+            continue
+        if not entry.available():
+            notes.append(f"ensemble: {mid} needs install, skipped")
+            continue
+        resolved.append((mid, weight))
+
+    if len(resolved) >= 2:
+        return resolved
+    if len(resolved) == 1:
+        notes.append(
+            f"ensemble: only {resolved[0][0]} available — running single-decoder path"
+        )
+        return None
+    notes.append("ensemble: no members available")
+    return None
 
 
 def plan_transcription(
@@ -967,8 +995,10 @@ def plan_transcription(
     quantize: bool = True,
     division: int = 4,
     model: str | None = None,
+    members: list[str] | list[dict] | None = None,
     auto_download: bool = True,
     progress=None,
+    corrections: Any = None,
 ) -> TranscriptionPlan:
     """Plan a transcription job.
 
@@ -979,12 +1009,47 @@ def plan_transcription(
       - ``auto``: choose — stereo material with side content gets the split
         path (centre extraction has something to work with); mono/effectively
         mono material is decoded directly.
+      - ``ensemble``: multi-decoder hybrid vote (also selected via
+        ``model=tr-ensemble-default`` or ``members=[...]`` with ≥2 installed).
 
     ``model`` forces a specific transcriber id; otherwise the best available
     from :data:`TRANSCRIBE_PREFER` (polyphonic neural models first) is used and
-    downloaded on demand.
+    downloaded on demand. ``members`` selects an explicit ensemble set.
     """
     notes: list[str] = []
+    ensemble_specs = _ensemble_member_specs(
+        registry, model=model, members=members, notes=notes
+    )
+    if mode == "ensemble" and ensemble_specs is None and not members and model != ENSEMBLE_MODEL_ID:
+        # Explicit ensemble mode without members → default manifest.
+        ensemble_specs = _ensemble_member_specs(
+            registry, model=ENSEMBLE_MODEL_ID, members=None, notes=notes
+        )
+
+    if ensemble_specs is not None:
+        if _coerce_corrections(corrections) is not None:
+            notes.append("using Analysis corrections for tempo/key at compile")
+        return _plan_ensemble_transcription(
+            input_path,
+            registry,
+            vram,
+            ensemble_specs,
+            notes=notes,
+            quantize=quantize,
+            division=division,
+            auto_download=auto_download,
+            progress=progress,
+        )
+
+    # If user asked for the ensemble model but only one member resolved, fall
+    # through to that member as a normal single-model plan.
+    if model == ENSEMBLE_MODEL_ID:
+        model = None
+        for line in notes:
+            if line.startswith("ensemble: only "):
+                model = line.split()[2]
+                break
+
     if model:
         entry = registry.get(model)
         if not entry.available():
@@ -1016,12 +1081,14 @@ def plan_transcription(
     if mode == "split":
         use_split = True
     elif mode == "auto":
-        report = _quick_analysis(input_path, registry=registry)
+        report = _quick_analysis(input_path, corrections=corrections, registry=registry)
         use_split = report.channels >= 2 and not report.is_effectively_mono
         if use_split:
             notes.append("auto-split: extracting the centre stem before transcription")
         else:
             notes.append("auto-split skipped: source is mono / effectively mono")
+    if _coerce_corrections(corrections) is not None:
+        notes.append("using Analysis corrections for tempo/key at compile")
 
     transcriber = entry.instantiate()
     lane_sr = transcriber.profile.sample_rate or 16000
@@ -1069,6 +1136,84 @@ def plan_transcription(
     )
 
 
+def _plan_ensemble_transcription(
+    input_path: str | Path,
+    registry: Registry,
+    vram: VRAMManager,
+    member_specs: list[tuple[str, float]],
+    *,
+    notes: list[str],
+    quantize: bool,
+    division: int,
+    auto_download: bool,
+    progress,
+) -> TranscriptionPlan:
+    """Multi-decoder ensemble: parallel TranscribeNodes → ensemble_merge → Timeline."""
+    g = Graph()
+    g.add(IngestNode("ingest", input_path))
+    g.add(AnalyzeNode("analyze", ("ingest", "audio")))
+
+    member_ports: dict[str, tuple[str, str]] = {}
+    model_ids: dict[str, str] = {}
+    weights: dict[str, float] = {}
+    transcribe_nodes: list[str] = []
+
+    for i, (mid, weight) in enumerate(member_specs):
+        entry = registry.get(mid)
+        if entry.needs_download and not entry.downloaded():
+            if auto_download:
+                notes.append(f"downloading {entry.id} weights (first use)")
+                entry.ensure_downloaded(progress=progress)
+            else:
+                notes.append(f"{entry.id} weights not downloaded; skipped from ensemble")
+                continue
+        transcriber = entry.instantiate()
+        lane_id, dec_id = f"ens_lane_{i}", f"ens_decode_{i}"
+        key = f"m{i}_{mid}"
+        g.add(
+            LaneNode(
+                lane_id,
+                ("ingest", "audio"),
+                transcriber.profile.sample_rate or 16000,
+                mono=True,
+            )
+        )
+        g.add(TranscribeNode(dec_id, (lane_id, "audio"), transcriber, vram))
+        member_ports[key] = (dec_id, "notes")
+        model_ids[key] = mid
+        weights[key] = weight
+        transcribe_nodes.append(dec_id)
+        notes.append(f"ensemble member {i + 1}/{len(member_specs)}: {mid} (weight {weight:g})")
+
+    if len(member_ports) < 2:
+        raise RuntimeError(
+            "ensemble transcription needs ≥2 installed members; "
+            "install decoder extras or pick installed models"
+        )
+
+    g.add(
+        EnsembleComposeNode(
+            "compose",
+            member_ports,
+            model_ids,
+            weights,
+            report=("analyze", "report"),
+            quantize=quantize,
+            division=division,
+        )
+    )
+    notes.append(f"ensemble hybrid vote across {len(member_ports)} members")
+
+    return TranscriptionPlan(
+        graph=g,
+        compile_node="compose",
+        transcribe_nodes=transcribe_nodes,
+        model_id=ENSEMBLE_MODEL_ID,
+        used_split=False,
+        notes=notes,
+    )
+
+
 @dataclass
 class EnhancementPlan:
     graph: Graph
@@ -1089,18 +1234,13 @@ ENHANCE_STEPS: dict[str, list[str]] = {
     "declip": ["dsp-declip"],
     "declick": ["dsp-declick"],
     "dehum": ["dsp-dehum"],
-    "denoise": ["denoise-roformer", "vr-denoise", "deepfilternet", "dsp-denoise"],
-    "dereverb": ["dereverb-roformer", "vr-dereverb"],
-    "deecho": ["vr-deecho", "dereverb-roformer"],
-    "debreath": ["aspiration-roformer", "dsp-vocal-repair"],
-    "bleed": ["bleed-suppressor"],
-    "crowd": ["crowd-roformer-enhance", "crowd-mdx-enhance"],
-    "vocal-repair": ["voicefixer", "aspiration-roformer", "dsp-vocal-repair"],
-    "restore": ["apollo", "sonicmaster", "voicefixer", "audiosr"],
+    "denoise": ["denoise-roformer", "deepfilternet", "dsp-denoise"],
+    "dereverb": ["dereverb-roformer"],
+    "vocal-repair": ["dsp-vocal-repair"],
+    "restore": ["apollo", "sonicmaster", "audiosr"],
     "superres": ["audiosr"],
     "apollo": ["apollo"],
     "sonicmaster": ["sonicmaster"],
-    "voicefixer": ["voicefixer"],
     "master": ["matchering"],
     "normalize": ["dsp-normalize"],
 }
@@ -1115,6 +1255,7 @@ def plan_enhancement(
     auto_download: bool = True,
     progress=None,
     reference_path: str | None = None,
+    corrections: Any = None,
 ) -> EnhancementPlan:
     """Plan a restoration job.
 
@@ -1122,7 +1263,8 @@ def plan_enhancement(
     conditions (roadmap §6.2): declip if clipping, dehum if mains hum, dereverb
     if reverb was detected. Explicit chains name steps from ``ENHANCE_STEPS``.
     Each step resolves to the best available model (neural preferred) and is
-    downloaded on demand.
+    downloaded on demand. ``corrections`` overlays Analysis user overrides onto
+    the plan-time report (e.g. corrected vocal conditions / bandwidth).
     """
     notes: list[str] = []
     steps: list[tuple[str, dict]] = []
@@ -1135,7 +1277,9 @@ def plan_enhancement(
         # but opt-in: detected conditions that a neural model would fix best are
         # surfaced as suggestions, and applied when the user asks for them
         # explicitly (an explicit --chain, or the UI's restore options).
-        report = _quick_analysis(input_path, registry=registry)
+        report = _quick_analysis(input_path, corrections=corrections, registry=registry)
+        if _coerce_corrections(corrections) is not None:
+            notes.append("using Analysis corrections for conditioning chain")
         if report.clipping_ratio > 0.0005:
             steps.append(("declip", {}))
             notes.append("clipping detected -> declip")
@@ -1147,8 +1291,35 @@ def plan_enhancement(
         # the auto chain depend on which models happen to be downloaded (i.e.
         # non-deterministic across machines) and could silently pull a large
         # model. They're surfaced as suggestions the user opts into instead.
-        if report.vocal_conditions.get("echo_delay_s"):
-            notes.append("reverb/echo detected — 'enhance --chain dereverb' for neural de-reverb")
+        vc = report.vocal_conditions
+        stem_echo = vc.get("stem_echo") if isinstance(vc.get("stem_echo"), dict) else {}
+        vocal_echo = None
+        drum_echo = None
+        if isinstance(stem_echo.get("vocals"), dict):
+            vocal_echo = stem_echo["vocals"].get("delay_s")
+        if isinstance(stem_echo.get("drums"), dict):
+            drum_echo = stem_echo["drums"].get("delay_s")
+        # Prefer stem-conditioned delays over mix-only when preview split ran.
+        preferred_echo = vocal_echo or drum_echo or vc.get("echo_delay_s")
+        if preferred_echo:
+            conf = vc.get("echo_confidence")
+            conf_txt = f" (confidence {conf:.0%})" if isinstance(conf, (int, float)) else ""
+            if vc.get("echo_based_on_preview_split") and (vocal_echo or drum_echo):
+                parts = []
+                if vocal_echo is not None:
+                    parts.append(f"vocals ~{float(vocal_echo) * 1000:.0f} ms")
+                if drum_echo is not None:
+                    parts.append(f"drums ~{float(drum_echo) * 1000:.0f} ms")
+                notes.append(
+                    "stem-conditioned echo/delay on preview split ("
+                    + ", ".join(parts)
+                    + f"){conf_txt} — 'enhance --chain dereverb' for neural de-reverb"
+                )
+            else:
+                notes.append(
+                    f"reverb/echo detected ~{float(preferred_echo) * 1000:.0f} ms{conf_txt}"
+                    " — 'enhance --chain dereverb' for neural de-reverb"
+                )
         if report.bandwidth_hz and report.bandwidth_hz < 16000:
             notes.append(
                 "limited bandwidth — 'enhance --chain restore' (Apollo/SonicMaster) or "

@@ -1,6 +1,5 @@
-import { useEffect } from 'react'
 import { startSeparate } from '../api/client'
-import { useJobPoller, useLocalPref } from '../api/hooks'
+import { useLocalPref } from '../api/hooks'
 import type { SeparateResult } from '../api/types'
 import { IntentField } from '../components/IntentField'
 import { JobProgress } from '../components/JobProgress'
@@ -12,42 +11,40 @@ import './modules.css'
 export function SeparateModule() {
   const {
     file,
-    setModule,
+    openStudioMix,
     setSeparateResult,
-    setJobRunning,
-    setJobLabel,
-    registerCancel,
-    workspaceMode,
+    startEngineJob,
+    jobForKind,
+    cancelSessionJob,
+    analysisCorrections,
   } = useSession()
   const [preset, setPreset] = useLocalPref('neiro.sep.preset', 'vocals')
   const [tier, setTier] = useLocalPref('neiro.sep.tier', 'standard')
   const [bleed, setBleed] = useLocalPref('neiro.sep.bleed', 'auto')
-  const job = useJobPoller()
+  const job = jobForKind('separate')
+  const running = job?.status === 'running'
   const selected = SEPARATE_PRESETS.find((p) => p.value === preset) || SEPARATE_PRESETS[0]
   const selectedTier = QUALITY_TIERS.find((t) => t.value === tier) || QUALITY_TIERS[1]
-
-  useEffect(() => {
-    setJobRunning(job.running)
-    setJobLabel(job.running ? `Separate · ${preset} · ${tier}` : null)
-    registerCancel(job.running ? () => void job.cancel() : null)
-    return () => {
-      registerCancel(null)
-      setJobRunning(false)
-      setJobLabel(null)
-    }
-  }, [job.running, job.cancel, preset, tier, registerCancel, setJobRunning, setJobLabel])
+  const hasCorrections = Boolean(
+    analysisCorrections && Object.keys(analysisCorrections.overrides || {}).length,
+  )
 
   const run = async () => {
     if (!file) return
-    const done = await job.start('separate', () =>
-      startSeparate(file.fileId, preset, {
-        quality: tier,
-        bleed_suppress: bleed,
-      }),
-    )
+    const done = await startEngineJob({
+      kind: 'separate',
+      label: `Separate · ${preset} · ${tier}`,
+      module: 'separate',
+      startFn: () =>
+        startSeparate(file.fileId, preset, {
+          quality: tier,
+          bleed_suppress: bleed,
+          corrections: analysisCorrections,
+        }),
+    })
     if (done?.status === 'done' && done.result) {
       setSeparateResult(done.result as SeparateResult)
-      setModule('mixer')
+      openStudioMix()
     }
   }
 
@@ -64,7 +61,10 @@ export function SeparateModule() {
     <div className="module-panel">
       <h2>Separate</h2>
       <p className="lede">
-        Stemify <strong>{file.name}</strong> with the local planner. Results open in Mixer.
+        Run a stem separation job on <strong>{file.name}</strong>. Results open in Studio Mix.
+        {hasCorrections
+          ? ' Applied Analysis corrections will influence detect-all routing and restore hints.'
+          : ''}
       </p>
 
       <div className="row">
@@ -72,7 +72,7 @@ export function SeparateModule() {
           <select
             id="sep-preset"
             value={preset}
-            disabled={job.running}
+            disabled={running}
             onChange={(e) => setPreset(e.target.value)}
           >
             {SEPARATE_PRESETS.map((p) => (
@@ -86,7 +86,7 @@ export function SeparateModule() {
           <select
             id="sep-tier"
             value={tier}
-            disabled={job.running}
+            disabled={running}
             onChange={(e) => setTier(e.target.value)}
           >
             {QUALITY_TIERS.map((t) => (
@@ -99,7 +99,7 @@ export function SeparateModule() {
         <button
           type="button"
           className="primary"
-          disabled={job.running}
+          disabled={running}
           onClick={() => void run()}
           title="Start separation"
         >
@@ -107,42 +107,52 @@ export function SeparateModule() {
         </button>
       </div>
 
-      {workspaceMode === 'advanced' && (
-        <>
-          <div className="row" style={{ marginTop: 10 }}>
-            <IntentField
-              label="Bleed suppression"
-              intent="Post-pass rival-stem leakage control. Sent to the engine with the job."
-              htmlFor="sep-bleed"
-            >
-              <select
-                id="sep-bleed"
-                value={bleed}
-                disabled={job.running}
-                onChange={(e) => setBleed(e.target.value)}
-              >
-                <option value="auto">Auto (on)</option>
-                <option value="on">On</option>
-                <option value="off">Off</option>
-              </select>
-            </IntentField>
-          </div>
-          <PlanStrip
-            kind="separate"
-            fileId={file.fileId}
-            preset={preset}
-            quality={tier}
-            bleed={bleed}
-          />
-        </>
-      )}
+      <div className="row" style={{ marginTop: '0.7rem' }}>
+        <IntentField
+          label="Bleed suppression"
+          intent="Post-pass rival-stem leakage control. Off in Draft unless forced."
+          htmlFor="sep-bleed"
+        >
+          <select
+            id="sep-bleed"
+            value={bleed}
+            disabled={running}
+            onChange={(e) => setBleed(e.target.value)}
+          >
+            <option value="auto">Auto (tier policy)</option>
+            <option value="on">On</option>
+            <option value="off">Off</option>
+          </select>
+        </IntentField>
+      </div>
 
-      <span className="intent" style={{ marginTop: 8 }}>
+      <PlanStrip
+        kind="separate"
+        fileId={file.fileId}
+        preset={preset}
+        quality={tier}
+        bleed={bleed}
+      />
+
+      <div className="option-detail" aria-live="polite">
+        <div className="option-detail-title">{selected.label}</div>
+        <p>{selected.detail}</p>
+        <div className="option-detail-title" style={{ marginTop: '0.65rem' }}>
+          {selectedTier.label} tier
+        </div>
+        <p>{selectedTier.detail}</p>
+      </div>
+
+      <span className="intent" style={{ marginTop: '0.55rem' }}>
         Separate starts the planner for this preset. Progress lists real pipeline stages — cancel
-        stops work on this machine.
+        stops work on this machine. Jobs keep running if you switch modules.
       </span>
 
-      <JobProgress status={job.status} error={job.error} onCancel={() => void job.cancel()} />
+      <JobProgress
+        status={job}
+        error={job?.error}
+        onCancel={job?.status === 'running' ? () => void cancelSessionJob(job.id) : undefined}
+      />
     </div>
   )
 }

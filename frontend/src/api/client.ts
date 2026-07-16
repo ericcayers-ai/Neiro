@@ -1,9 +1,11 @@
 import type {
+  AnalysisCorrectionsPayload,
   EditResponse,
   EnhanceResult,
   HealthResponse,
   JobStatus,
   MidiEvent,
+  PrefsResponse,
   SeparateResult,
   SpectrogramData,
   TranscribeResult,
@@ -51,7 +53,11 @@ export async function ingestUrl(url: string): Promise<UploadResponse> {
 export async function startSeparate(
   fileId: string,
   preset: string,
-  opts?: { quality?: string; bleed_suppress?: boolean | string },
+  opts?: {
+    quality?: string
+    bleed_suppress?: boolean | string
+    corrections?: AnalysisCorrectionsPayload | null
+  },
 ): Promise<{ job_id: string }> {
   const res = await fetch('/api/separate', {
     method: 'POST',
@@ -61,6 +67,7 @@ export async function startSeparate(
       preset,
       quality: opts?.quality,
       bleed_suppress: opts?.bleed_suppress,
+      corrections: opts?.corrections || undefined,
     }),
   })
   return readJson(res)
@@ -148,23 +155,60 @@ export async function startTranscribe(
   fileId: string,
   mode: string,
   model?: string,
+  opts?: {
+    members?: string[]
+    ensemble?: boolean
+    corrections?: AnalysisCorrectionsPayload | null
+  },
 ): Promise<{ job_id: string }> {
   const res = await fetch('/api/transcribe', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ file_id: fileId, mode, model }),
+    body: JSON.stringify({
+      file_id: fileId,
+      mode,
+      model: model || undefined,
+      members: opts?.members,
+      ensemble: opts?.ensemble,
+      corrections: opts?.corrections || undefined,
+    }),
   })
   return readJson(res)
+}
+
+export interface ModelStatus {
+  id: string
+  task: string
+  display_name: string
+  quality_class: string
+  available: boolean
+  downloaded: boolean
+  needs_download: boolean
+  status: 'ready' | 'needs-install' | 'needs-download' | string
+  requires: string[]
+  license_spdx: string
+}
+
+export async function fetchModels(task?: string): Promise<ModelStatus[]> {
+  const q = task ? `?task=${encodeURIComponent(task)}` : ''
+  const res = await fetch(`/api/models${q}`, { cache: 'no-store' })
+  const data = await readJson<{ models: ModelStatus[] }>(res)
+  return data.models
 }
 
 export async function startEnhance(
   fileId: string,
   chain: string,
+  corrections?: AnalysisCorrectionsPayload | null,
 ): Promise<{ job_id: string }> {
   const res = await fetch('/api/enhance', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ file_id: fileId, chain }),
+    body: JSON.stringify({
+      file_id: fileId,
+      chain,
+      corrections: corrections || undefined,
+    }),
   })
   return readJson(res)
 }
@@ -180,6 +224,32 @@ export async function cancelJob(jobId: string): Promise<void> {
     const data = (await res.json().catch(() => ({}))) as { error?: string }
     throw new Error(data.error || res.statusText)
   }
+}
+
+export async function fetchPrefs(): Promise<PrefsResponse> {
+  const res = await fetch('/api/prefs', { cache: 'no-store' })
+  return readJson(res)
+}
+
+export async function updatePrefs(body: {
+  cache_budget_gb?: number
+  warm_pool_ttl_s?: number
+}): Promise<PrefsResponse> {
+  const res = await fetch('/api/prefs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  return readJson(res)
+}
+
+export async function flushPrefs(clearCache = false): Promise<PrefsResponse> {
+  const res = await fetch('/api/prefs/flush', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ clear_cache: clearCache }),
+  })
+  return readJson(res)
 }
 
 export async function fetchWaveform(
@@ -214,14 +284,26 @@ export type EditOp =
   | 'gain'
   | 'reverse'
   | 'normalize'
+  | 'split'
+  | 'bounce'
+  | 'combine'
+
+export interface BounceTrack {
+  file_id: string
+  gain?: number
+  pan?: number
+  offset?: number
+}
 
 export async function applyEdit(body: {
-  file_id: string
+  file_id?: string
   op: EditOp
   start?: number
   end?: number
+  at?: number
   db?: number
   target_dbfs?: number
+  tracks?: BounceTrack[]
 }): Promise<EditResponse> {
   const res = await fetch('/api/edit', {
     method: 'POST',
@@ -229,6 +311,10 @@ export async function applyEdit(body: {
     body: JSON.stringify(body),
   })
   return readJson(res)
+}
+
+export async function bounceTracks(tracks: BounceTrack[]): Promise<EditResponse> {
+  return applyEdit({ op: 'bounce', tracks })
 }
 
 export function exportUrl(fileId: string, format: 'wav16' | 'wav24' | 'flac'): string {

@@ -146,7 +146,7 @@ prerequisite.
 
 A single-page app (`AppShell` + a module rail) that talks to the engine's local
 HTTP API — `neiro.ui.server` — over `fetch`, never anything else. Ten modules
-(Import, Analysis, Studio, Separate, Restore, Transcribe, Mixer, Learn,
+(Import, Analysis, Studio, Separate, Restore, Transcribe, Prefs, About, Learn,
 Preferences, About) share one `SessionProvider` (`frontend/src/state/session.tsx`)
 holding the current file, analysis report, and per-module job results, so
 switching modules never re-fetches or loses state. Built with Vite; `npm --prefix

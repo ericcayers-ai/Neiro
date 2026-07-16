@@ -13,6 +13,7 @@ budget so the rest of the engine behaves identically on machines without a GPU.
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 from typing import Literal
 
@@ -87,6 +88,9 @@ class VRAMManager:
         }
         self._resident: dict[str, Reservation] = {}
         self._lru: list[str] = []
+        # How long idle residents may stay warm between jobs (prefs /api/prefs).
+        self.warm_pool_ttl_s: float = 300.0
+        self._touched_at: dict[str, float] = {}
 
     @property
     def has_accelerator(self) -> bool:
@@ -171,6 +175,29 @@ class VRAMManager:
         self._free[(res.device.kind, res.device.index)] += res.gb
         if model_id in self._lru:
             self._lru.remove(model_id)
+        self._touched_at.pop(model_id, None)
+
+    def flush(self) -> list[str]:
+        """Release every resident model. Returns the ids that were flushed."""
+        flushed = list(self._resident)
+        for model_id in flushed:
+            self.release(model_id)
+        return flushed
+
+    def evict_expired(self) -> list[str]:
+        """Drop residents idle longer than ``warm_pool_ttl_s`` (0 = never auto-evict)."""
+        ttl = self.warm_pool_ttl_s
+        if ttl <= 0:
+            return []
+        now = time.monotonic()
+        expired = [
+            mid
+            for mid, touched in list(self._touched_at.items())
+            if mid in self._resident and (now - touched) >= ttl
+        ]
+        for mid in expired:
+            self.release(mid)
+        return expired
 
     def resident_models(self) -> list[str]:
         return list(self._lru)
@@ -182,6 +209,7 @@ class VRAMManager:
         if model_id in self._lru:
             self._lru.remove(model_id)
         self._lru.append(model_id)
+        self._touched_at[model_id] = time.monotonic()
 
     def _evict_until(self, device: Device, need_gb: float, log: list[str]) -> None:
         key = (device.kind, device.index)

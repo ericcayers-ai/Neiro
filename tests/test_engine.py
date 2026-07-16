@@ -91,6 +91,36 @@ def test_graph_partial_execution_only_runs_ancestors():
     assert "x" in out and "sum" not in out
 
 
+def test_graph_reports_dag_level_fraction():
+    """Overall fraction advances across nodes (not stuck at each node's local 1.0)."""
+    events = []
+
+    class _Reporting(Node):
+        def __init__(self, node_id, deps=None):
+            super().__init__(node_id, inputs=deps or {})
+
+        def run(self, ctx, inputs):
+            ctx.report(self.node_id, "work", 0.5, "halfway")
+            return {"out": AudioTensor(np.zeros((1, 4), dtype=np.float32), 8000)}
+
+    g = Graph()
+    g.add(_Reporting("a"))
+    g.add(_Reporting("b", {"x": ("a", "out")}))
+    g.add(_Reporting("c", {"x": ("b", "out")}))
+    ctx = ExecutionContext(
+        cache=ArtifactCache(),
+        progress=lambda p: events.append((p.node_id, p.stage, p.fraction)),
+    )
+    g.execute(ctx)
+    # Three nodes → mid-work on first is ~0.5/3; done on last is 1.0.
+    mid_a = [f for nid, stage, f in events if nid == "a" and stage == "work"]
+    assert mid_a and abs(mid_a[0] - (0 + 0.5) / 3) < 1e-6
+    done_fracs = [f for _n, stage, f in events if stage == "done"]
+    assert done_fracs
+    assert abs(done_fracs[-1] - 1.0) < 1e-6
+    assert any(abs(f - 1.0 / 3) < 1e-6 for f in done_fracs)
+
+
 # --- vram ------------------------------------------------------------------
 
 
@@ -122,3 +152,17 @@ def test_vram_cpu_only_always_admits():
     m = _cpu_only()
     r = m.reserve("x", fp32_gb=99.0)
     assert r.reservation.device.kind == "cpu"
+
+
+def test_vram_flush_and_ttl_eviction():
+    m = _cpu_only()
+    m.reserve("keep-me", fp32_gb=1.0)
+    m.warm_pool_ttl_s = 0.01
+    m._touched_at["keep-me"] = 0.0  # long ago
+    assert m.evict_expired() == ["keep-me"]
+    assert m.resident_models() == []
+
+    m.reserve("a", fp32_gb=1.0)
+    m.reserve("b", fp32_gb=1.0)
+    assert set(m.flush()) == {"a", "b"}
+    assert m.resident_models() == []

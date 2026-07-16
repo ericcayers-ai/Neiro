@@ -146,10 +146,24 @@ class Graph:
 
         results: dict[str, dict[str, Artifact]] = {}
         key_by_node: dict[str, str] = {}
+        total = len(order)
+        user_progress = ctx.progress
 
-        for node in order:
+        for i, node in enumerate(order):
             if ctx.cancelled:
                 raise CancelledError(f"cancelled before {node.node_id}")
+
+            # Map each node's local 0..1 fraction into the DAG span so job
+            # progress / ETA advance across the whole plan, not only within
+            # the currently running node (and not only on "done").
+            def _dag_progress(prog: Progress, _i: int = i, _n: int = total) -> None:
+                if user_progress is None:
+                    return
+                local = max(0.0, min(1.0, prog.fraction))
+                overall = (_i + local) / _n if _n else 1.0
+                user_progress(Progress(prog.node_id, prog.stage, overall, prog.message))
+
+            ctx.progress = _dag_progress
 
             resolved: dict[str, Artifact] = {}
             input_keys: list[str] = []
@@ -163,6 +177,7 @@ class Graph:
 
             hit_before = ctx.cache.hits
             start = time.perf_counter()
+            ctx.report(node.node_id, "start", 0.0, f"starting {node.node_id}")
 
             def _compute(node=node, resolved=resolved) -> dict[str, Artifact]:
                 return node.run(ctx, resolved)
@@ -178,6 +193,7 @@ class Graph:
                 f"{'cached' if from_cache else 'computed'} in {elapsed * 1000:.0f} ms",
             )
 
+        ctx.progress = user_progress
         return results
 
     def _ancestors(self, targets: list[str]) -> set[str]:

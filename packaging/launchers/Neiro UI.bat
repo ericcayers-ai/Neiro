@@ -25,6 +25,7 @@ if exist "%CD%\neiro-desktop\Neiro.exe" (
 )
 
 set "VENV_PY=%CD%\.venv\Scripts\python.exe"
+set "VENV_PYW=%CD%\.venv\Scripts\pythonw.exe"
 
 where python >nul 2>nul
 if errorlevel 1 (
@@ -63,5 +64,10 @@ if errorlevel 1 (
 )
 
 echo Starting Neiro interface (a browser tab will open)...
+REM Prefer pythonw so the UI process does not keep an empty console window open.
+if exist "%VENV_PYW%" (
+  start "" "%VENV_PYW%" -m neiro.cli ui
+  exit /b 0
+)
 "%VENV_PY%" -m neiro.cli ui
 if errorlevel 1 pause

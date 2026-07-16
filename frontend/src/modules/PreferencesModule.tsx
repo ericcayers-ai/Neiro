@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { flushCompute } from '../api/client'
+import { fetchPrefs, flushPrefs, updatePrefs } from '../api/client'
 import { useLocalPref } from '../api/hooks'
 import { IntentField } from '../components/IntentField'
 import './modules.css'
@@ -12,7 +12,8 @@ export function PreferencesModule() {
   const [cacheBudget, setCacheBudget] = useLocalPref('neiro.pref.cacheBudgetGb', '20')
   const [warmPoolTtl, setWarmPoolTtl] = useLocalPref('neiro.pref.warmPoolTtl', '300')
   const [status, setStatus] = useState('')
-  const [flushing, setFlushing] = useState(false)
+  const [engineBusy, setEngineBusy] = useState(false)
+  const [residents, setResidents] = useState<string[]>([])
 
   useEffect(() => {
     const root = document.documentElement
@@ -24,20 +25,60 @@ export function PreferencesModule() {
     else delete root.dataset.reducedMotion
   }, [theme, density, fontScale, reducedMotion])
 
-  const onFlush = async () => {
-    setFlushing(true)
+  useEffect(() => {
+    let alive = true
+    void fetchPrefs()
+      .then((p) => {
+        if (!alive) return
+        setCacheBudget(String(p.cache_budget_gb))
+        setWarmPoolTtl(String(p.warm_pool_ttl_s))
+        setResidents(p.resident_models || [])
+      })
+      .catch(() => {
+        /* engine may be down during first paint */
+      })
+    return () => {
+      alive = false
+    }
+  }, [setCacheBudget, setWarmPoolTtl])
+
+  const syncCompute = async () => {
+    setEngineBusy(true)
+    setStatus('Saving compute prefs…')
     try {
-      const res = await flushCompute()
-      const n = res.flushed?.length ?? 0
+      const p = await updatePrefs({
+        cache_budget_gb: Number(cacheBudget),
+        warm_pool_ttl_s: Number(warmPoolTtl),
+      })
+      setResidents(p.resident_models || [])
       setStatus(
-        n
-          ? `Flushed ${n} resident model${n === 1 ? '' : 's'} from the warm pool.`
-          : 'Warm pool already empty — nothing to flush.',
+        `Engine prefs applied — cache budget ${p.cache_budget_gb} GB, warm-pool TTL ${p.warm_pool_ttl_s}s.`,
       )
     } catch (err) {
-      setStatus(err instanceof Error ? err.message : String(err))
+      setStatus(`Couldn't update engine prefs: ${err instanceof Error ? err.message : err}`)
     } finally {
-      setFlushing(false)
+      setEngineBusy(false)
+    }
+  }
+
+  const onFlush = async (clearCache = false) => {
+    setEngineBusy(true)
+    setStatus(clearCache ? 'Flushing warm pool and clearing cache…' : 'Flushing warm pool…')
+    try {
+      const p = await flushPrefs(clearCache)
+      setResidents(p.resident_models || [])
+      const n = p.flushed_models?.length ?? 0
+      const parts = [
+        n
+          ? `Flushed ${n} resident model${n === 1 ? '' : 's'}`
+          : 'Warm pool was already empty',
+      ]
+      if (p.cache_cleared) parts.push('artifact cache cleared')
+      setStatus(`${parts.join('; ')}.`)
+    } catch (err) {
+      setStatus(`Couldn't flush warm pool: ${err instanceof Error ? err.message : err}`)
+    } finally {
+      setEngineBusy(false)
     }
   }
 
@@ -45,8 +86,8 @@ export function PreferencesModule() {
     <div className="module-panel">
       <h2>Preferences</h2>
       <p className="lede">
-        Compute, storage, themes, and accessibility. Interface choices persist in this browser
-        profile; warm-pool flush talks to the local engine.
+        Compute, storage, audio defaults, themes, and accessibility. Interface choices persist in
+        this browser profile; cache and warm-pool settings sync to the local engine.
       </p>
 
       <h3>Interface</h3>
@@ -66,7 +107,7 @@ export function PreferencesModule() {
         </IntentField>
         <IntentField
           label="Font scale"
-          intent="Independent of OS zoom; supports up to 200%."
+          intent="Independent of OS zoom; supports up to 200%. Scales rem-based UI."
           htmlFor="font-scale"
         >
           <select id="font-scale" value={fontScale} onChange={(e) => setFontScale(e.target.value)}>
@@ -107,12 +148,14 @@ export function PreferencesModule() {
             min={1}
             max={500}
             value={cacheBudget}
+            disabled={engineBusy}
             onChange={(e) => setCacheBudget(e.target.value)}
+            onBlur={() => void syncCompute()}
           />
         </IntentField>
         <IntentField
           label="Warm-pool TTL (s)"
-          intent="Preferred idle residency hint stored locally; Flush releases residents now."
+          intent="How long models stay resident between jobs. 0 disables auto-eviction."
           htmlFor="warm-ttl"
         >
           <input
@@ -121,19 +164,35 @@ export function PreferencesModule() {
             min={0}
             max={3600}
             value={warmPoolTtl}
+            disabled={engineBusy}
             onChange={(e) => setWarmPoolTtl(e.target.value)}
+            onBlur={() => void syncCompute()}
           />
         </IntentField>
-        <button type="button" disabled={flushing} onClick={() => void onFlush()}>
-          {flushing ? 'Flushing…' : 'Flush warm pool'}
+        <button type="button" disabled={engineBusy} onClick={() => void syncCompute()}>
+          Apply to engine
+        </button>
+        <button type="button" disabled={engineBusy} onClick={() => void onFlush(false)}>
+          Flush warm pool
+        </button>
+        <button type="button" disabled={engineBusy} onClick={() => void onFlush(true)}>
+          Flush + clear cache
         </button>
       </div>
+      <p className="muted" style={{ marginTop: '0.75rem' }}>
+        Resident models:{' '}
+        {residents.length > 0 ? residents.join(', ') : 'none (warm pool empty)'}
+      </p>
+      <p className="faint" style={{ marginTop: '0.35rem', fontSize: '0.85rem' }}>
+        Watch-folder batching is CLI-only:{' '}
+        <code>neiro watch ./inbox --out ./done --job separate</code>. DAWproject zip export is
+        available from the engine API/tests path — not a Prefs toggle.
+      </p>
 
       <h3>Privacy</h3>
       <p className="muted">
         No network access except model downloads and app updates, both user-initiated. No telemetry
-        by default. Custom Python plugins under <span className="mono">~/.neiro/plugins</span> require
-        an explicit grant.
+        by default.
       </p>
 
       {status && (

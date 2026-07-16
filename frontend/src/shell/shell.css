@@ -9,38 +9,30 @@
     var(--bg0);
 }
 
+:root[data-theme='light'] .shell {
+  background:
+    radial-gradient(1200px 600px at 0% 0%, #d5dde8 0%, transparent 55%),
+    radial-gradient(900px 500px at 100% 100%, #c8d0dc 0%, transparent 50%),
+    var(--bg0);
+}
+
 .skip-link {
   position: absolute;
   left: -9999px;
   top: 0;
   z-index: 100;
-  padding: 8px 12px;
+  padding: 0.55rem 0.85rem;
   background: var(--accent-hot);
   color: var(--bg0);
 }
 .skip-link:focus {
-  left: 8px;
-  top: 8px;
-}
-
-.mode-toggle {
-  display: flex;
-  gap: 4px;
-  padding: 0 8px;
-}
-.mode-toggle button {
-  flex: 1;
-  font-size: 12px;
-  padding: 5px 8px;
-}
-.mode-toggle button.active {
-  border-color: var(--accent-hot);
-  color: var(--accent-hot);
+  left: 0.55rem;
+  top: 0.55rem;
 }
 
 .job-pill.danger {
-  color: #f07178;
-  border-color: #f07178;
+  color: var(--danger);
+  border-color: var(--danger);
 }
 
 .job-pill.recording {
@@ -65,32 +57,33 @@
   flex-direction: column;
   background: color-mix(in srgb, var(--bg1) 92%, transparent);
   border-right: 1px solid var(--line);
-  padding: 20px 14px 16px;
-  gap: 18px;
+  padding: 1.25rem 0.9rem 1rem;
+  gap: 1.15rem;
   min-height: 100%;
 }
 
 .rail-brand {
-  padding: 4px 8px 8px;
+  padding: 0.3rem 0.55rem 0.55rem;
 }
 
 .rail-logo {
-  font-size: 28px;
+  font-size: 2rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   line-height: 1.1;
+  color: var(--text);
 }
 
 .rail-tagline {
-  margin-top: 4px;
-  font-size: 12px;
+  margin-top: 0.3rem;
+  font-size: 0.85rem;
   color: var(--faint);
 }
 
 .rail-nav {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 0.15rem;
   flex: 1;
 }
 
@@ -99,17 +92,18 @@
   flex-direction: column;
   align-items: flex-start;
   text-align: left;
-  gap: 2px;
+  gap: 0.15rem;
   width: 100%;
-  padding: 10px 10px;
+  padding: 0.7rem 0.7rem;
   background: transparent;
   border: 1px solid transparent;
   border-radius: var(--radius);
+  color: var(--text);
 }
 
 .rail-item .intent {
   margin: 0;
-  font-size: 11px;
+  font-size: 0.8rem;
 }
 
 .rail-item:hover {
@@ -128,14 +122,14 @@
 
 .rail-label {
   font-weight: 600;
-  font-size: 14px;
+  font-size: 1rem;
 }
 
 .rail-foot {
-  font-size: 11px;
+  font-size: 0.8rem;
   color: var(--faint);
   line-height: 1.4;
-  padding: 8px;
+  padding: 0.55rem;
   border-top: 1px solid var(--line);
 }
 
@@ -154,8 +148,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 0 20px;
+  gap: 1rem;
+  padding: 0 1.25rem;
   background: color-mix(in srgb, var(--bg0) 88%, transparent);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--line);
@@ -164,7 +158,7 @@
 .session-file {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 0.7rem;
   align-items: baseline;
   min-width: 0;
 }
@@ -175,19 +169,20 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 40vw;
+  color: var(--text);
 }
 
 .session-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.55rem;
   flex: none;
 }
 
 .job-pill {
   font-family: var(--mono);
-  font-size: 12px;
-  padding: 4px 10px;
+  font-size: 0.85rem;
+  padding: 0.3rem 0.7rem;
   border: 1px solid var(--line);
   border-radius: 999px;
   color: var(--accent-hot);
@@ -196,7 +191,7 @@
 
 .content {
   flex: 1;
-  padding: 24px 28px 48px;
+  padding: 1.5rem 1.75rem 3rem;
   min-width: 0;
   overflow: auto;
 }
@@ -209,6 +204,142 @@
   max-width: none;
 }
 
+.job-tray {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 40;
+  width: min(22rem, calc(100vw - 2rem));
+  max-height: min(50vh, 24rem);
+  overflow: auto;
+  background: color-mix(in srgb, var(--bg1) 94%, transparent);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 0.5rem 1.5rem color-mix(in srgb, var(--bg0) 55%, transparent);
+  padding: 0.7rem 0.75rem;
+}
+
+.job-tray-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.55rem;
+  color: var(--text);
+}
+
+.job-tray-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.job-tray-item {
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.job-tray-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.job-tray-row {
+  display: flex;
+  gap: 0.4rem;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.job-tray-jump {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 0.15rem 0;
+  color: var(--text);
+}
+
+.job-tray-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.job-tray-actions {
+  display: flex;
+  gap: 0.25rem;
+  flex: none;
+}
+
+.job-tray-actions button {
+  padding: 0.25rem 0.45rem;
+  font-size: 0.8rem;
+}
+
+.job-tray-log {
+  margin: 0.4rem 0 0;
+  padding: 0.45rem;
+  max-height: 7rem;
+  overflow: auto;
+  background: var(--bg0);
+  border-radius: var(--radius);
+  font-size: 0.8rem;
+  color: var(--muted);
+  white-space: pre-wrap;
+}
+
+.job-bar {
+  margin-top: 0.55rem;
+  height: 0.4rem;
+  background: var(--bg3);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.job-bar.thin {
+  height: 0.25rem;
+  margin-top: 0.35rem;
+}
+
+.job-bar-fill {
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  border-radius: inherit;
+  transition: width 0.2s ease-out;
+}
+
+.job-bar.indeterminate .job-bar-fill {
+  width: 35%;
+  animation: job-indeterminate 1.1s ease-in-out infinite;
+}
+
+.job-bar-pct {
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+}
+
+@keyframes job-indeterminate {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+:root[data-reduced-motion='true'] .job-bar.indeterminate .job-bar-fill {
+  animation: none;
+  width: 50%;
+  opacity: 0.7;
+}
+
 @media (max-width: 860px) {
   .shell {
     grid-template-columns: 1fr;
@@ -216,18 +347,22 @@
   .rail {
     border-right: none;
     border-bottom: 1px solid var(--line);
-    padding-bottom: 10px;
+    padding-bottom: 0.7rem;
   }
   .rail-nav {
     flex-direction: row;
     flex-wrap: wrap;
-    gap: 4px;
+    gap: 0.3rem;
   }
   .rail-item {
     width: auto;
-    max-width: 160px;
+    max-width: 10rem;
   }
   .rail-foot {
     display: none;
+  }
+  .job-tray {
+    right: 0.5rem;
+    bottom: 0.5rem;
   }
 }

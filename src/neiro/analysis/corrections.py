@@ -75,11 +75,21 @@ class AnalysisCorrections:
         """Return a *new* report reflecting the corrections; ``report`` is untouched."""
         if not self.overrides:
             return report
+        overrides = dict(self.overrides)
+        # JSON round-trips turn tuples into lists; coerce back for frozen reports.
+        if isinstance(overrides.get("instruments"), list):
+            overrides["instruments"] = tuple(overrides["instruments"])
+        if isinstance(overrides.get("sections"), list):
+            overrides["sections"] = tuple(overrides["sections"])
+        if isinstance(overrides.get("chords"), list):
+            overrides["chords"] = tuple(overrides["chords"])
+        if isinstance(overrides.get("downbeats"), list):
+            overrides["downbeats"] = tuple(overrides["downbeats"])
         correction_notes = tuple(
             f"corrected: {name}" + (f" ({self.reasons[name]})" if name in self.reasons else "")
-            for name in self.overrides
+            for name in overrides
         )
-        return replace(report, **self.overrides, notes=tuple(report.notes) + correction_notes)
+        return replace(report, **overrides, notes=tuple(report.notes) + correction_notes)
 
     def as_dict(self) -> dict[str, Any]:
         return {"overrides": dict(self.overrides), "reasons": dict(self.reasons)}

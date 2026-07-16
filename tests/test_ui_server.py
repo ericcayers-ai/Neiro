@@ -93,6 +93,18 @@ def test_health_and_version_contract(server):
     assert ver["version"] == health["version"]
 
 
+def test_models_transcribe_status(server):
+    base, _ = server
+    payload = json.loads(_get(base + "/api/models?task=transcribe")[1])
+    assert "models" in payload
+    ids = {m["id"] for m in payload["models"]}
+    assert "dsp-yin" in ids
+    assert "tr-ensemble-default" in ids
+    yin = next(m for m in payload["models"] if m["id"] == "dsp-yin")
+    assert yin["status"] == "ready"
+    assert yin["available"] is True
+
+
 def test_index_served(server):
     base, _ = server
     status, body = _get(base + "/")
@@ -181,6 +193,12 @@ def test_transcription_job(server):
     assert status["status"] == "done"
     assert status["result"]["event_count"] >= 1
     assert status["result"]["midi_url"].endswith(".mid")
+    assert status["result"]["musicxml_url"].endswith(".musicxml")
+    assert status["result"]["provenance_url"].endswith(".meta.json")
+    code, body = _get(base + status["result"]["musicxml_url"])
+    assert code == 200 and b"score-partwise" in body
+    code, meta = _get(base + status["result"]["provenance_url"])
+    assert code == 200 and b"model_id" in meta
 
 
 def test_unknown_file_id_rejected(server):
@@ -277,3 +295,110 @@ def test_edit_unknown_op_rejected(server):
             {"Content-Type": "application/json"},
         )
     assert exc.value.code == 400
+
+
+def test_edit_bounce_combines_tracks(server):
+    base, _ = server
+    a = _upload(base, _tone_wav_bytes(seconds=1.0, freq=220.0))["file_id"]
+    b = _upload(base, _tone_wav_bytes(seconds=1.0, freq=440.0))["file_id"]
+    res = _post(
+        base + "/api/edit",
+        json.dumps(
+            {
+                "op": "bounce",
+                "tracks": [
+                    {"file_id": a, "gain": 1.0, "pan": -0.5, "offset": 0.0},
+                    {"file_id": b, "gain": 0.8, "pan": 0.5, "offset": 0.25},
+                ],
+            }
+        ).encode(),
+        {"Content-Type": "application/json"},
+    )
+    assert res["op"] == "bounce"
+    assert res["file_id"] not in (a, b)
+    assert res["duration"] >= 1.2
+    code, body = _get(base + res["audio_url"])
+    assert code == 200 and body[:4] == b"RIFF"
+
+
+def test_edit_split_returns_left_and_right(server):
+    base, _ = server
+    fid = _upload(base, _tone_wav_bytes(seconds=2.0))["file_id"]
+    res = _post(
+        base + "/api/edit",
+        json.dumps({"file_id": fid, "op": "split", "at": 0.8}).encode(),
+        {"Content-Type": "application/json"},
+    )
+    assert res["op"] == "split"
+    assert "left" in res and "right" in res
+    assert abs(res["left"]["duration"] - 0.8) < 0.05
+    assert abs(res["right"]["duration"] - 1.2) < 0.05
+
+
+def test_prefs_get_update_and_flush(server):
+    base, state = server
+    prefs = json.loads(_get(base + "/api/prefs")[1])
+    assert prefs["cache_budget_gb"] == 20.0
+    assert prefs["warm_pool_ttl_s"] == 300.0
+    assert "resident_models" in prefs
+
+    updated = _post(
+        base + "/api/prefs",
+        json.dumps({"cache_budget_gb": 8, "warm_pool_ttl_s": 60}).encode(),
+        {"Content-Type": "application/json"},
+    )
+    assert updated["cache_budget_gb"] == 8.0
+    assert updated["warm_pool_ttl_s"] == 60.0
+    assert state.cache.disk_budget_bytes == 8_000_000_000
+    assert state.vram.warm_pool_ttl_s == 60.0
+
+    # Seed a fake resident so flush has something to report.
+    from neiro.engine.vram import Device, Reservation
+
+    cpu = next(d for d in state.vram.devices if d.kind == "cpu")
+    state.vram._resident["test-model"] = Reservation("test-model", cpu, "fp32", 0.1, 1.0)
+    state.vram._lru.append("test-model")
+    state.vram._touched_at["test-model"] = 0.0
+    state.vram._free[(cpu.kind, cpu.index)] -= 0.1
+
+    flushed = _post(
+        base + "/api/prefs/flush",
+        json.dumps({"clear_cache": True}).encode(),
+        {"Content-Type": "application/json"},
+    )
+    assert "test-model" in flushed["flushed_models"]
+    assert flushed["cache_cleared"] is True
+    assert flushed["resident_models"] == []
+
+
+def test_job_progress_includes_structured_fields(server):
+    base, _ = server
+    fid = _upload(base)["file_id"]
+    job = _post(
+        base + "/api/separate",
+        json.dumps({"file_id": fid, "preset": "vocals"}).encode(),
+        {"Content-Type": "application/json"},
+    )
+    # First poll should expose the structured progress contract even while running.
+    status = json.loads(_get(base + "/api/job/" + job["job_id"])[1])
+    assert "progress" in status
+    assert "stage" in status
+    assert "fraction" in status
+    assert "eta_s" in status
+    assert "progress_events" in status
+    # Wait for completion and confirm lines remain backward-compatible strings.
+    for _ in range(100):
+        status = json.loads(_get(base + "/api/job/" + job["job_id"])[1])
+        if status["status"] in ("done", "error"):
+            break
+        time.sleep(0.1)
+    assert status["status"] == "done"
+    assert status["progress"]
+    assert all(isinstance(line, str) for line in status["progress"])
+    assert isinstance(status.get("fraction"), (int, float))
+    assert status["fraction"] >= 0.99  # DAG wrap finishes at 1.0
+    if status.get("progress_events"):
+        ev = status["progress_events"][-1]
+        assert "stage" in ev and "fraction" in ev and "line" in ev
+        fracs = [e["fraction"] for e in status["progress_events"] if e.get("fraction") is not None]
+        assert fracs == sorted(fracs) or max(fracs) >= 0.99  # overall progress advances

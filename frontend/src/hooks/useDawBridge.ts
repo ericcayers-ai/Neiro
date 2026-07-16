@@ -28,7 +28,7 @@ function asModule(id: string | undefined | null, fallback: ModuleId): ModuleId {
 export function useDawBridge(opts?: {
   onMidiNoteOn?: (pitch: number, velocity: number, instanceId: string) => void
 }) {
-  const { setModule, setWorkspaceMode, setFile } = useSession()
+  const { setModule, setFile } = useSession()
   const [status, setStatus] = useState<DawStatus | null>(null)
   const focusSeqRef = useRef(0)
   const midiSeqRef = useRef(0)
@@ -45,7 +45,6 @@ export function useDawBridge(opts?: {
         setStatus(next)
         if (next.focus_seq > focusSeqRef.current) {
           focusSeqRef.current = next.focus_seq
-          setWorkspaceMode('advanced')
           setModule(asModule(next.focus_module, 'learn'))
           try {
             window.focus()
@@ -56,7 +55,6 @@ export function useDawBridge(opts?: {
         if ((next.capture_seq || 0) > captureSeqRef.current && next.last_capture) {
           captureSeqRef.current = next.capture_seq || 0
           const cap = next.last_capture
-          setWorkspaceMode('advanced')
           setFile({
             fileId: cap.file_id,
             name: cap.name,
@@ -80,7 +78,7 @@ export function useDawBridge(opts?: {
       cancelled = true
       window.clearInterval(id)
     }
-  }, [setModule, setWorkspaceMode, setFile])
+  }, [setModule, setFile])
 
   useEffect(() => {
     if (!status?.connected) return

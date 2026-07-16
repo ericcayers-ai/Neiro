@@ -1,73 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { cancelJob, getJob } from './client'
-import type { JobKind, JobStatus } from './types'
+import { useCallback, useState } from 'react'
 
-export function useJobPoller() {
-  const [jobId, setJobId] = useState<string | null>(null)
-  const [status, setStatus] = useState<JobStatus | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const stopRef = useRef(false)
-
-  const reset = useCallback(() => {
-    stopRef.current = true
-    setJobId(null)
-    setStatus(null)
-    setError(null)
-  }, [])
-
-  const start = useCallback(async (kind: JobKind, startFn: () => Promise<{ job_id: string }>) => {
-    stopRef.current = false
-    setError(null)
-    setStatus({ status: 'running', kind, progress: ['queued…'] })
-    try {
-      const { job_id } = await startFn()
-      if (stopRef.current) return null
-      setJobId(job_id)
-      for (;;) {
-        if (stopRef.current) return null
-        const job = await getJob(job_id)
-        setStatus(job)
-        if (job.status === 'done' || job.status === 'error' || job.status === 'cancelled') {
-          if (job.status === 'error') setError(job.error || 'Job failed')
-          if (job.status === 'cancelled') setError('Cancelled.')
-          setJobId(null)
-          return job
-        }
-        await new Promise((r) => setTimeout(r, 400))
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      setError(msg)
-      setJobId(null)
-      setStatus(null)
-      return null
-    }
-  }, [])
-
-  const cancel = useCallback(async () => {
-    if (!jobId) return
-    try {
-      await cancelJob(jobId)
-    } catch {
-      /* best effort */
-    }
-  }, [jobId])
-
-  useEffect(() => () => {
-    stopRef.current = true
-  }, [])
-
-  return {
-    jobId,
-    status,
-    error,
-    running: status?.status === 'running',
-    start,
-    cancel,
-    reset,
-  }
-}
-
+/** Local UI preference persisted in localStorage (theme, density, etc.). */
 export function useLocalPref(key: string, fallback: string): [string, (v: string) => void] {
   const [value, setValue] = useState(() => {
     try {
@@ -84,6 +17,34 @@ export function useLocalPref(key: string, fallback: string): [string, (v: string
       } catch {
         /* ignore */
       }
+    },
+    [key],
+  )
+  return [value, set]
+}
+
+/** JSON-backed local preference (arrays/objects). */
+export function useLocalJsonPref<T>(key: string, fallback: T): [T, (v: T | ((prev: T) => T)) => void] {
+  const [value, setValue] = useState<T>(() => {
+    try {
+      const raw = localStorage.getItem(key)
+      if (raw == null) return fallback
+      return JSON.parse(raw) as T
+    } catch {
+      return fallback
+    }
+  })
+  const set = useCallback(
+    (v: T | ((prev: T) => T)) => {
+      setValue((prev) => {
+        const next = typeof v === 'function' ? (v as (p: T) => T)(prev) : v
+        try {
+          localStorage.setItem(key, JSON.stringify(next))
+        } catch {
+          /* ignore */
+        }
+        return next
+      })
     },
     [key],
   )

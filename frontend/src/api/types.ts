@@ -10,8 +10,6 @@ export type ModuleId =
   | 'preferences'
   | 'about'
 
-export type WorkspaceMode = 'simple' | 'advanced'
-
 export interface HealthResponse {
   status: 'ok'
   version: string
@@ -26,7 +24,32 @@ export interface VersionResponse {
 
 export interface InstrumentHint {
   instrument: string
+  confidence?: number
   status: 'asserted' | 'tentative' | string
+}
+
+export interface StemEchoHit {
+  delay_s: number
+  confidence: number
+}
+
+export interface VocalConditions {
+  stereo_correlation?: number
+  hum_hz?: number
+  hum_prominence_db?: number
+  echo_delay_s?: number
+  echo_confidence?: number
+  echo_source?: string
+  echo_based_on_preview_split?: boolean
+  stem_echo?: Record<string, StemEchoHit>
+  rt60_s?: number
+  [key: string]: unknown
+}
+
+/** Sparse overlay matching backend ``AnalysisCorrections`` (overrides + reasons). */
+export interface AnalysisCorrectionsPayload {
+  overrides: Record<string, unknown>
+  reasons: Record<string, string>
 }
 
 export interface AnalysisReport {
@@ -40,6 +63,7 @@ export interface AnalysisReport {
   estimated_key?: string | null
   bandwidth_hz?: number | null
   instruments?: InstrumentHint[]
+  vocal_conditions?: VocalConditions
   notes?: string[]
 }
 
@@ -66,13 +90,22 @@ export interface SpectrogramData {
   data: number[]
 }
 
+export interface EditSplitHalf {
+  file_id: string
+  audio_url: string
+  duration: number
+}
+
 export interface EditResponse {
   file_id: string
   parent: string
+  parents?: string[]
   op: string
   audio_url: string
   duration: number
   waveform: WaveformData
+  left?: EditSplitHalf
+  right?: EditSplitHalf
 }
 
 export interface StemFile {
@@ -105,6 +138,11 @@ export interface TranscribeResult {
   tempo_bpm: number
   event_count: number
   midi_url: string
+  musicxml_url?: string
+  provenance_url?: string
+  score_svg_url?: string
+  score_pdf_url?: string
+  score_renderer?: string
   tracks: Record<string, MidiEvent[]>
   job_id?: string
   svg_url?: string
@@ -117,14 +155,39 @@ export interface EnhanceResult {
   file_id?: string
 }
 
-export type JobKind = 'separate' | 'transcribe' | 'enhance'
+export type JobKind = 'separate' | 'transcribe' | 'enhance' | 'import'
+
+export interface ProgressEvent {
+  stage: string
+  fraction: number
+  eta_s: number | null
+  line: string
+  node_id?: string
+  message?: string
+}
 
 export interface JobStatus {
   status: 'running' | 'done' | 'error' | 'cancelled'
   kind: JobKind
   progress: string[]
+  progress_events?: ProgressEvent[]
+  stage?: string | null
+  fraction?: number | null
+  eta_s?: number | null
   result?: SeparateResult | TranscribeResult | EnhanceResult
   error?: string
+}
+
+export interface PrefsResponse {
+  cache_budget_gb: number
+  warm_pool_ttl_s: number
+  cache_entries: number
+  cache_hits: number
+  cache_misses: number
+  cache_disk_usage_bytes: number
+  resident_models: string[]
+  flushed_models?: string[]
+  cache_cleared?: boolean
 }
 
 export interface ExportFormat {

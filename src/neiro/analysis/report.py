@@ -181,11 +181,14 @@ def _hum_detect(samples: np.ndarray, sample_rate: int) -> tuple[float | None, fl
     return None, best[1]
 
 
-def _echo_detect(samples: np.ndarray, sample_rate: int) -> float | None:
+def _echo_detect(
+    samples: np.ndarray, sample_rate: int
+) -> tuple[float, float] | None:
     """Detect a discrete delay/echo via autocorrelation of the RMS envelope.
 
-    Returns the delay in seconds, or None. Requires a fluctuating envelope —
-    steady material can't carry echo evidence.
+    Returns ``(delay_seconds, confidence)`` or None. Confidence is the
+    normalized autocorrelation peak in ``[0, 1]``. Requires a fluctuating
+    envelope — steady material can't carry echo evidence.
     """
     mono = samples.mean(axis=0)
     frame = max(1, sample_rate // 100)  # ~10 ms envelope resolution
@@ -206,9 +209,80 @@ def _echo_detect(samples: np.ndarray, sample_rate: int) -> float | None:
     # Earliest strong local maximum wins: an echo's delay is shorter than the
     # phrase/beat periodicity that also shows up in envelope autocorrelation.
     for k in range(lo + 1, hi - 1):
-        if corr[k] > 0.35 and corr[k] >= corr[k - 1] and corr[k] >= corr[k + 1]:
-            return float(k / fps)
+        peak = float(corr[k])
+        if peak > 0.35 and corr[k] >= corr[k - 1] and corr[k] >= corr[k + 1]:
+            return float(k / fps), float(min(1.0, peak))
     return None
+
+
+def _draft_preview_stems(
+    samples: np.ndarray, sample_rate: int
+) -> dict[str, np.ndarray] | None:
+    """DSP-fast vocals/drums proxies for stem-conditioned condition detection.
+
+    Uses centre-extract (vocals) and HPSS percussive (drums). Returns None when
+    the clip is too short for a meaningful preview split.
+    """
+    if samples.shape[1] < sample_rate:  # need ≥1 s
+        return None
+    try:
+        from neiro.dsp.separation import center_extract, harmonic_percussive
+    except Exception:
+        return None
+    try:
+        vocals, _ = center_extract(samples, sample_rate)
+        _, drums = harmonic_percussive(samples, sample_rate)
+    except Exception:
+        return None
+    return {"vocals": vocals, "drums": drums}
+
+
+def _stem_echo_conditions(
+    samples: np.ndarray, sample_rate: int
+) -> dict[str, Any]:
+    """Run echo/delay detection on the mix and optional draft vocal/drum stems.
+
+    Prefers stem-conditioned delays when the preview split succeeds. Always
+    includes mix-level detection as a fallback.
+    """
+    out: dict[str, Any] = {}
+    mix_hit = _echo_detect(samples, sample_rate)
+    if mix_hit is not None:
+        delay_s, conf = mix_hit
+        out["echo_delay_s"] = round(delay_s, 3)
+        out["echo_confidence"] = round(conf, 3)
+        out["echo_source"] = "mix"
+
+    stems = _draft_preview_stems(samples, sample_rate)
+    if stems is None:
+        return out
+
+    stem_echo: dict[str, Any] = {}
+    best_stem: tuple[str, float, float] | None = None  # name, delay, conf
+    for name, stem in stems.items():
+        hit = _echo_detect(stem, sample_rate)
+        if hit is None:
+            continue
+        delay_s, conf = hit
+        stem_echo[name] = {
+            "delay_s": round(delay_s, 3),
+            "confidence": round(conf, 3),
+        }
+        if best_stem is None or conf > best_stem[2]:
+            best_stem = (name, delay_s, conf)
+
+    if not stem_echo:
+        return out
+
+    out["stem_echo"] = stem_echo
+    out["echo_based_on_preview_split"] = True
+    # Prefer the strongest stem-conditioned peak over the mix measurement.
+    if best_stem is not None:
+        name, delay_s, conf = best_stem
+        out["echo_delay_s"] = round(delay_s, 3)
+        out["echo_confidence"] = round(conf, 3)
+        out["echo_source"] = f"preview_split_{name}"
+    return out
 
 
 def _band_energy(samples: np.ndarray, sample_rate: int, lo: float, hi: float) -> float:
@@ -480,16 +554,26 @@ def analyze(audio: AudioTensor, *, registry: Any | None = None) -> AnalysisRepor
     hum_hz, hum_db = _hum_detect(samples, sr)
     if hum_hz is not None:
         notes.append(f"mains hum at {hum_hz:.0f} Hz ({hum_db:.0f} dB above local floor)")
-    echo_s = _echo_detect(samples, sr)
-    if echo_s is not None:
-        notes.append(f"discrete echo/delay around {echo_s * 1000:.0f} ms")
 
-    conditions = {"stereo_correlation": round(corr, 4)}
+    echo_conditions = _stem_echo_conditions(samples, sr)
+    echo_s = echo_conditions.get("echo_delay_s")
+    if echo_s is not None:
+        conf = echo_conditions.get("echo_confidence")
+        conf_txt = f", confidence {conf:.0%}" if isinstance(conf, (int, float)) else ""
+        source = echo_conditions.get("echo_source", "mix")
+        if echo_conditions.get("echo_based_on_preview_split"):
+            notes.append(
+                f"discrete echo/delay around {float(echo_s) * 1000:.0f} ms"
+                f"{conf_txt} (based on preview split · {source})"
+            )
+        else:
+            notes.append(f"discrete echo/delay around {float(echo_s) * 1000:.0f} ms{conf_txt}")
+
+    conditions: dict[str, Any] = {"stereo_correlation": round(corr, 4)}
     if hum_hz is not None:
         conditions["hum_hz"] = hum_hz
         conditions["hum_prominence_db"] = round(hum_db, 1)
-    if echo_s is not None:
-        conditions["echo_delay_s"] = round(echo_s, 3)
+    conditions.update(echo_conditions)
 
     instruments = _detect_instruments(samples, sr)
     tagger_capability = "dsp-instrument-hints"

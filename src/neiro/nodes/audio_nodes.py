@@ -33,6 +33,7 @@ __all__ = [
     "CascadeBandNode",
     "LyricsNode",
     "OrchestrateComposeNode",
+    "EnsembleComposeNode",
 ]
 
 
@@ -80,7 +81,20 @@ class AnalyzeNode(Node):
         audio = inputs["audio"]
         assert isinstance(audio, AudioTensor)
         ctx.report(self.node_id, "analyze", 0.5, "measuring tempo, key, loudness")
-        return {"report": run_analysis(audio)}
+        report = run_analysis(audio)
+        corr_data = ctx.extras.get("analysis_corrections")
+        if corr_data:
+            from neiro.analysis import AnalysisCorrections
+
+            corr = (
+                corr_data
+                if isinstance(corr_data, AnalysisCorrections)
+                else AnalysisCorrections.from_dict(corr_data)
+            )
+            if not corr.is_empty():
+                report = corr.apply(report)
+                ctx.report(self.node_id, "analyze", 0.9, "applied user corrections")
+        return {"report": report}
 
 
 class SeparateNode(Node):
@@ -595,5 +609,80 @@ class OrchestrateComposeNode(Node):
             bpm = float(report.estimated_bpm)
         timeline = compile_timeline(
             named, bpm=bpm, quantize=self.quantize, division=self.division, strength=self.strength
+        )
+        return {"timeline": timeline}
+
+
+class EnsembleComposeNode(Node):
+    """Fuse ≥2 mix/specialist NoteStreams via :func:`ensemble_merge`, then compile.
+
+    Used by the ``tr-ensemble-default`` / multi-select ensemble transcription path.
+    Each input port is a member key; progress was already reported per
+    :class:`TranscribeNode` member.
+    """
+
+    def __init__(
+        self,
+        node_id: str,
+        member_streams: dict[str, tuple[str, str]],
+        model_ids: dict[str, str],
+        weights: dict[str, float],
+        *,
+        report: tuple[str, str] | None = None,
+        quantize: bool = True,
+        division: int = 4,
+        strength: float = 1.0,
+        track_name: str = "ensemble",
+    ):
+        inputs: dict[str, tuple[str, str]] = dict(member_streams)
+        if report is not None:
+            inputs["__report__"] = report
+        super().__init__(node_id, inputs=inputs)
+        self.model_ids = dict(model_ids)
+        self.weights = dict(weights)
+        self.quantize = quantize
+        self.division = division
+        self.strength = strength
+        self.track_name = track_name
+
+    def config_repr(self) -> str:
+        return (
+            f"EnsembleCompose(models={sorted(self.model_ids.items())},"
+            f"weights={sorted(self.weights.items())},q={self.quantize})"
+        )
+
+    def run(self, ctx: ExecutionContext, inputs: dict[str, Artifact]) -> dict[str, Artifact]:
+        from neiro.symbolic import compile_timeline
+        from neiro.symbolic.orchestrate import compensate_latency, ensemble_merge, tag_provenance
+        from neiro.symbolic.router import latency_for
+
+        ordered = sorted(k for k in inputs if k != "__report__")
+        streams = []
+        weight_list: list[float] = []
+        for key in ordered:
+            model_id = self.model_ids.get(key, key)
+            stream = compensate_latency(inputs[key], latency_for(model_id))
+            stream = tag_provenance(stream, model_id)
+            streams.append(stream)
+            weight_list.append(float(self.weights.get(key, 1.0)))
+            ctx.report(
+                self.node_id,
+                "ensemble",
+                0.4 + 0.4 * (len(streams) / max(1, len(ordered))),
+                f"member ready: {model_id}",
+            )
+
+        ctx.report(self.node_id, "ensemble", 0.85, f"voting across {len(streams)} members")
+        merged = ensemble_merge(streams, weights=weight_list)
+        report = inputs.get("__report__")
+        bpm = None
+        if report is not None and getattr(report, "estimated_bpm", None):
+            bpm = float(report.estimated_bpm)
+        timeline = compile_timeline(
+            {self.track_name: merged},
+            bpm=bpm,
+            quantize=self.quantize,
+            division=self.division,
+            strength=self.strength,
         )
         return {"timeline": timeline}

@@ -15,7 +15,7 @@ body {
   background: var(--bg0);
   color: var(--text);
   font-family: var(--font);
-  font-size: 14px;
+  font-size: 1rem;
   line-height: 1.45;
   font-feature-settings: 'tnum' 1;
   -webkit-font-smoothing: antialiased;
@@ -33,7 +33,7 @@ button {
   background: var(--bg2);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 7px 12px;
+  padding: 0.5rem 0.85rem;
   cursor: pointer;
   transition: border-color var(--ease), background var(--ease), color var(--ease);
 }
@@ -70,11 +70,12 @@ select:focus-visible,
 input[type='text'],
 input[type='url'],
 input[type='search'],
+input[type='number'],
 select {
   background: var(--bg2);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 7px 10px;
+  padding: 0.5rem 0.7rem;
 }
 
 a {
@@ -121,8 +122,8 @@ a:hover {
 
 .intent {
   display: block;
-  margin-top: 4px;
-  font-size: 12px;
+  margin-top: 0.3rem;
+  font-size: 0.85rem;
   color: var(--faint);
   line-height: 1.35;
   max-width: 36rem;
@@ -131,12 +132,12 @@ a:hover {
 .field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0.3rem;
   min-width: 0;
 }
 
 .field > label {
-  font-size: 12px;
+  font-size: 0.85rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -146,7 +147,7 @@ a:hover {
 .row {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 0.7rem;
   align-items: flex-end;
 }
 
@@ -158,11 +159,17 @@ h3 {
 }
 
 h2 {
-  font-size: 13px;
+  font-size: 0.95rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
-  margin-bottom: 12px;
+  margin-bottom: 0.85rem;
+}
+
+h3 {
+  font-size: 0.9rem;
+  margin: 1.25rem 0 0.75rem;
+  color: var(--text);
 }
 
 @media (prefers-reduced-motion: reduce) {

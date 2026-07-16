@@ -1,17 +1,27 @@
 import { useCallback, useRef, useState } from 'react'
 import { ingestUrl, uploadFile } from '../api/client'
-import { useSession } from '../state/session'
+import { JobProgress } from '../components/JobProgress'
 import { IntentField } from '../components/IntentField'
+import { useSession } from '../state/session'
 import './modules.css'
 
 export function ImportModule() {
-  const { setFile, setModule, setSeparateResult, setTranscribeResult, setEnhanceResult } =
-    useSession()
+  const {
+    setFile,
+    setModule,
+    setSeparateResult,
+    setTranscribeResult,
+    setEnhanceResult,
+    startLocalJob,
+    jobForKind,
+    cancelSessionJob,
+  } = useSession()
   const inputRef = useRef<HTMLInputElement>(null)
   const [url, setUrl] = useState('')
-  const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('Drop an audio file, browse, or paste a URL')
   const [over, setOver] = useState(false)
+  const job = jobForKind('import')
+  const busy = job?.status === 'running'
 
   const accept = useCallback(
     async (data: Awaited<ReturnType<typeof uploadFile>>) => {
@@ -31,30 +41,44 @@ export function ImportModule() {
   )
 
   const onFile = async (file: File) => {
-    setBusy(true)
     setMsg(`Reading ${file.name} …`)
-    try {
-      const data = await uploadFile(file)
-      await accept(data)
-    } catch (err) {
-      setMsg(`Couldn't read that file: ${err instanceof Error ? err.message : err}`)
-    } finally {
-      setBusy(false)
+    const result = await startLocalJob({
+      kind: 'import',
+      label: `Import · ${file.name}`,
+      module: 'import',
+      run: async (report) => {
+        report('upload', 0.15, `Uploading ${file.name}`)
+        const data = await uploadFile(file)
+        report('decode', 0.55, 'Decode complete')
+        report('analyze', 0.9, 'Analysis ready')
+        await accept(data)
+        report('done', 1, `${data.name} loaded`)
+      },
+    })
+    if (!result.ok) {
+      setMsg(`Couldn't read that file: ${result.error}`)
     }
   }
 
   const onFetch = async () => {
     const trimmed = url.trim()
     if (!trimmed) return
-    setBusy(true)
     setMsg('Fetching URL …')
-    try {
-      const data = await ingestUrl(trimmed)
-      await accept(data)
-    } catch (err) {
-      setMsg(`Couldn't fetch URL: ${err instanceof Error ? err.message : err}`)
-    } finally {
-      setBusy(false)
+    const result = await startLocalJob({
+      kind: 'import',
+      label: 'Import · URL',
+      module: 'import',
+      run: async (report) => {
+        report('fetch', 0.2, 'Fetching URL')
+        const data = await ingestUrl(trimmed)
+        report('decode', 0.6, 'Decode complete')
+        report('analyze', 0.9, 'Analysis ready')
+        await accept(data)
+        report('done', 1, `${data.name} loaded`)
+      },
+    })
+    if (!result.ok) {
+      setMsg(`Couldn't fetch URL: ${result.error}`)
     }
   }
 
@@ -91,7 +115,7 @@ export function ImportModule() {
         }}
       >
         <div className="drop-title">{busy ? 'Working…' : 'Drop audio here'}</div>
-        <div className="intent" style={{ marginTop: 8 }}>
+        <div className="intent" style={{ marginTop: '0.55rem' }}>
           WAV, FLAC, OGG directly; MP3/M4A/video via ffmpeg when available.
         </div>
         <input
@@ -106,7 +130,7 @@ export function ImportModule() {
         />
       </div>
 
-      <div className="row" style={{ marginTop: 16 }}>
+      <div className="row" style={{ marginTop: '1rem' }}>
         <button
           type="button"
           className="primary"
@@ -121,7 +145,7 @@ export function ImportModule() {
         </span>
       </div>
 
-      <div className="row" style={{ marginTop: 20 }}>
+      <div className="row" style={{ marginTop: '1.25rem' }}>
         <IntentField
           label="URL"
           intent="Fetch with yt-dlp when installed. Cached under the local Neiro home directory."
@@ -134,7 +158,7 @@ export function ImportModule() {
               value={url}
               disabled={busy}
               placeholder="https://…"
-              style={{ flex: 1, minWidth: 200 }}
+              style={{ flex: 1, minWidth: '12rem' }}
               onChange={(e) => setUrl(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
@@ -150,7 +174,19 @@ export function ImportModule() {
         </IntentField>
       </div>
 
-      <p className={`status-line${msg.startsWith("Couldn't") ? ' error-text' : ' muted'}`}>{msg}</p>
+      <JobProgress
+        status={job}
+        error={job?.error}
+        onCancel={job?.status === 'running' ? () => void cancelSessionJob(job.id) : undefined}
+      />
+
+      <p
+        className={`status-line${
+          msg.startsWith("Couldn't") || job?.status === 'error' ? ' error-text' : ' muted'
+        }`}
+      >
+        {job?.status === 'error' && job.error ? job.error : msg}
+      </p>
     </div>
   )
 }

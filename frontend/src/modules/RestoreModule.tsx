@@ -1,6 +1,5 @@
-import { useEffect } from 'react'
 import { startEnhance } from '../api/client'
-import { useJobPoller, useLocalPref } from '../api/hooks'
+import { useLocalPref } from '../api/hooks'
 import type { EnhanceResult } from '../api/types'
 import { IntentField } from '../components/IntentField'
 import { JobProgress } from '../components/JobProgress'
@@ -15,29 +14,27 @@ export function RestoreModule() {
     enhanceResult,
     setEnhanceResult,
     openInStudio,
-    setJobRunning,
-    setJobLabel,
-    registerCancel,
-    workspaceMode,
+    startEngineJob,
+    jobForKind,
+    cancelSessionJob,
+    analysisCorrections,
   } = useSession()
   const [chain, setChain] = useLocalPref('neiro.restore.chain', 'auto')
-  const job = useJobPoller()
+  const job = jobForKind('enhance')
+  const running = job?.status === 'running'
   const selected = RESTORE_CHAINS.find((c) => c.value === chain) || RESTORE_CHAINS[0]
-
-  useEffect(() => {
-    setJobRunning(job.running)
-    setJobLabel(job.running ? `Restore · ${chain}` : null)
-    registerCancel(job.running ? () => void job.cancel() : null)
-    return () => {
-      registerCancel(null)
-      setJobRunning(false)
-      setJobLabel(null)
-    }
-  }, [job.running, job.cancel, chain, registerCancel, setJobRunning, setJobLabel])
+  const hasCorrections = Boolean(
+    analysisCorrections && Object.keys(analysisCorrections.overrides || {}).length,
+  )
 
   const run = async () => {
     if (!file) return
-    const done = await job.start('enhance', () => startEnhance(file.fileId, chain))
+    const done = await startEngineJob({
+      kind: 'enhance',
+      label: `Restore · ${chain}`,
+      module: 'restore',
+      startFn: () => startEnhance(file.fileId, chain, analysisCorrections),
+    })
     if (done?.status === 'done' && done.result) {
       setEnhanceResult(done.result as EnhanceResult)
     }
@@ -60,6 +57,9 @@ export function RestoreModule() {
       <p className="lede">
         Enhancement chain for <strong>{file.name}</strong>. Edits write a new artifact; the source
         upload is untouched.
+        {hasCorrections
+          ? ' Applied Analysis corrections feed the auto conditioning chain.'
+          : ''}
       </p>
 
       <div className="row">
@@ -67,7 +67,7 @@ export function RestoreModule() {
           <select
             id="restore-chain"
             value={chain}
-            disabled={job.running}
+            disabled={running}
             onChange={(e) => setChain(e.target.value)}
           >
             {RESTORE_CHAINS.map((c) => (
@@ -80,7 +80,7 @@ export function RestoreModule() {
         <button
           type="button"
           className="primary"
-          disabled={job.running}
+          disabled={running}
           onClick={() => void run()}
           title="Start restoration"
         >
@@ -88,14 +88,21 @@ export function RestoreModule() {
         </button>
       </div>
 
-      {workspaceMode === 'advanced' && (
-        <PlanStrip kind="enhance" fileId={file.fileId} chain={chain} />
-      )}
+      <div className="option-detail" aria-live="polite">
+        <div className="option-detail-title">{selected.label}</div>
+        <p>{selected.detail}</p>
+      </div>
 
-      <JobProgress status={job.status} error={job.error} onCancel={() => void job.cancel()} />
+      <PlanStrip kind="enhance" fileId={file.fileId} chain={chain} />
+
+      <JobProgress
+        status={job}
+        error={job?.error}
+        onCancel={job?.status === 'running' ? () => void cancelSessionJob(job.id) : undefined}
+      />
 
       {result && (
-        <div style={{ marginTop: 20 }}>
+        <div style={{ marginTop: '1.25rem' }}>
           {result.file_url ? (
             <>
               <audio controls src={result.file_url} style={{ width: '100%' }} />
@@ -104,15 +111,15 @@ export function RestoreModule() {
                 <br />
                 {(result.notes || []).join(' · ')}
               </div>
-              <div className="row" style={{ marginTop: 12 }}>
+              <div className="row" style={{ marginTop: '0.75rem' }}>
                 <a
                   className="primary"
                   href={result.file_url}
                   download
                   style={{
-                    padding: '7px 12px',
+                    padding: '0.5rem 0.85rem',
                     border: '1px solid var(--line)',
-                    borderRadius: 4,
+                    borderRadius: 'var(--radius)',
                   }}
                 >
                   Download
