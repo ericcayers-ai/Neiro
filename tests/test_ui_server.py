@@ -353,7 +353,7 @@ def test_prefs_get_update_and_flush(server):
     assert state.vram.warm_pool_ttl_s == 60.0
 
     # Seed a fake resident so flush has something to report.
-    from neiro.engine.vram import Device, Reservation
+    from neiro.engine.vram import Reservation
 
     cpu = next(d for d in state.vram.devices if d.kind == "cpu")
     state.vram._resident["test-model"] = Reservation("test-model", cpu, "fp32", 0.1, 1.0)

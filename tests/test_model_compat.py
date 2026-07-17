@@ -119,9 +119,15 @@ def test_availability_probe_matches_requires(reg):
 
 
 def test_ensemble_member_adapters_exist(reg):
+    ids = {e.id for e in reg.all()}
     for entry in reg.all():
         for mem in entry.manifest.get("params", {}).get("members", []):
-            spec = mem["adapter"]
+            mid = mem.get("model_id")
+            if mid:
+                assert mid in ids, f"{entry.id}: member model_id {mid!r} not registered"
+                continue
+            spec = mem.get("adapter")
+            assert spec, f"{entry.id}: member needs model_id or adapter ({mem!r})"
             mod_name, _, cls_name = spec.partition(":")
             cls = getattr(importlib.import_module(mod_name), cls_name)
             assert cls is not None

@@ -143,9 +143,7 @@ def bounce(
     prepared: list[tuple[np.ndarray, int]] = []
     for audio, gain_lin, pan, offset_s in layers:
         if audio.sample_rate != sr:
-            raise ValueError(
-                f"bounce sample-rate mismatch: got {audio.sample_rate}, expected {sr}"
-            )
+            raise ValueError(f"bounce sample-rate mismatch: got {audio.sample_rate}, expected {sr}")
         stereo = _to_stereo(audio.samples).astype(np.float32, copy=True)
         g = float(gain_lin)
         p = max(-1.0, min(1.0, float(pan)))
