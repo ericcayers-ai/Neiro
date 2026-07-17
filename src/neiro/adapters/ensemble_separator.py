@@ -32,6 +32,7 @@ class EnsembleSeparator:
         members: list[dict] | None = None,
         mode: str = "mean",
         tta: bool = True,
+        chunk_seconds: float | None = None,
         **_: object,
     ):
         if not members:
@@ -45,12 +46,16 @@ class EnsembleSeparator:
         for m in self.members[1:]:
             if m.profile.stems != stems:
                 raise ValueError("ensemble members must share a stem set")
+        # Prefer an explicit chunk size (manifest), else the longest member hint.
+        member_chunks = [m.profile.chunk_seconds for m in self.members]
+        resolved_chunk = float(chunk_seconds) if chunk_seconds is not None else max(member_chunks)
         self.profile = ModelProfile(
             model_id=model_id,
             task="separate",
             stems=stems,
             fp32_gb=sum(m.profile.fp32_gb for m in self.members),
             sample_rate=self.members[0].profile.sample_rate,
+            chunk_seconds=resolved_chunk,
             quality_class="standard",
             license_spdx="MIT",
             extras={
@@ -65,11 +70,32 @@ class EnsembleSeparator:
             m.load(device, precision)
 
     def separate(self, audio: AudioTensor) -> dict[str, AudioTensor]:
+        # Draft tier zeroes all but the strongest weight — skip those members
+        # entirely so we never pay for (or crash on) a zero-contribution run.
+        active = [(m, w) for m, w in zip(self.members, self.weights, strict=True) if w > 0.0]
+        if not active:
+            top = max(range(len(self.weights)), key=lambda i: self.weights[i])
+            active = [(self.members[top], 1.0)]
+
         member_outputs: list[dict[str, np.ndarray]] = []
-        for m in self.members:
+        active_weights: list[float] = []
+        target_frames = audio.frames
+        for m, w in active:
             stems = tta_separate(m, audio) if self.tta else m.separate(audio)
-            member_outputs.append({k: v.samples for k, v in stems.items()})
-        fused = fuse_stems(member_outputs, audio.sample_rate, weights=self.weights, mode=self.mode)
+            cropped: dict[str, np.ndarray] = {}
+            for k, v in stems.items():
+                s = v.samples
+                if s.shape[-1] > target_frames:
+                    s = s[..., :target_frames]
+                elif s.shape[-1] < target_frames:
+                    pad = np.zeros(s.shape[:-1] + (target_frames - s.shape[-1],), dtype=s.dtype)
+                    s = np.concatenate([s, pad], axis=-1)
+                cropped[k] = s
+            member_outputs.append(cropped)
+            active_weights.append(w)
+        fused = fuse_stems(
+            member_outputs, audio.sample_rate, weights=active_weights, mode=self.mode
+        )
         return {
             name: AudioTensor(arr, audio.sample_rate).with_provenance(self.profile.model_id)
             for name, arr in fused.items()

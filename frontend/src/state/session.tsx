@@ -17,6 +17,7 @@ import type {
   JobStatus,
   MidiStudioMode,
   ModuleId,
+  PitchCorrectResult,
   SeparateResult,
   StemPack,
   StudioPackIntent,
@@ -51,7 +52,7 @@ export interface SessionJob {
   runningNodeId?: string | null
   eta_s: number | null
   error: string | null
-  result?: SeparateResult | TranscribeResult | EnhanceResult
+  result?: SeparateResult | TranscribeResult | EnhanceResult | PitchCorrectResult
   updatedAt: number
 }
 

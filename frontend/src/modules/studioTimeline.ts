@@ -62,6 +62,33 @@ export function mediaToTimeline(track: StudioTrackLike, mediaT: number): number 
   return null
 }
 
+/** Map timeline → media, holding the nearest in-clip edge when in a gap. */
+export function timelineToMediaHold(
+  track: StudioTrackLike,
+  timelineT: number,
+): { media: number; inClip: boolean } {
+  const direct = timelineToMedia(track, timelineT)
+  if (direct !== null) return { media: direct, inClip: true }
+
+  let best: { media: number; dist: number } | null = null
+  for (const c of track.clips) {
+    const len = clipLength(c, track.duration)
+    if (len <= 0) continue
+    const start = c.offset
+    const end = c.offset + len
+    if (timelineT < start) {
+      const dist = start - timelineT
+      if (!best || dist < best.dist) best = { media: c.sourceStart, dist }
+    } else if (timelineT >= end) {
+      const dist = timelineT - end
+      const mediaEnd = c.sourceStart + len
+      if (!best || dist < best.dist) best = { media: Math.max(c.sourceStart, mediaEnd - 0.001), dist }
+    }
+  }
+  if (best) return { media: best.media, inClip: false }
+  return { media: 0, inClip: false }
+}
+
 /** End of the last clip on the timeline for a track. */
 export function trackTimelineEnd(track: StudioTrackLike): number {
   let max = 0

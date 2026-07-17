@@ -3,6 +3,7 @@ import {
   editNotes,
   fetchModels,
   fetchToolsStatus,
+  startModelDownload,
   startTranscribe,
   type ModelStatus,
   type ToolsStatus,
@@ -268,6 +269,37 @@ function TranscribeControls({
       )
       return
     }
+    // Auto-download weights when the selected model (or ensemble members) need them.
+    const toDownload: string[] = []
+    const consider = (id: string) => {
+      if (!id) return
+      const st = modelStatus[id]?.status
+      if (st === 'needs-download') toDownload.push(id)
+    }
+    consider(model)
+    if (ensembleMode) {
+      for (const mid of members) consider(mid)
+    }
+    if (toDownload.length) {
+      const dl = await startEngineJob({
+        kind: 'download',
+        label: `Download · ${toDownload.join(', ')}`,
+        module: 'midi',
+        startFn: () => startModelDownload({ model_ids: toDownload }),
+      })
+      if (dl?.status !== 'done') {
+        return
+      }
+      // Refresh status after download
+      try {
+        const list = await fetchModels('transcribe')
+        const map: Record<string, ModelStatus> = {}
+        for (const m of list) map[m.id] = m
+        setModelStatus(map)
+      } catch {
+        /* ignore */
+      }
+    }
     const useEnsemble = ensembleMode && (members.length >= 2 || model === 'tr-ensemble-default')
     const memberList = useEnsemble && members.length >= 2 ? members : undefined
     const done = await startEngineJob({
@@ -291,11 +323,15 @@ function TranscribeControls({
 
   if (!file) return null
   const memberChoices = TRANSCRIBE_MODELS.filter((m) => m.ensembleMember)
-  const skippedMembers = memberChoices.filter((m) => {
-    const st = modelStatus[m.value]?.status
-    return st === 'needs-install' || st === 'needs-download'
-  })
-  const modelReady = !model || modelStatus[model]?.status === 'ready' || modelStatus[model]?.available
+  const installOnlyMembers = memberChoices.filter((m) => modelStatus[m.value]?.status === 'needs-install')
+  const downloadPendingMembers = memberChoices.filter(
+    (m) => modelStatus[m.value]?.status === 'needs-download',
+  )
+  const modelReady =
+    !model ||
+    modelStatus[model]?.status === 'ready' ||
+    modelStatus[model]?.status === 'needs-download' ||
+    modelStatus[model]?.available
   const modelSt = model ? modelStatus[model]?.status : undefined
 
   return (
@@ -373,37 +409,47 @@ function TranscribeControls({
         <div className="advanced-block-body">
           <IntentField
             label="Decoders"
-            intent="Select two or more installed decoders for hybrid vote. Skipped members stay visible with a Prefs link."
+            intent="Select two or more decoders for hybrid vote. Needs-download members auto-fetch on Transcribe; needs-install stay Prefs-linked."
           >
             <div className="row" style={{ flexWrap: 'wrap', gap: '0.5rem 1rem' }}>
               {memberChoices.map((m) => {
                 const st = modelStatus[m.value]?.status
-                const skipped = st === 'needs-install' || st === 'needs-download'
+                const installOnly = st === 'needs-install'
                 return (
                   <label key={m.value} className="field" style={{ flexDirection: 'row', gap: 6 }}>
                     <input
                       type="checkbox"
                       checked={members.includes(m.value)}
-                      disabled={running || skipped}
+                      disabled={running || installOnly}
                       onChange={() => toggleMember(m.value)}
                     />
                     <span>
                       {m.label}
                       {statusLabel(st)}
-                      {skipped ? ' — skipped' : ''}
+                      {installOnly ? ' — needs install' : st === 'needs-download' ? ' — will download' : ''}
                     </span>
                   </label>
                 )
               })}
             </div>
           </IntentField>
-          {skippedMembers.length > 0 && (
+          {(installOnlyMembers.length > 0 || downloadPendingMembers.length > 0) && (
             <p className="muted" style={{ marginTop: '0.5rem' }}>
-              Skipped ({skippedMembers.map((m) => m.label).join(', ')}) — install or download in{' '}
-              <button type="button" className="ghost" onClick={() => onOpenPrefs('models')}>
-                Prefs → Models
-              </button>
-              .
+              {installOnlyMembers.length > 0 && (
+                <>
+                  Needs install ({installOnlyMembers.map((m) => m.label).join(', ')}) —{' '}
+                  <button type="button" className="ghost" onClick={() => onOpenPrefs('models')}>
+                    Prefs → Models
+                  </button>
+                  .{' '}
+                </>
+              )}
+              {downloadPendingMembers.length > 0 && (
+                <>
+                  Will auto-download on Transcribe ({downloadPendingMembers.map((m) => m.label).join(', ')}
+                  ).
+                </>
+              )}
             </p>
           )}
         </div>

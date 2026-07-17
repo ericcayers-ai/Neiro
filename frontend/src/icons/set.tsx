@@ -283,3 +283,50 @@ export function IconPitchCorrect(props: IconProps) {
     </Icon>
   )
 }
+
+export function IconUndo(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M5 8.5h6.5a4 4 0 1 1 0 8H8" />
+      <path d="M8 5.5 5 8.5l3 3" />
+    </Icon>
+  )
+}
+
+export function IconRedo(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M15 8.5H8.5a4 4 0 1 0 0 8H12" />
+      <path d="M12 5.5 15 8.5l-3 3" />
+    </Icon>
+  )
+}
+
+export function IconReset(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4.5 10a5.5 5.5 0 1 0 1.5-3.8" />
+      <path d="M4.5 4v3.5H8" />
+      <path d="M10 7.5v5" />
+      <path d="M8.5 10h3" />
+    </Icon>
+  )
+}
+
+export function IconPencil(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M12.5 4.5 15.5 7.5 8 15H5v-3z" />
+      <path d="M11 6 14 9" />
+    </Icon>
+  )
+}
+
+export function IconErase(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M5 12.5 10.5 7l3.5 3.5L8.5 16H5z" />
+      <path d="M4 16.5h12" />
+    </Icon>
+  )
+}

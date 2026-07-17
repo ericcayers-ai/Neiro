@@ -222,15 +222,15 @@ export function AppShell({ children }: { children: ReactNode }) {
         <button
           type="button"
           className="rail-edge-toggle"
-          aria-label="Show navigation"
-          title="Show navigation (Ctrl+B)"
+          aria-label="Expand navigation"
+          title="Expand navigation (Ctrl+B)"
           onClick={() => setRailCollapsed(false)}
         >
           <IconChevronRight size={18} />
         </button>
       )}
 
-      <aside className="rail" aria-label="Modules" hidden={railCollapsed}>
+      <aside className="rail" aria-label="Modules">
         <div className="rail-brand">
           <div className="rail-brand-row">
             <div className="rail-logo" title="Neiro">
@@ -295,7 +295,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="shell-main">
-        <header className="session-bar">
+        <header className={`session-bar${module === 'studio' || module === 'midi' ? ' daw-chrome' : ''}`}>
           <div className="session-file">
             {file ? (
               <>
@@ -303,6 +303,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <span className="mono muted session-meta">
                   {fmtTime(file.report.duration_seconds)} · {file.report.sample_rate} Hz
                   {file.report.channels === 1 ? ' · mono' : ' · stereo'}
+                  {(module === 'studio' || module === 'midi') && ' · transport in module'}
                 </span>
               </>
             ) : (

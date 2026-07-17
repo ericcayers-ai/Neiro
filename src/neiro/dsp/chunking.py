@@ -13,13 +13,44 @@ import numpy as np
 
 from neiro.engine.artifacts import AudioTensor
 
-__all__ = ["separate_chunked"]
+__all__ = ["separate_chunked", "chunk_starts"]
 
 
 def _hann(n: int) -> np.ndarray:
     if n <= 1:
         return np.ones(max(n, 1), dtype=np.float32)
     return np.hanning(n).astype(np.float32)
+
+
+def _align_1d(x: np.ndarray, length: int) -> np.ndarray:
+    """Crop or zero-pad a 1-D array to ``length``."""
+    if x.shape[0] == length:
+        return x
+    if x.shape[0] > length:
+        return x[:length]
+    out = np.zeros(length, dtype=x.dtype)
+    out[: x.shape[0]] = x
+    return out
+
+
+def chunk_starts(total: int, chunk_frames: int, hop: int) -> list[int]:
+    """Return chunk start frames, never leaving a tiny trailing stub.
+
+    A low overlap (e.g. draft tier at 10%) can leave a final window of only a
+    second or two. RoFormer backends crash on those short tails, so the last
+    start is pulled back to end exactly at ``total`` with a full-size window.
+    """
+    if total <= chunk_frames:
+        return [0]
+    starts: list[int] = []
+    start = 0
+    while start + chunk_frames < total:
+        starts.append(start)
+        start += hop
+    last = max(0, total - chunk_frames)
+    if not starts or last != starts[-1]:
+        starts.append(last)
+    return starts
 
 
 def separate_chunked(
@@ -44,7 +75,7 @@ def separate_chunked(
     accum: dict[str, np.ndarray] = {}
     weight_sum = np.zeros(total, dtype=np.float32)
 
-    for start in range(0, total, hop):
+    for start in chunk_starts(total, chunk_frames, hop):
         end = min(total, start + chunk_frames)
         chunk = AudioTensor(audio.samples[:, start:end], audio.sample_rate)
         stems = separate_fn(chunk)
@@ -53,13 +84,14 @@ def separate_chunked(
             for name in stem_names:
                 accum[name] = np.zeros((audio.channels, total), dtype=np.float32)
 
-        win = _hann(end - start)
+        n = end - start
+        win = _hann(n)
         for ch in range(audio.channels):
             weight_sum[start:end] += win
             for name in stem_names:
                 stem = stems[name].samples
                 ch_data = stem[ch] if stem.shape[0] > ch else stem[0]
-                accum[name][ch, start:end] += ch_data[: end - start] * win
+                accum[name][ch, start:end] += _align_1d(ch_data, n) * win
 
     weight_sum = np.maximum(weight_sum, 1e-8)
     out: dict[str, AudioTensor] = {}
