@@ -9,6 +9,7 @@ const MODULES: ModuleId[] = [
   'studio',
   'separate',
   'restore',
+  'midi',
   'transcribe',
   'mixer',
   'learn',
@@ -45,7 +46,7 @@ export function useDawBridge(opts?: {
         setStatus(next)
         if (next.focus_seq > focusSeqRef.current) {
           focusSeqRef.current = next.focus_seq
-          setModule(asModule(next.focus_module, 'learn'))
+          setModule(asModule(next.focus_module, 'midi'))
           try {
             window.focus()
           } catch {

@@ -4,11 +4,15 @@ export type ModuleId =
   | 'studio'
   | 'separate'
   | 'restore'
-  | 'transcribe'
+  | 'midi'
+  | 'transcribe' // legacy → midi
   | 'mixer'
-  | 'learn'
+  | 'learn' // legacy → midi (Practice)
   | 'preferences'
   | 'about'
+
+/** MIDI Studio workspace modes. */
+export type MidiStudioMode = 'transcribe' | 'roll' | 'roll-score' | 'edit' | 'practice'
 
 export interface HealthResponse {
   status: 'ok'
@@ -26,10 +30,17 @@ export interface InstrumentHint {
   instrument: string
   confidence?: number
   status: 'asserted' | 'tentative' | string
+  source?: 'dsp' | 'neural' | 'vote' | string
 }
 
 export interface StemEchoHit {
   delay_s: number
+  confidence: number
+  candidates_ms?: { ms: number; confidence: number }[]
+}
+
+export interface EchoCandidate {
+  ms: number
   confidence: number
 }
 
@@ -41,6 +52,7 @@ export interface VocalConditions {
   echo_confidence?: number
   echo_source?: string
   echo_based_on_preview_split?: boolean
+  echo_candidates_ms?: EchoCandidate[]
   stem_echo?: Record<string, StemEchoHit>
   rt60_s?: number
   [key: string]: unknown
@@ -62,6 +74,8 @@ export interface AnalysisReport {
   estimated_bpm?: number | null
   estimated_key?: string | null
   bandwidth_hz?: number | null
+  clipping_ratio?: number | null
+  noise_floor_dbfs?: number | null
   instruments?: InstrumentHint[]
   vocal_conditions?: VocalConditions
   notes?: string[]
@@ -123,6 +137,36 @@ export interface SeparateResult {
   null_test_db?: number
 }
 
+/** Multi-song mashup pack metadata (track ids live in Studio after load). */
+export interface StemPack {
+  id: string
+  name: string
+  sourceFileId: string
+  bpm: number | null
+  key: string | null
+  trackIds: string[]
+}
+
+export interface StemPackStem {
+  name: string
+  fileId: string
+  url: string
+}
+
+/** Intent queued for Studio to load stems as a pack (replace or append). */
+export interface StudioPackIntent {
+  mode: 'replace' | 'add'
+  name: string
+  sourceFileId: string
+  sourceUrl?: string
+  bpm: number | null
+  key: string | null
+  stems: StemPackStem[]
+  /** When adding a pack, stretch stems to this target BPM if different. */
+  alignToBpm?: number | null
+  alignToKey?: string | null
+}
+
 export interface MidiEvent {
   onset: number
   offset: number
@@ -155,7 +199,7 @@ export interface EnhanceResult {
   file_id?: string
 }
 
-export type JobKind = 'separate' | 'transcribe' | 'enhance' | 'import'
+export type JobKind = 'separate' | 'transcribe' | 'enhance' | 'import' | 'download'
 
 export interface ProgressEvent {
   stage: string

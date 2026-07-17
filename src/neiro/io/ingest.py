@@ -11,7 +11,6 @@ the content-addressed cache.
 from __future__ import annotations
 
 import shutil
-import subprocess
 import tempfile
 from math import gcd
 from pathlib import Path
@@ -21,6 +20,7 @@ import soundfile as sf
 from scipy.signal import resample_poly
 
 from neiro.engine.artifacts import AudioTensor
+from neiro.util import subprocess_win
 
 __all__ = ["load_audio", "make_lane", "SNDFILE_EXTS"]
 
@@ -50,7 +50,7 @@ def _decode_with_ffmpeg(path: Path) -> tuple[np.ndarray, int]:
             "pcm_f32le",
             str(wav_path),
         ]
-        subprocess.run(cmd, check=True)
+        subprocess_win.run(cmd, check=True)
         data, sr = sf.read(str(wav_path), dtype="float32", always_2d=True)
     return data.T.copy(), sr
 

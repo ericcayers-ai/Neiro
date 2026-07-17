@@ -1,6 +1,7 @@
+import { useMemo } from 'react'
 import { startEnhance } from '../api/client'
 import { useLocalPref } from '../api/hooks'
-import type { EnhanceResult } from '../api/types'
+import type { AnalysisReport, EnhanceResult } from '../api/types'
 import { EmptyGate } from '../components/EmptyGate'
 import { IntentField } from '../components/IntentField'
 import { JobProgress } from '../components/JobProgress'
@@ -9,6 +10,85 @@ import { PlanStrip } from '../components/PlanStrip'
 import { RESTORE_CHAINS } from '../constants/options'
 import { useSession } from '../state/session'
 import './modules.css'
+
+/** Client-side mirror of ``recommend_enhance_chain`` for the Restore why-card. */
+function recommendFromReport(report: AnalysisReport): {
+  why: string
+  presetHint: string
+  autoSteps: string[]
+} {
+  const vc = report.vocal_conditions || {}
+  const votes: { step: string; score: number; reason: string }[] = []
+  const clip = Number(report.clipping_ratio || 0)
+  const notes = (report.notes || []).join(' ').toLowerCase()
+  if (clip > 0.0005 || notes.includes('clipping')) {
+    votes.push({
+      step: 'declip',
+      score: 0.7,
+      reason: 'Clipping detected — peaks need reconstruction.',
+    })
+  }
+  if (vc.hum_hz) {
+    votes.push({
+      step: 'dehum',
+      score: 0.65,
+      reason: `Mains hum around ${vc.hum_hz} Hz — notch it out.`,
+    })
+  }
+  if (notes.includes('click') || notes.includes('crackle') || notes.includes('clipping')) {
+    votes.push({
+      step: 'declick',
+      score: 0.5,
+      reason: 'Transient spikes / transfer clicks — light declick cleans them up.',
+    })
+  }
+  if (vc.echo_delay_s != null || (typeof vc.rt60_s === 'number' && vc.rt60_s > 0.55)) {
+    const ms = vc.echo_delay_s != null ? Math.round(vc.echo_delay_s * 1000) : null
+    votes.push({
+      step: 'dereverb',
+      score: 0.55,
+      reason: ms
+        ? `Discrete echo ~${ms} ms — neural dereverb when installed.`
+        : `Room reverb (RT60 ~${vc.rt60_s} s) — consider dereverb.`,
+    })
+  }
+  if (report.bandwidth_hz && report.bandwidth_hz < 16000) {
+    votes.push({
+      step: 'restore',
+      score: 0.55,
+      reason: `Bandwidth only ~${(report.bandwidth_hz / 1000).toFixed(1)} kHz — More air extends it.`,
+    })
+  }
+  if (notes.includes('noise') || notes.includes('hiss')) {
+    votes.push({
+      step: 'denoise',
+      score: 0.5,
+      reason: 'Broadband noise flagged — Old & noisy / denoise helps.',
+    })
+  }
+
+  votes.sort((a, b) => b.score - a.score)
+  const autoSteps = votes
+    .filter((v) => ['declip', 'declick', 'dehum'].includes(v.step) && v.score >= 0.35)
+    .map((v) => v.step)
+  const why =
+    votes.length === 0
+      ? 'Nothing loud stood out — Auto will leave the file alone or only light-touch DSP.'
+      : votes
+          .slice(0, 3)
+          .map((v) => v.reason)
+          .join(' ')
+
+  const stepSet = new Set(votes.filter((v) => v.score >= 0.4).map((v) => v.step))
+  let presetHint = 'auto'
+  if (stepSet.has('declip') && stepSet.size <= 2) presetHint = 'fix-clipping'
+  else if (stepSet.has('restore')) presetHint = 'more-air'
+  else if (stepSet.has('denoise') || stepSet.has('declick'))
+    presetHint = stepSet.has('denoise') ? 'old-noisy' : 'clean'
+  else if (stepSet.has('dehum')) presetHint = 'clean'
+
+  return { why, presetHint, autoSteps }
+}
 
 export function RestoreModule() {
   const {
@@ -29,6 +109,11 @@ export function RestoreModule() {
     analysisCorrections && Object.keys(analysisCorrections.overrides || {}).length,
   )
 
+  const recommendation = useMemo(
+    () => (file ? recommendFromReport(file.report) : null),
+    [file],
+  )
+
   const run = async () => {
     if (!file) return
     const done = await startEngineJob({
@@ -45,12 +130,14 @@ export function RestoreModule() {
   if (!file) {
     return (
       <EmptyGate title="Restore">
-        Import a track first, then pick an enhancement chain (or Auto from analysis hints).
+        Import a track first, then pick a layman preset (or Auto from analysis hints).
       </EmptyGate>
     )
   }
 
   const result = enhanceResult
+  const hintLabel =
+    RESTORE_CHAINS.find((c) => c.value === recommendation?.presetHint)?.label || 'Auto'
 
   return (
     <div className="module-panel module-enter">
@@ -76,8 +163,26 @@ export function RestoreModule() {
         }
       />
 
+      {recommendation && (
+        <div className="option-detail" aria-live="polite" style={{ marginBottom: '0.75rem' }}>
+          <div className="option-detail-title">Recommended: {hintLabel}</div>
+          <p>{recommendation.why}</p>
+          {recommendation.presetHint !== chain && (
+            <div className="row" style={{ marginTop: '0.5rem' }}>
+              <button
+                type="button"
+                onClick={() => setChain(recommendation.presetHint)}
+                title="Switch chain to the detector suggestion"
+              >
+                Use recommendation
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="row">
-        <IntentField label="Chain" intent={selected.intent} htmlFor="restore-chain">
+        <IntentField label="Preset" intent={selected.intent} htmlFor="restore-chain">
           <select
             id="restore-chain"
             value={chain}

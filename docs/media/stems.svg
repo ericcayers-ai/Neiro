@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="120" viewBox="0 0 960 120" role="img" aria-label="Okabe-Ito stem color palette used in Neiro">
+  <rect width="960" height="120" fill="#0e1116"/>
+  <text x="32" y="32" fill="#98a0ad" font-family="IBM Plex Sans, Segoe UI, sans-serif" font-size="13" letter-spacing="0.08em">STEM COLORS (OkabeIto)</text>
+  <g font-family="IBM Plex Sans, Segoe UI, sans-serif" font-size="13" fill="#e8ebf0">
+    <rect x="32" y="52" width="18" height="18" rx="2" fill="#e69f00"/><text x="58" y="66">vocals</text>
+    <rect x="140" y="52" width="18" height="18" rx="2" fill="#56b4e9"/><text x="166" y="66">instrumental</text>
+    <rect x="292" y="52" width="18" height="18" rx="2" fill="#009e73"/><text x="318" y="66">harmonic</text>
+    <rect x="420" y="52" width="18" height="18" rx="2" fill="#d55e00"/><text x="446" y="66">drums</text>
+    <rect x="530" y="52" width="18" height="18" rx="2" fill="#0072b2"/><text x="556" y="66">bass</text>
+    <rect x="630" y="52" width="18" height="18" rx="2" fill="#cc79a7"/><text x="656" y="66">other</text>
+    <rect x="740" y="52" width="18" height="18" rx="2" fill="#8b93a1"/><text x="766" y="66">residual</text>
+  </g>
+  <text x="32" y="100" fill="#6b7380" font-family="IBM Plex Mono, Consolas, monospace" font-size="11">Color is never the only signal  every stem also has a text label.</text>
+</svg>

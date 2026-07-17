@@ -1,26 +1,63 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   applyEdit,
   bounceTracks,
   exportUrl,
+  fetchSpectrogram,
   fetchWaveform,
+  pitchCorrectFile,
+  pitchShiftFile,
+  reanalyzeFile,
+  timeStretchFile,
   uploadFile,
   type EditOp,
 } from '../api/client'
-import type { WaveformData } from '../api/types'
-import { EmptyGate } from '../components/EmptyGate'
-import { EXPORT_FORMATS, fmtTimecode, stemColor } from '../constants/options'
+import type { SpectrogramData, StemPack, WaveformData } from '../api/types'
+import {
+  EXPORT_FORMATS,
+  STEM_COLORS,
+  fmtTimecode,
+  snapTime,
+  stemColor,
+  stemIcon,
+  stemLabel,
+  transposeSuggestion,
+} from '../constants/options'
+import {
+  IconLoop,
+  IconMute,
+  IconPause,
+  IconPitchCorrect,
+  IconPlay,
+  IconScrub,
+  IconSelect,
+  IconSolo,
+  IconSpectrogram,
+  IconSplit,
+  IconStop,
+  IconZoomIn,
+  IconZoomOut,
+} from '../icons'
 import { useSession } from '../state/session'
+import {
+  readStudioTracks,
+  writeStudioTracks,
+  STUDIO_TRACKS_EVENT,
+  type StudioTrackSnap,
+} from '../state/sessionGraph'
+import { drawWebGLSpectrogram } from '../viz/webgl'
+import {
+  clipLength,
+  fitDefaultViewEnd,
+  timelineToMedia,
+  trackTimelineEnd,
+  type StudioClip,
+} from './studioTimeline'
 import './modules.css'
 
-type ToolMode = 'select' | 'scrub' | 'split'
+type ToolMode = 'select' | 'scrub' | 'split' | 'move'
 
-interface Clip {
-  id: string
-  sourceStart: number
-  sourceEnd: number
-  offset: number
-}
+type Clip = StudioClip
 
 interface Track {
   id: string
@@ -34,6 +71,12 @@ interface Track {
   pan: number
   duration: number
   clips: Clip[]
+  packId?: string
+}
+
+type TrackGraph = {
+  gain: GainNode
+  pan: StereoPannerNode
 }
 
 interface Sel {
@@ -47,10 +90,100 @@ interface Snap {
   selectedIds: string[]
 }
 
+interface CtxMenu {
+  x: number
+  y: number
+  trackId: string
+  time: number
+}
+
+const CLIP_COLOR_SWATCHES = [...new Set(Object.values(STEM_COLORS))]
+
 const MODE_INTENT: Record<ToolMode, string> = {
   select: 'Drag on a lane to select a region for trim, silence, delete, or fades.',
   scrub: 'Click or drag to move the playhead without creating a selection.',
   split: 'Click a clip to cut it into two at that time.',
+  move: 'Drag a clip horizontally — offset drives playback. Undo includes moves.',
+}
+
+const TRANSPORT_INTENT =
+  'Transport uses the timeline playhead. Clips honor offset and source range; Stop leaves the playhead.'
+
+function ToolGroup({
+  label,
+  children,
+}: {
+  label: string
+  children: ReactNode
+}) {
+  return (
+    <div className="studio-tool-group" role="group" aria-label={label}>
+      <span className="studio-tool-group-label">{label}</span>
+      {children}
+    </div>
+  )
+}
+
+function StudioHelpSheet({
+  onClose,
+  onAbout,
+}: {
+  onClose: () => void
+  onAbout: () => void
+}) {
+  return (
+    <div className="studio-help-sheet" role="dialog" aria-label="Studio shortcuts">
+      <div className="studio-help-sheet-head">
+        <strong>Studio shortcuts</strong>
+        <button type="button" onClick={onClose} aria-label="Close shortcuts">
+          Close
+        </button>
+      </div>
+      <p className="muted studio-help-lead">
+        Windows-first: <kbd>Ctrl</kbd> is primary (<kbd>⌘</kbd> also works on Mac). Ignored while typing in
+        a field.
+      </p>
+      <ul className="studio-help-list">
+        <li>
+          <kbd>Space</kbd> play / pause
+        </li>
+        <li>
+          <kbd>Stop</kbd> pauses and <em>leaves the playhead</em> (does not jump to 0 or selection start)
+        </li>
+        <li>
+          Loop + selection wraps <em>sel end → sel start</em> only — not the whole track
+        </li>
+        <li>
+          <kbd>V</kbd> Select · <kbd>A</kbd> Scrub · <kbd>C</kbd> Split · <kbd>B</kbd> Move clip
+        </li>
+        <li>
+          Beat snap (toolbar) snaps clip moves and nudges to the session BPM grid
+        </li>
+        <li>
+          <kbd>Del</kbd> silence · <kbd>Shift+Del</kbd> delete / splice
+        </li>
+        <li>
+          <kbd>Ctrl+Z</kbd> / <kbd>Ctrl+Y</kbd> undo / redo
+        </li>
+        <li>
+          <kbd>[</kbd> / <kbd>]</kbd> nudge ±50 ms · <kbd>=</kbd> / <kbd>-</kbd> zoom
+        </li>
+        <li>
+          Right-click a clip for split, mute/solo, rename, color, bounce, pitch correct, spectrogram
+        </li>
+        <li>
+          <kbd>M</kbd> Mix drawer · <kbd>?</kbd> this sheet · <kbd>Esc</kbd> close / clear selection
+        </li>
+      </ul>
+      <p className="muted">
+        Scrub or click the timeline to play from anywhere. Clip offset and source range map timeline time
+        to media time per track.
+      </p>
+      <button type="button" className="studio-help-about" onClick={onAbout}>
+        Full shortcut list in About
+      </button>
+    </div>
+  )
 }
 
 const EDIT_TOOLS: {
@@ -81,10 +214,12 @@ function trackFromFile(
   fileId: string,
   audioUrl: string,
   duration = 0,
+  packId?: string,
 ): Track {
+  const display = name.includes('(ref)') ? name : stemLabel(name)
   return {
     id: uid('trk'),
-    name,
+    name: display,
     fileId,
     audioUrl,
     color: stemColor(name),
@@ -93,6 +228,7 @@ function trackFromFile(
     gain: 1,
     pan: 0,
     duration,
+    packId,
     clips: [
       {
         id: uid('clip'),
@@ -141,6 +277,11 @@ export function StudioModule() {
     studioMixOpen,
     setStudioMixOpen,
     setModule,
+    stemPacks,
+    setStemPacks,
+    updateStemPack,
+    studioPackIntent,
+    clearStudioPackIntent,
   } = useSession()
 
   const [tracks, setTracks] = useState<Track[]>([])
@@ -158,39 +299,170 @@ export function StudioModule() {
   const [playhead, setPlayhead] = useState(0)
   const [ab, setAb] = useState<'stems' | 'original'>('stems')
   const [mixOpen, setMixOpen] = useState(false)
+  const [beatSnap, setBeatSnap] = useState(false)
+  const [keyConflict, setKeyConflict] = useState<string | null>(null)
+  const [pendingTranspose, setPendingTranspose] = useState<{
+    packId: string
+    semitones: number
+    label: string
+  } | null>(null)
   const [dragTrackId, setDragTrackId] = useState<string | null>(null)
   const [intentOverride, setIntentOverride] = useState<string | null>(null)
+  const [helpOpen, setHelpOpen] = useState(false)
+  const [showSpectrogram, setShowSpectrogram] = useState(false)
+  const [ctxMenu, setCtxMenu] = useState<CtxMenu | null>(null)
+  const [renameTrackId, setRenameTrackId] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState('')
+  const [colorTrackId, setColorTrackId] = useState<string | null>(null)
 
   const wavesRef = useRef<Record<string, WaveformData>>({})
+  const specsRef = useRef<Record<string, SpectrogramData>>({})
+  const fittedViewKey = useRef('')
+  /** Skip persist until initial hydrate so empty mount does not wipe Open restore. */
+  const [studioHydrated, setStudioHydrated] = useState(false)
+  const fileRef = useRef(file)
+  fileRef.current = file
+
+  const applyStudioSnap = useCallback((snap: StudioTrackSnap[]) => {
+    setTracks(
+      snap.map((t) => ({
+        ...t,
+        clips: t.clips.map((c) => ({ ...c })),
+      })),
+    )
+    setSelectedIds(snap[0] ? [snap[0].id] : [])
+    setUndoStack([])
+    setRedoStack([])
+    fittedViewKey.current = ''
+    setViewStart(0)
+    setViewEnd(0)
+  }, [])
+
+  // Restore Studio timeline from sessionStorage; re-apply when Open restores while mounted.
+  useEffect(() => {
+    const snap = readStudioTracks()
+    if (snap?.length) applyStudioSnap(snap)
+    setStudioHydrated(true)
+    const onRestore = () => {
+      const next = readStudioTracks()
+      if (next?.length) applyStudioSnap(next)
+    }
+    window.addEventListener(STUDIO_TRACKS_EVENT, onRestore)
+    return () => window.removeEventListener(STUDIO_TRACKS_EVENT, onRestore)
+  }, [applyStudioSnap])
+
+  // Persist timeline for Save/Open + pack trackId integrity.
+  useEffect(() => {
+    if (!studioHydrated) return
+    const snap: StudioTrackSnap[] = tracks.map((t) => ({
+      id: t.id,
+      name: t.name,
+      fileId: t.fileId,
+      audioUrl: t.audioUrl,
+      color: t.color,
+      mute: t.mute,
+      solo: t.solo,
+      gain: t.gain,
+      pan: t.pan,
+      duration: t.duration,
+      packId: t.packId,
+      clips: t.clips.map((c) => ({
+        id: c.id,
+        sourceStart: c.sourceStart,
+        sourceEnd: c.sourceEnd,
+        offset: c.offset,
+      })),
+    }))
+    writeStudioTracks(snap.length ? snap : null)
+  }, [tracks, studioHydrated])
   const canvasRefs = useRef<Record<string, HTMLCanvasElement | null>>({})
+  const specCanvasRefs = useRef<Record<string, HTMLCanvasElement | null>>({})
   const audioRefs = useRef<Record<string, HTMLAudioElement | null>>({})
   const nullRef = useRef<HTMLAudioElement | null>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
   const importRef = useRef<HTMLInputElement>(null)
+  const audioCtxRef = useRef<AudioContext | null>(null)
+  const graphByElRef = useRef(new WeakMap<HTMLAudioElement, TrackGraph>())
+  const graphByTrackRef = useRef<Record<string, TrackGraph>>({})
+  /** Master transport clock — independent of any single track ending. */
+  const transportRef = useRef({ playing: false, originTimeline: 0, originPerf: 0 })
+  const playheadRef = useRef(0)
   const dragRef = useRef<{
-    kind: 'sel' | 'playhead' | null
+    kind: 'sel' | 'playhead' | 'clip-move' | null
     trackId: string | null
+    clipId: string | null
     startX: number
-  }>({ kind: null, trackId: null, startX: 0 })
-  const stemsLoadedKey = useRef('')
+    originOffset: number
+    pushedUndo: boolean
+  }>({ kind: null, trackId: null, clipId: null, startX: 0, originOffset: 0, pushedUndo: false })
 
   const selectedTrack = tracks.find((t) => t.id === selectedIds[0]) || null
   const anySolo = tracks.some((t) => t.solo)
   const timelineDur = useMemo(() => {
     let max = 0
     for (const t of tracks) {
-      for (const c of t.clips) {
-        const len = Math.max(0, (c.sourceEnd || t.duration) - c.sourceStart)
-        max = Math.max(max, c.offset + len, t.duration)
-      }
-      max = Math.max(max, t.duration)
+      max = Math.max(max, trackTimelineEnd(t))
     }
     return max || file?.report.duration_seconds || 0
   }, [tracks, file])
 
+  const sessionBpm = useMemo(() => {
+    const packOf = (packId?: string) =>
+      packId ? stemPacks.find((p) => p.id === packId) : undefined
+    const selectedPack = packOf(selectedTrack?.packId)
+    if (selectedPack?.bpm && selectedPack.bpm > 0) return selectedPack.bpm
+    // Transport window: prefer pack owning an audible clip under the playhead.
+    const underPlayhead = tracks.find((t) => {
+      if (!t.packId) return false
+      return t.clips.some((c) => {
+        const start = c.offset
+        const end = c.offset + Math.max(0, c.sourceEnd - c.sourceStart)
+        return playhead >= start && playhead < end
+      })
+    })
+    const phPack = packOf(underPlayhead?.packId)
+    if (phPack?.bpm && phPack.bpm > 0) return phPack.bpm
+    const anyPack = stemPacks.find((p) => p.bpm && p.bpm > 0)
+    const fileBpm = file?.report.estimated_bpm
+    return (anyPack?.bpm && anyPack.bpm > 0 ? anyPack.bpm : null) ||
+      (fileBpm && fileBpm > 0 ? fileBpm : null) ||
+      120
+  }, [stemPacks, file, selectedTrack, tracks, playhead])
+
+  const sessionKey = useMemo(() => {
+    const packOf = (packId?: string) =>
+      packId ? stemPacks.find((p) => p.id === packId) : undefined
+    const selectedPack = packOf(selectedTrack?.packId)
+    if (selectedPack?.key) return selectedPack.key
+    const underPlayhead = tracks.find((t) => {
+      if (!t.packId) return false
+      return t.clips.some((c) => {
+        const start = c.offset
+        const end = c.offset + Math.max(0, c.sourceEnd - c.sourceStart)
+        return playhead >= start && playhead < end
+      })
+    })
+    const phPack = packOf(underPlayhead?.packId)
+    if (phPack?.key) return phPack.key
+    return stemPacks[0]?.key || file?.report.estimated_key || null
+  }, [stemPacks, file, selectedTrack, tracks, playhead])
+
+  const liveBeatPhase = useMemo(() => {
+    if (!playing || !sessionBpm) return 0
+    const beat = 60 / sessionBpm
+    return (playhead % beat) / beat
+  }, [playing, sessionBpm, playhead])
+
   const viewDur = Math.max(0.001, (viewEnd || timelineDur) - viewStart)
   const activeIntent = intentOverride || MODE_INTENT[mode]
   const hasSel = !!sel && Math.abs(sel.end - sel.start) >= 0.01
+
+  playheadRef.current = playhead
+
+  const snapIf = useCallback(
+    (t: number) => (beatSnap ? snapTime(t, sessionBpm, 'beat') : t),
+    [beatSnap, sessionBpm],
+  )
 
   const pushUndo = useCallback(() => {
     setUndoStack((s) => [...s, { tracks: structuredClone(tracks), selectedIds: [...selectedIds] }])
@@ -214,14 +486,59 @@ export function StudioModule() {
     [anySolo],
   )
 
+  const ensureAudioCtx = useCallback(() => {
+    if (!audioCtxRef.current) {
+      audioCtxRef.current = new AudioContext()
+    }
+    return audioCtxRef.current
+  }, [])
+
+  const wireTrackAudio = useCallback(
+    (trackId: string, el: HTMLAudioElement | null) => {
+      if (!el) {
+        delete graphByTrackRef.current[trackId]
+        return
+      }
+      audioRefs.current[trackId] = el
+      let graph = graphByElRef.current.get(el)
+      if (!graph) {
+        const ctx = ensureAudioCtx()
+        try {
+          const source = ctx.createMediaElementSource(el)
+          const gain = ctx.createGain()
+          const pan = ctx.createStereoPanner()
+          source.connect(gain)
+          gain.connect(pan)
+          pan.connect(ctx.destination)
+          graph = { gain, pan }
+          graphByElRef.current.set(el, graph)
+          el.volume = 1
+        } catch {
+          /* Element may already be wired if React remounted oddly */
+          graph = graphByElRef.current.get(el)
+        }
+      }
+      if (graph) graphByTrackRef.current[trackId] = graph
+    },
+    [ensureAudioCtx],
+  )
+
   const applyVolumes = useCallback(() => {
     for (const t of tracks) {
       const el = audioRefs.current[t.id]
-      if (!el) continue
+      const graph = graphByTrackRef.current[t.id]
+      let level = 0
       if (ab === 'original') {
-        el.volume = t.id === tracks[0]?.id ? 1 : 0
-      } else {
-        el.volume = audible(t) ? Math.min(1.5, t.gain) : 0
+        level = t.id === tracks[0]?.id ? 1 : 0
+      } else if (audible(t)) {
+        level = Math.min(1.5, t.gain)
+      }
+      if (graph) {
+        graph.gain.gain.value = level
+        graph.pan.pan.value = Math.max(-1, Math.min(1, t.pan))
+        if (el) el.volume = 1
+      } else if (el) {
+        el.volume = Math.min(1, level)
       }
     }
   }, [tracks, audible, ab])
@@ -259,6 +576,43 @@ export function StudioModule() {
     }
   }, [])
 
+  const loadSpectrogram = useCallback(async (track: Track) => {
+    if (!track.fileId) return
+    try {
+      // Full-file spectrogram (view window is timeline space; clip offsets differ per track).
+      const spec = await fetchSpectrogram(track.fileId)
+      specsRef.current[track.id] = spec
+      const canvas = specCanvasRefs.current[track.id]
+      if (canvas) {
+        const ok = drawWebGLSpectrogram(canvas, spec)
+        if (!ok) {
+          // Canvas 2D fallback: false-color intensity grid
+          const ctx = canvas.getContext('2d')
+          if (!ctx) return
+          const dpr = window.devicePixelRatio || 1
+          const cssW = canvas.clientWidth || 400
+          const cssH = 72
+          canvas.width = cssW * dpr
+          canvas.height = cssH * dpr
+          ctx.fillStyle = '#0e1116'
+          ctx.fillRect(0, 0, canvas.width, canvas.height)
+          const { rows, cols, data } = spec
+          for (let c = 0; c < cols; c++) {
+            for (let r = 0; r < rows; r++) {
+              const v = data[r * cols + c] / 255
+              const x = (c / cols) * canvas.width
+              const y = (r / rows) * canvas.height
+              ctx.fillStyle = `rgb(${Math.floor(40 + v * 200)},${Math.floor(60 + v * 120)},${Math.floor(80 + v * 40)})`
+              ctx.fillRect(x, y, Math.ceil(canvas.width / cols) + 1, Math.ceil(canvas.height / rows) + 1)
+            }
+          }
+        }
+      }
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : String(err))
+    }
+  }, [])
+
   const redrawAll = useCallback(() => {
     for (const t of tracks) {
       const wave = wavesRef.current[t.id]
@@ -271,8 +625,25 @@ export function StudioModule() {
     redrawAll()
   }, [viewStart, viewEnd, redrawAll])
 
-  // Seed from session file / studio target / separation stems
   useEffect(() => {
+    if (!showSpectrogram) return
+    for (const t of tracks) {
+      if (t.fileId) void loadSpectrogram(t)
+    }
+  }, [showSpectrogram, tracks, loadSpectrogram])
+
+  const applyFitView = useCallback((duration: number, force = false) => {
+    if (!(duration > 0)) return
+    const key = `${duration.toFixed(2)}`
+    if (!force && fittedViewKey.current === key) return
+    fittedViewKey.current = key
+    setViewStart(0)
+    setViewEnd(fitDefaultViewEnd(duration))
+  }, [])
+
+  // Seed from session file / studio target / pack intents (after hydrate so Open restore wins).
+  useEffect(() => {
+    if (!studioHydrated) return
     if (studioTarget) {
       const t = trackFromFile(studioTarget.name, studioTarget.fileId, studioTarget.audioUrl)
       setTracks([t])
@@ -280,109 +651,275 @@ export function StudioModule() {
       setUndoStack([])
       setRedoStack([])
       setSel(null)
+      fittedViewKey.current = ''
       setViewStart(0)
       setViewEnd(0)
       clearStudioTarget()
       void loadWave(t)
       return
     }
-    const stems = (separateResult?.files || []).filter((f) => f.name !== 'residual' && f.file_id)
-    const key = stems.map((s) => `${s.name}:${s.file_id}`).join('|')
-    if (stems.length && key !== stemsLoadedKey.current) {
-      stemsLoadedKey.current = key
-      const next = stems.map((s) => trackFromFile(s.name, s.file_id!, s.url))
-      if (file && separateResult?.source_url) {
-        next.unshift(
-          trackFromFile(`${file.name} (ref)`, file.fileId, separateResult.source_url || file.audioUrl),
-        )
-        next[0].mute = true
-      }
-      setTracks(next)
-      setSelectedIds(next[0] ? [next[0].id] : [])
-      setViewStart(0)
-      setViewEnd(0)
-      for (const t of next) void loadWave(t)
-      return
-    }
     if (!tracks.length && file) {
       const t = trackFromFile(file.name, file.fileId, file.audioUrl, file.report.duration_seconds)
       setTracks([t])
       setSelectedIds([t.id])
-      setViewEnd(file.report.duration_seconds)
+      applyFitView(file.report.duration_seconds, true)
       void loadWave(t)
     }
-  }, [studioTarget, separateResult, file, clearStudioTarget, loadWave, tracks.length])
+  }, [
+    studioHydrated,
+    studioTarget,
+    file,
+    clearStudioTarget,
+    loadWave,
+    tracks.length,
+    applyFitView,
+  ])
 
+  // Consume Separate → Studio pack intents (replace or append mashup packs).
+  // Do not depend on `file` — batch Separate updates the active file while the queue drains.
   useEffect(() => {
-    if (timelineDur > 0 && viewEnd <= 0) setViewEnd(timelineDur)
-  }, [timelineDur, viewEnd])
+    if (!studioPackIntent) return
+    const intent = studioPackIntent
+    let cancelled = false
 
-  // Playhead RAF
-  useEffect(() => {
-    let raf = 0
-    const tick = () => {
-      const first = selectedTrack
-        ? audioRefs.current[selectedTrack.id]
-        : tracks[0]
-          ? audioRefs.current[tracks[0].id]
-          : null
-      const clock =
-        nullRef.current && !nullRef.current.paused
-          ? nullRef.current
-          : Object.values(audioRefs.current).find((a) => a && !a.paused) || first
-      if (clock && !clock.paused) {
-        let t = clock.currentTime
-        if (loopSel && hasSel && sel && t >= sel.end) {
-          t = sel.start
-          for (const el of Object.values(audioRefs.current)) {
-            if (el) el.currentTime = t
+    const run = async () => {
+      const packId = uid('pack')
+      let rate = 1
+      const srcBpm = intent.bpm
+      const tgtBpm = intent.alignToBpm
+      if (
+        intent.mode === 'add' &&
+        srcBpm &&
+        tgtBpm &&
+        srcBpm > 0 &&
+        tgtBpm > 0 &&
+        Math.abs(srcBpm - tgtBpm) / tgtBpm > 0.01
+      ) {
+        rate = srcBpm / tgtBpm
+      }
+
+      const built: Track[] = []
+      for (const s of intent.stems) {
+        if (cancelled) return
+        let fileId = s.fileId
+        let url = s.url
+        let duration = 0
+        if (Math.abs(rate - 1) > 0.01) {
+          try {
+            const stretched = await timeStretchFile(fileId, rate)
+            fileId = stretched.file_id
+            url = stretched.audio_url
+            duration = stretched.duration
+          } catch (err) {
+            setStatus(
+              `BPM align stretch failed (${err instanceof Error ? err.message : String(err)}); loading unstretched.`,
+            )
           }
         }
-        setPlayhead(t)
-        setPlaying(true)
-      } else {
-        setPlaying(false)
+        const tr = trackFromFile(s.name, fileId, url, duration, packId)
+        built.push(tr)
       }
-      raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [tracks, selectedTrack, loopSel, hasSel, sel])
 
-  const seekAll = useCallback((t: number) => {
-    const clamped = Math.max(0, t)
-    setPlayhead(clamped)
-    for (const el of Object.values(audioRefs.current)) {
-      if (el && Number.isFinite(el.duration)) el.currentTime = Math.min(clamped, el.duration)
-      else if (el) el.currentTime = clamped
+      if (intent.sourceUrl && intent.mode === 'replace') {
+        const src = fileRef.current
+        const refName = src ? `${src.name} (ref)` : 'Reference (ref)'
+        const ref = trackFromFile(refName, intent.sourceFileId, intent.sourceUrl, 0, packId)
+        ref.mute = true
+        built.unshift(ref)
+      }
+
+      if (cancelled) return
+
+      const pack: StemPack = {
+        id: packId,
+        name: intent.name,
+        sourceFileId: intent.sourceFileId,
+        bpm: rate !== 1 && tgtBpm ? tgtBpm : intent.bpm,
+        key: intent.key,
+        trackIds: built.map((t) => t.id),
+      }
+
+      if (intent.mode === 'replace') {
+        setStemPacks([pack])
+        setTracks(built)
+        setSelectedIds(built[0] ? [built[0].id] : [])
+        setUndoStack([])
+        setRedoStack([])
+        fittedViewKey.current = ''
+        setViewStart(0)
+        setViewEnd(0)
+      } else {
+        setStemPacks((prev) => [...prev, pack])
+        setTracks((prev) => [...prev, ...built])
+        setSelectedIds(built[0] ? [built[0].id] : [])
+      }
+
+      for (const t of built) void loadWave(t)
+      setMixOpen(true)
+      setStudioMixOpen(true)
+
+      const alignKey = intent.alignToKey
+      if (intent.mode === 'add' && intent.key && alignKey) {
+        const sug = transposeSuggestion(intent.key, alignKey)
+        if (sug && sug.semitones !== 0) {
+          setKeyConflict(sug.label)
+          setPendingTranspose({ packId, semitones: sug.semitones, label: sug.label })
+        } else {
+          setKeyConflict(null)
+          setPendingTranspose(null)
+        }
+      } else {
+        setKeyConflict(null)
+        setPendingTranspose(null)
+      }
+
+      setStatus(
+        intent.mode === 'replace'
+          ? `Loaded ${built.length} stem(s) into Studio`
+          : `Added mashup pack “${intent.name}”${rate !== 1 ? ` · stretched ×${rate.toFixed(3)}` : ''}`,
+      )
+      clearStudioPackIntent()
     }
-    if (nullRef.current) nullRef.current.currentTime = clamped
+
+    void run()
+    return () => {
+      cancelled = true
+    }
+  }, [studioPackIntent, clearStudioPackIntent, loadWave, setStemPacks, setStudioMixOpen])
+
+  useEffect(() => {
+    if (timelineDur > 0 && viewEnd <= 0) {
+      applyFitView(timelineDur)
+    }
+  }, [timelineDur, viewEnd, applyFitView])
+
+  const syncTrackToTimeline = useCallback(
+    (tr: Track, timelineT: number, wantPlay: boolean) => {
+      const el = audioRefs.current[tr.id]
+      if (!el || !tr.audioUrl) return
+      const media = timelineToMedia(tr, timelineT)
+      const shouldHear =
+        wantPlay &&
+        media !== null &&
+        (ab === 'original' ? tr.id === tracks[0]?.id : audible(tr))
+      if (media === null) {
+        if (!el.paused) el.pause()
+        return
+      }
+      if (!Number.isFinite(el.duration) || el.duration <= 0) {
+        /* metadata not ready yet */
+      } else {
+        const clamped = Math.min(Math.max(0, media), Math.max(0, el.duration - 0.001))
+        if (Math.abs(el.currentTime - clamped) > 0.045) {
+          try {
+            el.currentTime = clamped
+          } catch {
+            /* ignore seek errors while loading */
+          }
+        }
+      }
+      if (shouldHear) {
+        if (el.paused) void el.play().catch(() => undefined)
+      } else if (!el.paused) {
+        el.pause()
+      }
+    },
+    [ab, audible, tracks],
+  )
+
+  const syncAllToTimeline = useCallback(
+    (timelineT: number, wantPlay: boolean) => {
+      for (const tr of tracks) syncTrackToTimeline(tr, timelineT, wantPlay)
+      if (nullRef.current && !nullRef.current.paused) {
+        nullRef.current.currentTime = timelineT
+      }
+    },
+    [tracks, syncTrackToTimeline],
+  )
+
+  const armTransport = useCallback((timelineT: number) => {
+    transportRef.current = {
+      playing: true,
+      originTimeline: timelineT,
+      originPerf: performance.now(),
+    }
+    playheadRef.current = timelineT
+    setPlayhead(timelineT)
+    setPlaying(true)
   }, [])
 
   const pauseAll = useCallback(() => {
+    transportRef.current.playing = false
     for (const el of Object.values(audioRefs.current)) el?.pause()
     nullRef.current?.pause()
     setPlaying(false)
   }, [])
 
+  const seekAll = useCallback(
+    (t: number) => {
+      const clamped = Math.max(0, Math.min(t, timelineDur || t))
+      playheadRef.current = clamped
+      setPlayhead(clamped)
+      if (transportRef.current.playing) {
+        transportRef.current.originTimeline = clamped
+        transportRef.current.originPerf = performance.now()
+      }
+      syncAllToTimeline(clamped, transportRef.current.playing)
+    },
+    [timelineDur, syncAllToTimeline],
+  )
+
   const playAll = useCallback(async () => {
     applyVolumes()
-    const t = playhead
-    const tasks: Promise<void>[] = []
-    for (const tr of tracks) {
-      const el = audioRefs.current[tr.id]
-      if (!el) continue
-      el.currentTime = Math.min(t, el.duration || t)
-      if (ab === 'original') {
-        if (tr.id === tracks[0]?.id) tasks.push(el.play().then(() => undefined).catch(() => undefined))
-        else el.pause()
-      } else if (audible(tr)) {
-        tasks.push(el.play().then(() => undefined).catch(() => undefined))
-      } else el.pause()
+    const ctx = ensureAudioCtx()
+    if (ctx.state === 'suspended') await ctx.resume().catch(() => undefined)
+    const t = playheadRef.current
+    armTransport(t)
+    syncAllToTimeline(t, true)
+  }, [applyVolumes, ensureAudioCtx, armTransport, syncAllToTimeline])
+
+  /** Stop: pause transport and leave the playhead where it is. */
+  const stopTransport = useCallback(() => {
+    pauseAll()
+  }, [pauseAll])
+
+  // Master-clock playhead — keeps running when a short track ends.
+  useEffect(() => {
+    let raf = 0
+    const tick = () => {
+      const tr = transportRef.current
+      if (tr.playing) {
+        let t = tr.originTimeline + (performance.now() - tr.originPerf) / 1000
+        if (loopSel && hasSel && sel) {
+          const span = Math.max(0.01, sel.end - sel.start)
+          if (t >= sel.end) {
+            t = sel.start + ((t - sel.start) % span)
+            tr.originTimeline = t
+            tr.originPerf = performance.now()
+            syncAllToTimeline(t, true)
+          } else {
+            syncAllToTimeline(t, true)
+          }
+        } else {
+          if (timelineDur > 0 && t >= timelineDur) {
+            t = timelineDur
+            pauseAll()
+            playheadRef.current = t
+            setPlayhead(t)
+            raf = requestAnimationFrame(tick)
+            return
+          }
+          syncAllToTimeline(t, true)
+        }
+        playheadRef.current = t
+        setPlayhead(t)
+        setPlaying(true)
+      }
+      raf = requestAnimationFrame(tick)
     }
-    await Promise.all(tasks)
-    setPlaying(true)
-  }, [tracks, playhead, ab, audible, applyVolumes])
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [loopSel, hasSel, sel, timelineDur, syncAllToTimeline, pauseAll])
 
   const togglePlay = () => {
     if (playing) pauseAll()
@@ -390,11 +927,6 @@ export function StudioModule() {
       if (hasSel && sel && playhead < sel.start) seekAll(sel.start)
       void playAll()
     }
-  }
-
-  const stopToStart = () => {
-    pauseAll()
-    seekAll(hasSel && sel ? sel.start : 0)
   }
 
   const patchTrack = (id: string, patch: Partial<Track>) => {
@@ -414,14 +946,39 @@ export function StudioModule() {
     }
     const body: Parameters<typeof applyEdit>[0] = { file_id: track.fileId, op }
     if (needsSel && sel) {
-      body.start = sel.start
-      body.end = sel.end
+      const startM = timelineToMedia(track, sel.start)
+      if (startM === null) {
+        setStatus('Selection starts outside the clip on this track.')
+        return
+      }
+      // Map end via the same clip window (inclusive of clip end).
+      const clip = track.clips.find((c) => {
+        const len = clipLength(c, track.duration)
+        return sel.start >= c.offset && sel.start < c.offset + len
+      })
+      body.start = startM
+      body.end = clip
+        ? Math.min(
+            clip.sourceEnd > 0 ? clip.sourceEnd : track.duration,
+            clip.sourceStart + (sel.end - clip.offset),
+          )
+        : sel.end
     }
     if (op === 'gain') {
       body.db = db ?? 0
       if (hasSel && sel && sel.trackId === track.id) {
-        body.start = sel.start
-        body.end = sel.end
+        const startM = timelineToMedia(track, sel.start)
+        const clip = track.clips.find((c) => {
+          const len = clipLength(c, track.duration)
+          return sel.start >= c.offset && sel.start < c.offset + len
+        })
+        if (startM !== null && clip) {
+          body.start = startM
+          body.end = Math.min(
+            clip.sourceEnd > 0 ? clip.sourceEnd : track.duration,
+            clip.sourceStart + (sel.end - clip.offset),
+          )
+        }
       }
     }
     try {
@@ -450,18 +1007,34 @@ export function StudioModule() {
   }
 
   const splitAt = async (track: Track, at: number) => {
-    if (at <= 0.02 || at >= track.duration - 0.02) {
+    const mediaAt = timelineToMedia(track, at)
+    if (mediaAt === null) {
+      setStatus('Split point is outside the clip on this track.')
+      return
+    }
+    if (mediaAt <= 0.02 || mediaAt >= track.duration - 0.02) {
       setStatus('Split point too close to an edge.')
       return
     }
     try {
       pushUndo()
-      const data = await applyEdit({ file_id: track.fileId, op: 'split', at })
+      const data = await applyEdit({ file_id: track.fileId, op: 'split', at: mediaAt })
       if (!data.left || !data.right) throw new Error('Split returned incomplete result')
       const left = trackFromFile(`${track.name} L`, data.left.file_id, data.left.audio_url, data.left.duration)
       left.color = track.color
       left.gain = track.gain
       left.pan = track.pan
+      const clip = track.clips[0]
+      if (clip) {
+        left.clips = [
+          {
+            id: uid('clip'),
+            sourceStart: 0,
+            sourceEnd: data.left.duration,
+            offset: clip.offset,
+          },
+        ]
+      }
       const right = trackFromFile(
         `${track.name} R`,
         data.right.file_id,
@@ -488,8 +1061,9 @@ export function StudioModule() {
     }
   }
 
-  const bounceSelected = async () => {
-    const chosen = tracks.filter((t) => selectedIds.includes(t.id) && t.name !== 'residual')
+  const bounceSelected = async (trackIds?: string[], label = 'Bounce') => {
+    const ids = trackIds || selectedIds
+    const chosen = tracks.filter((t) => ids.includes(t.id) && t.name !== 'residual')
     const layers = (chosen.length ? chosen : tracks.filter((t) => !t.mute && audible(t))).filter(
       (t) => !t.name.endsWith('(ref)'),
     )
@@ -507,7 +1081,7 @@ export function StudioModule() {
           offset: t.clips[0]?.offset || 0,
         })),
       )
-      const bounced = trackFromFile('Bounce', data.file_id, data.audio_url, data.duration)
+      const bounced = trackFromFile(label, data.file_id, data.audio_url, data.duration)
       setTracks((prev) => [...prev, bounced])
       setSelectedIds([bounced.id])
       wavesRef.current[bounced.id] = data.waveform
@@ -517,6 +1091,109 @@ export function StudioModule() {
     } catch (err) {
       setStatus(err instanceof Error ? err.message : String(err))
     }
+  }
+
+  const bouncePack = async (packId: string) => {
+    const pack = stemPacks.find((p) => p.id === packId)
+    if (!pack) {
+      setStatus('Pack not found.')
+      return
+    }
+    await bounceSelected(pack.trackIds, `Bounce · ${pack.name}`)
+  }
+
+  const pitchCorrectTrack = async (track?: Track | null) => {
+    const target = track || selectedTrack
+    if (!target?.fileId) {
+      setStatus('Select a track with audio to pitch-correct.')
+      return
+    }
+    const keyHint =
+      stemPacks.find((p) => p.id === target.packId)?.key ||
+      stemPacks.find((p) => p.trackIds.includes(target.id))?.key ||
+      file?.report.estimated_key ||
+      undefined
+    try {
+      pushUndo()
+      setStatus('Pitch correcting…')
+      const data = await pitchCorrectFile(target.fileId, { key: keyHint || undefined, strength: 1 })
+      const corrected = trackFromFile(
+        `${target.name} · pitch`,
+        data.file_id,
+        data.audio_url,
+        data.duration,
+        target.packId,
+      )
+      corrected.color = target.color
+      corrected.gain = target.gain
+      corrected.pan = target.pan
+      corrected.clips = [
+        {
+          id: uid('clip'),
+          sourceStart: 0,
+          sourceEnd: data.duration,
+          offset: target.clips[0]?.offset || 0,
+        },
+      ]
+      setTracks((prev) => {
+        const i = prev.findIndex((t) => t.id === target.id)
+        if (i < 0) return [...prev, corrected]
+        const next = [...prev]
+        next.splice(i + 1, 0, corrected)
+        return next
+      })
+      setSelectedIds([corrected.id])
+      wavesRef.current[corrected.id] = data.waveform
+      void loadWave(corrected)
+      setStatus(`Pitch correct → new clip${keyHint ? ` (${keyHint})` : ' (chromatic)'}`)
+      setMixOpen(true)
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : String(err))
+    }
+  }
+
+  const openCtxMenu = (track: Track, e: React.MouseEvent, time?: number) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setSelectedIds([track.id])
+    const lane = (e.currentTarget as HTMLElement).closest('.studio-lane') as HTMLElement | null
+    const t = time ?? (lane ? xToTime(e.clientX, lane) : playhead)
+    setCtxMenu({ x: e.clientX, y: e.clientY, trackId: track.id, time: t })
+    setColorTrackId(null)
+  }
+
+  const closeCtxMenu = () => {
+    setCtxMenu(null)
+    setColorTrackId(null)
+  }
+
+  useEffect(() => {
+    if (!ctxMenu) return
+    const onDoc = (e: MouseEvent) => {
+      const el = e.target as HTMLElement
+      if (el.closest?.('.studio-ctx-menu')) return
+      closeCtxMenu()
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeCtxMenu()
+    }
+    window.addEventListener('mousedown', onDoc)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('mousedown', onDoc)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [ctxMenu])
+
+  const commitRename = () => {
+    if (!renameTrackId) return
+    const name = renameValue.trim()
+    if (name) {
+      pushUndo()
+      patchTrack(renameTrackId, { name })
+    }
+    setRenameTrackId(null)
+    setRenameValue('')
   }
 
   const undo = () => {
@@ -608,8 +1285,8 @@ export function StudioModule() {
     if (hasSel && sel) {
       setSel({
         trackId: sel.trackId,
-        start: Math.max(0, sel.start + delta),
-        end: Math.max(0.05, sel.end + delta),
+        start: snapIf(Math.max(0, sel.start + delta)),
+        end: snapIf(Math.max(0.05, sel.end + delta)),
       })
       return
     }
@@ -621,11 +1298,82 @@ export function StudioModule() {
         t.id === id
           ? {
               ...t,
-              clips: t.clips.map((c) => ({ ...c, offset: Math.max(0, c.offset + delta) })),
+              clips: t.clips.map((c) => ({
+                ...c,
+                offset: snapIf(Math.max(0, c.offset + delta)),
+              })),
             }
           : t,
       ),
     )
+  }
+
+  const reestimatePackOrSelection = async () => {
+    const pack = stemPacks.find((p) => selectedIds.some((id) => p.trackIds.includes(id))) || stemPacks[0]
+    const track =
+      tracks.find((t) => selectedIds.includes(t.id) && t.fileId) ||
+      tracks.find((t) => t.packId === pack?.id && t.fileId && !t.name.includes('(ref)')) ||
+      tracks.find((t) => t.fileId)
+    if (!track?.fileId) {
+      setStatus('Select a track with audio to re-estimate BPM/key.')
+      return
+    }
+    try {
+      const data = await reanalyzeFile(track.fileId)
+      if (pack) {
+        updateStemPack(pack.id, {
+          bpm: data.estimated_bpm,
+          key: data.estimated_key,
+        })
+      }
+      setStatus(
+        `Re-estimated · ${data.estimated_bpm ? `~${Math.round(data.estimated_bpm)} BPM` : 'BPM ?'}${
+          data.estimated_key ? ` · ${data.estimated_key}` : ''
+        }`,
+      )
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : String(err))
+    }
+  }
+
+  const applyPendingTranspose = async () => {
+    if (!pendingTranspose) return
+    const { packId, semitones } = pendingTranspose
+    const packTracks = tracks.filter((t) => t.packId === packId && !t.name.includes('(ref)'))
+    if (!packTracks.length) {
+      setStatus('No pack tracks to transpose.')
+      return
+    }
+    try {
+      pushUndo()
+      const nextTracks = [...tracks]
+      for (const tr of packTracks) {
+        if (!tr.fileId) continue
+        const data = await pitchShiftFile(tr.fileId, semitones)
+        const i = nextTracks.findIndex((t) => t.id === tr.id)
+        if (i >= 0) {
+          nextTracks[i] = {
+            ...nextTracks[i],
+            fileId: data.file_id,
+            audioUrl: data.audio_url,
+            duration: data.duration,
+            clips: [{ id: uid('clip'), sourceStart: 0, sourceEnd: data.duration, offset: tr.clips[0]?.offset || 0 }],
+          }
+          wavesRef.current[tr.id] = data.waveform
+        }
+      }
+      setTracks(nextTracks)
+      const pack = stemPacks.find((p) => p.id === packId)
+      if (pack?.key && stemPacks[0] && packId !== stemPacks[0].id) {
+        updateStemPack(packId, { key: stemPacks[0].key })
+      }
+      setPendingTranspose(null)
+      setKeyConflict(null)
+      setStatus(`Applied transpose ${semitones > 0 ? '+' : ''}${semitones} st`)
+      for (const t of nextTracks.filter((x) => x.packId === packId)) void loadWave(t)
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : String(err))
+    }
   }
 
   const toggleAB = () => {
@@ -672,18 +1420,38 @@ export function StudioModule() {
     }
   }
 
+  const zoomBy = useCallback(
+    (factor: number) => {
+      if (!timelineDur) return
+      const mid = hasSel && sel ? (sel.start + sel.end) / 2 : viewStart + viewDur / 2
+      const half = Math.max(0.05, (viewDur * factor) / 2)
+      setViewStart(Math.max(0, mid - half))
+      setViewEnd(Math.min(timelineDur, mid + half))
+    },
+    [timelineDur, hasSel, sel, viewStart, viewDur],
+  )
+
   // Keyboard
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName
       if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return
+      if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+        e.preventDefault()
+        setHelpOpen((v) => !v)
+        return
+      }
       if (e.code === 'Space') {
         e.preventDefault()
         togglePlay()
-      } else if (e.key === 'Escape') setSel(null)
-      else if (e.key.toLowerCase() === 'v' && !e.ctrlKey && !e.metaKey) setMode('select')
+      } else       if (e.key === 'Escape') {
+        if (ctxMenu) closeCtxMenu()
+        else if (helpOpen) setHelpOpen(false)
+        else setSel(null)
+      } else if (e.key.toLowerCase() === 'v' && !e.ctrlKey && !e.metaKey) setMode('select')
       else if (e.key.toLowerCase() === 'a' && !e.ctrlKey && !e.metaKey) setMode('scrub')
       else if (e.key.toLowerCase() === 'c' && !e.ctrlKey && !e.metaKey) setMode('split')
+      else if (e.key.toLowerCase() === 'b' && !e.ctrlKey && !e.metaKey) setMode('move')
       else if (e.key.toLowerCase() === 'm' && !e.ctrlKey && !e.metaKey) setMixOpen((v) => !v)
       else if ((e.key === 'Delete' || e.key === 'Backspace') && hasSel) {
         e.preventDefault()
@@ -697,22 +1465,13 @@ export function StudioModule() {
         redo()
       } else if (e.key === '[') nudge(-0.05)
       else if (e.key === ']') nudge(0.05)
-      else if (e.key === '=' || e.key === '+') {
-        const mid = hasSel && sel ? (sel.start + sel.end) / 2 : viewStart + viewDur / 2
-        const half = viewDur / 4
-        setViewStart(Math.max(0, mid - half))
-        setViewEnd(Math.min(timelineDur, mid + half))
-      } else if (e.key === '-') {
-        const mid = viewStart + viewDur / 2
-        const half = Math.min(timelineDur / 2, viewDur)
-        setViewStart(Math.max(0, mid - half))
-        setViewEnd(Math.min(timelineDur, mid + half))
-      }
+      else if (e.key === '=' || e.key === '+') zoomBy(0.5)
+      else if (e.key === '-') zoomBy(2)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasSel, sel, timelineDur, viewStart, viewDur, tracks, selectedIds, playing, playhead])
+  }, [hasSel, sel, timelineDur, viewStart, viewDur, tracks, selectedIds, playing, playhead, helpOpen, zoomBy, ctxMenu])
 
   // Wheel zoom/pan
   useEffect(() => {
@@ -749,15 +1508,47 @@ export function StudioModule() {
     }
 
     if (mode === 'scrub' || e.altKey) {
-      dragRef.current = { kind: 'playhead', trackId: track.id, startX: e.clientX }
+      dragRef.current = {
+        kind: 'playhead',
+        trackId: track.id,
+        clipId: null,
+        startX: e.clientX,
+        originOffset: 0,
+        pushedUndo: false,
+      }
       seekAll(t)
       pauseAll()
       lane.setPointerCapture(e.pointerId)
       return
     }
 
+    if (mode === 'move') {
+      const clip = track.clips.find((c) => {
+        const len = clipLength(c, track.duration)
+        return t >= c.offset && t < c.offset + len
+      })
+      if (!clip) return
+      dragRef.current = {
+        kind: 'clip-move',
+        trackId: track.id,
+        clipId: clip.id,
+        startX: e.clientX,
+        originOffset: clip.offset,
+        pushedUndo: false,
+      }
+      lane.setPointerCapture(e.pointerId)
+      return
+    }
+
     // select
-    dragRef.current = { kind: 'sel', trackId: track.id, startX: e.clientX }
+    dragRef.current = {
+      kind: 'sel',
+      trackId: track.id,
+      clipId: null,
+      startX: e.clientX,
+      originOffset: 0,
+      pushedUndo: false,
+    }
     setSel({ trackId: track.id, start: t, end: t })
     seekAll(t)
     lane.setPointerCapture(e.pointerId)
@@ -771,6 +1562,27 @@ export function StudioModule() {
       seekAll(t)
       return
     }
+    if (d.kind === 'clip-move' && d.trackId && d.clipId) {
+      if (!d.pushedUndo) {
+        pushUndo()
+        d.pushedUndo = true
+      }
+      const dx = e.clientX - d.startX
+      const r = e.currentTarget.getBoundingClientRect()
+      const deltaT = (dx / r.width) * viewDur
+      const nextOff = snapIf(Math.max(0, d.originOffset + deltaT))
+      setTracks((prev) =>
+        prev.map((tr) =>
+          tr.id === d.trackId
+            ? {
+                ...tr,
+                clips: tr.clips.map((c) => (c.id === d.clipId ? { ...c, offset: nextOff } : c)),
+              }
+            : tr,
+        ),
+      )
+      return
+    }
     if (d.kind === 'sel' && d.trackId) {
       let a = xToTime(d.startX, e.currentTarget)
       let b = t
@@ -780,7 +1592,41 @@ export function StudioModule() {
   }
 
   const onLaneUp = () => {
-    dragRef.current = { kind: null, trackId: null, startX: 0 }
+    dragRef.current = {
+      kind: null,
+      trackId: null,
+      clipId: null,
+      startX: 0,
+      originOffset: 0,
+      pushedUndo: false,
+    }
+  }
+
+  const onClipPointer = (track: Track, clip: Clip, e: React.PointerEvent<HTMLDivElement>) => {
+    e.stopPropagation()
+    setSelectedIds([track.id])
+    if (mode === 'split') {
+      const lane = e.currentTarget.parentElement
+      if (!lane) return
+      void splitAt(track, xToTime(e.clientX, lane))
+      return
+    }
+    if (mode === 'scrub') {
+      const lane = e.currentTarget.parentElement
+      if (!lane) return
+      seekAll(xToTime(e.clientX, lane))
+      return
+    }
+    // move or select: dragging the clip body moves it
+    dragRef.current = {
+      kind: 'clip-move',
+      trackId: track.id,
+      clipId: clip.id,
+      startX: e.clientX,
+      originOffset: clip.offset,
+      pushedUndo: false,
+    }
+    ;(e.currentTarget.parentElement as HTMLElement | null)?.setPointerCapture?.(e.pointerId)
   }
 
   const playheadPct = ((playhead - viewStart) / viewDur) * 100
@@ -788,9 +1634,47 @@ export function StudioModule() {
 
   if (!tracks.length && !file) {
     return (
-      <EmptyGate title="Studio">
-        Import a file or run Separate to load tracks into the timeline.
-      </EmptyGate>
+      <div className="module-panel bleed studio-layout module-enter">
+        <div className="studio-header">
+          <h2>Studio</h2>
+          <button
+            type="button"
+            className="studio-help"
+            title="Studio shortcuts (?)"
+            aria-label="Studio shortcuts"
+            onClick={() => setHelpOpen(true)}
+          >
+            ?
+          </button>
+        </div>
+        <p className="studio-intent" role="status">
+          Arrange stems and clips on a shared timeline. Import audio, run Separate, or add another pack.
+        </p>
+        <div className="gate" role="status">
+          <div className="gate-title">Studio is empty</div>
+          <p className="gate-body">
+            Load audio into the timeline to play, loop a selection, and mix with pan/gain.
+          </p>
+          <div className="studio-gate-actions">
+            <button type="button" className="primary" onClick={() => setModule('import')}>
+              Import
+            </button>
+            <button type="button" onClick={() => setModule('separate')}>
+              Separate
+            </button>
+            <button
+              type="button"
+              title="Import another song or stems as a pack on this timeline"
+              onClick={() => setModule('import')}
+            >
+              Add pack
+            </button>
+          </div>
+        </div>
+        {helpOpen && (
+          <StudioHelpSheet onClose={() => setHelpOpen(false)} onAbout={() => setModule('about')} />
+        )}
+      </div>
     )
   }
 
@@ -804,36 +1688,145 @@ export function StudioModule() {
         <button
           type="button"
           className="studio-help"
-          title="Studio shortcuts"
-          onClick={() => setModule('about')}
+          title="Studio shortcuts (?)"
+          aria-label="Studio shortcuts"
+          aria-expanded={helpOpen}
+          onClick={() => setHelpOpen((v) => !v)}
         >
           ?
         </button>
       </div>
 
       <div className="studio-toolbar compact">
-        <div className="studio-tool-group" role="group" aria-label="Modes">
+        <ToolGroup label="Transport">
+          <button
+            type="button"
+            className="studio-icon-btn"
+            title="Play or pause (Space)"
+            aria-label={playing ? 'Pause' : 'Play'}
+            onMouseEnter={() => setIntentOverride(TRANSPORT_INTENT)}
+            onMouseLeave={() => setIntentOverride(null)}
+            onClick={togglePlay}
+          >
+            {playing ? <IconPause size={16} /> : <IconPlay size={16} />}
+          </button>
+          <button
+            type="button"
+            className="studio-icon-btn"
+            title="Stop — leave playhead"
+            aria-label="Stop"
+            onMouseEnter={() =>
+              setIntentOverride('Stop pauses playback and leaves the playhead where it is.')
+            }
+            onMouseLeave={() => setIntentOverride(null)}
+            onClick={stopTransport}
+          >
+            <IconStop size={16} />
+          </button>
+          <button
+            type="button"
+            className={`studio-icon-btn${loopSel ? ' active' : ''}`}
+            title="Loop selection"
+            aria-label="Loop selection"
+            aria-pressed={loopSel}
+            onMouseEnter={() =>
+              setIntentOverride(
+                hasSel
+                  ? 'Loop wraps the selection end → start only (not the whole track).'
+                  : 'Select a region first, then enable Loop.',
+              )
+            }
+            onMouseLeave={() => setIntentOverride(null)}
+            onClick={() => setLoopSel((v) => !v)}
+          >
+            <IconLoop size={16} />
+          </button>
+        </ToolGroup>
+
+        <ToolGroup label="Tools">
           {(
             [
-              ['select', 'Sel', 'Select region (V)'],
-              ['scrub', 'Scrub', 'Scrub playhead (A)'],
-              ['split', 'Split', 'Split clip (C)'],
+              ['select', 'Select region (V)', IconSelect],
+              ['scrub', 'Scrub playhead (A)', IconScrub],
+              ['split', 'Split clip (C)', IconSplit],
+              ['move', 'Move clip (B)', IconScrub],
             ] as const
-          ).map(([id, label, title]) => (
+          ).map(([id, title, Ico]) => (
             <button
               key={id}
               type="button"
-              className={mode === id ? 'active' : ''}
+              className={`studio-icon-btn${mode === id ? ' active' : ''}`}
               title={title}
+              aria-label={title}
+              aria-pressed={mode === id}
               onMouseEnter={() => setIntentOverride(MODE_INTENT[id])}
               onMouseLeave={() => setIntentOverride(null)}
               onClick={() => setMode(id)}
             >
-              {label}
+              <Ico size={16} />
             </button>
           ))}
-        </div>
-        <div className="studio-tool-group" role="group" aria-label="Edits">
+          <button
+            type="button"
+            className={`studio-icon-btn${beatSnap ? ' active' : ''}`}
+            title="Snap clip moves to beat grid"
+            aria-label="Beat snap"
+            aria-pressed={beatSnap}
+            onMouseEnter={() =>
+              setIntentOverride(`Snap offsets to beats at ~${Math.round(sessionBpm)} BPM.`)
+            }
+            onMouseLeave={() => setIntentOverride(null)}
+            onClick={() => setBeatSnap((v) => !v)}
+          >
+            Snap
+          </button>
+        </ToolGroup>
+
+        <ToolGroup label="View">
+          <button
+            type="button"
+            className="studio-icon-btn"
+            title="Zoom in (=)"
+            aria-label="Zoom in"
+            onClick={() => zoomBy(0.5)}
+          >
+            <IconZoomIn size={16} />
+          </button>
+          <button
+            type="button"
+            className="studio-icon-btn"
+            title="Zoom out (-)"
+            aria-label="Zoom out"
+            onClick={() => zoomBy(2)}
+          >
+            <IconZoomOut size={16} />
+          </button>
+          <button
+            type="button"
+            className="studio-icon-btn"
+            title="Fit view — useful window for long files"
+            aria-label="Fit view"
+            onClick={() => applyFitView(timelineDur, true)}
+          >
+            Fit
+          </button>
+          <button
+            type="button"
+            className={`studio-icon-btn${showSpectrogram ? ' active' : ''}`}
+            title="Toggle spectrogram lane"
+            aria-label="Spectrogram lane"
+            aria-pressed={showSpectrogram}
+            onMouseEnter={() =>
+              setIntentOverride('Show log-frequency spectrogram under each waveform lane.')
+            }
+            onMouseLeave={() => setIntentOverride(null)}
+            onClick={() => setShowSpectrogram((v) => !v)}
+          >
+            <IconSpectrogram size={16} />
+          </button>
+        </ToolGroup>
+
+        <ToolGroup label="Clip">
           {EDIT_TOOLS.map((t) => (
             <button
               key={t.label}
@@ -846,12 +1839,10 @@ export function StudioModule() {
               {t.label}
             </button>
           ))}
-        </div>
-        <div className="studio-tool-group" role="group" aria-label="History">
-          <button type="button" disabled={!undoStack.length} title="Undo" onClick={undo}>
+          <button type="button" disabled={!undoStack.length} title="Undo (Ctrl+Z)" onClick={undo}>
             Undo
           </button>
-          <button type="button" disabled={!redoStack.length} title="Redo" onClick={redo}>
+          <button type="button" disabled={!redoStack.length} title="Redo (Ctrl+Y)" onClick={redo}>
             Redo
           </button>
           <button
@@ -865,17 +1856,43 @@ export function StudioModule() {
           </button>
           <button
             type="button"
+            className="studio-icon-btn"
+            title="Pitch correct — new clip (YIN snap + Rubber Band)"
+            aria-label="Pitch correct"
+            onMouseEnter={() =>
+              setIntentOverride(
+                'Corrective pitch snap for mono vocals → new timeline clip (Rubber Band when installed).',
+              )
+            }
+            onMouseLeave={() => setIntentOverride(null)}
+            onClick={() => void pitchCorrectTrack()}
+          >
+            <IconPitchCorrect size={16} />
+          </button>
+        </ToolGroup>
+
+        <ToolGroup label="Mix">
+          <button
+            type="button"
             className={mixOpen ? 'active' : ''}
             title="Mix drawer (M)"
+            onMouseEnter={() =>
+              setIntentOverride('Mix drawer — mute/solo/gain/pan and export. Pan applies in live preview.')
+            }
+            onMouseLeave={() => setIntentOverride(null)}
             onClick={() => setMixOpen((v) => !v)}
           >
             Mix
           </button>
-        </div>
+        </ToolGroup>
       </div>
       <p className="studio-intent" role="status">
         {activeIntent}
       </p>
+
+      {helpOpen && (
+        <StudioHelpSheet onClose={() => setHelpOpen(false)} onAbout={() => setModule('about')} />
+      )}
 
       <div className="studio-body">
         <div className="studio-timeline" ref={wrapRef}>
@@ -944,37 +1961,64 @@ export function StudioModule() {
                   onClick={() => setSelectedIds([t.id])}
                 >
                   <span className="swatch" style={{ background: t.color }} aria-hidden />
-                  <span className="studio-track-name" title={t.name}>
-                    {t.name}
-                  </span>
+                  {renameTrackId === t.id ? (
+                    <input
+                      className="studio-rename-input"
+                      value={renameValue}
+                      autoFocus
+                      aria-label={`Rename ${t.name}`}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onBlur={commitRename}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') commitRename()
+                        if (e.key === 'Escape') {
+                          setRenameTrackId(null)
+                          setRenameValue('')
+                        }
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <span className="stem-badge studio-track-badge" title={t.name}>
+                      <span className="stem-badge-icon" aria-hidden>
+                        {stemIcon(t.name)}
+                      </span>
+                      {stemLabel(t.name)}
+                    </span>
+                  )}
                   <button
                     type="button"
-                    className={t.mute ? 'active' : ''}
+                    className={`studio-icon-btn${t.mute ? ' active' : ''}`}
                     title="Mute"
+                    aria-label={`Mute ${t.name}`}
+                    aria-pressed={t.mute}
                     onClick={(e) => {
                       e.stopPropagation()
                       patchTrack(t.id, { mute: !t.mute })
                     }}
                   >
-                    M
+                    <IconMute size={14} />
                   </button>
                   <button
                     type="button"
-                    className={t.solo ? 'active' : ''}
+                    className={`studio-icon-btn${t.solo ? ' active' : ''}`}
                     title="Solo"
+                    aria-label={`Solo ${t.name}`}
+                    aria-pressed={t.solo}
                     onClick={(e) => {
                       e.stopPropagation()
                       patchTrack(t.id, { solo: !t.solo })
                     }}
                   >
-                    S
+                    <IconSolo size={14} />
                   </button>
                 </div>
                 <div
-                  className={`studio-lane mode-${mode}`}
+                  className={`studio-lane mode-${mode}${showSpectrogram ? ' has-spec' : ''}`}
                   onPointerDown={(e) => onLanePointer(t, e)}
                   onPointerMove={onLaneMove}
                   onPointerUp={onLaneUp}
+                  onContextMenu={(e) => openCtxMenu(t, e)}
                 >
                   <canvas
                     ref={(el) => {
@@ -984,19 +2028,38 @@ export function StudioModule() {
                     height={56}
                     aria-label={`${t.name} waveform`}
                   />
+                  {showSpectrogram && (
+                    <canvas
+                      className="studio-spec-canvas"
+                      ref={(el) => {
+                        specCanvasRefs.current[t.id] = el
+                        if (el && specsRef.current[t.id]) {
+                          drawWebGLSpectrogram(el, specsRef.current[t.id])
+                        }
+                      }}
+                      height={72}
+                      aria-label={`${t.name} spectrogram`}
+                    />
+                  )}
                   {t.clips.map((c) => {
-                    const len = Math.max(0.01, (c.sourceEnd || t.duration) - c.sourceStart)
+                    const len = Math.max(0.01, clipLength(c, t.duration))
                     const left = ((c.offset - viewStart) / viewDur) * 100
                     const width = (len / viewDur) * 100
                     return (
                       <div
                         key={c.id}
-                        className="studio-clip"
+                        className="studio-clip studio-clip-movable"
                         style={{
                           left: `${left}%`,
                           width: `${Math.max(0.3, width)}%`,
                           borderColor: t.color,
+                          ['--clip-color' as string]: t.color,
                         }}
+                        onPointerDown={(e) => onClipPointer(t, c, e)}
+                        onPointerMove={onLaneMove}
+                        onPointerUp={onLaneUp}
+                        onContextMenu={(e) => openCtxMenu(t, e)}
+                        title={`${t.name} · drag to move · right-click for actions`}
                       />
                     )
                   })}
@@ -1012,7 +2075,14 @@ export function StudioModule() {
                       style={{ left: `${playheadPct}%` }}
                       onPointerDown={(e) => {
                         e.stopPropagation()
-                        dragRef.current = { kind: 'playhead', trackId: t.id, startX: e.clientX }
+                        dragRef.current = {
+                          kind: 'playhead',
+                          trackId: t.id,
+                          clipId: null,
+                          startX: e.clientX,
+                          originOffset: 0,
+                          pushedUndo: false,
+                        }
                         pauseAll()
                         ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
                       }}
@@ -1027,7 +2097,7 @@ export function StudioModule() {
                   )}
                   <audio
                     ref={(el) => {
-                      audioRefs.current[t.id] = el
+                      wireTrackAudio(t.id, el)
                     }}
                     src={t.audioUrl || undefined}
                     preload="auto"
@@ -1082,6 +2152,79 @@ export function StudioModule() {
             <p className="intent">
               Preview bus — mute/solo/gain/pan stay client-side until you Bounce or export.
             </p>
+            {stemPacks.length > 0 && (
+              <div className="studio-pack-list">
+                <div className="option-detail-title">Mashup packs</div>
+                <ul>
+                  {stemPacks.map((p) => (
+                    <li key={p.id}>
+                      <strong>{p.name}</strong>
+                      <span className="muted">
+                        {' '}
+                        · {p.bpm ? `~${Math.round(p.bpm)} BPM` : 'BPM ?'}
+                        {p.key ? ` · ${p.key}` : ''}
+                      </span>
+                      <div className="studio-pack-actions">
+                        <button
+                          type="button"
+                          title={`Bounce pack “${p.name}”`}
+                          onClick={() => void bouncePack(p.id)}
+                        >
+                          Bounce pack
+                        </button>
+                        {tracks
+                          .filter((t) => p.trackIds.includes(t.id) && t.fileId && !t.name.includes('(ref)'))
+                          .slice(0, 1)
+                          .map((t) => (
+                            <a
+                              key={t.id}
+                              href={exportUrl(t.fileId, exportFmt)}
+                              download
+                              title="Export first stem of pack"
+                            >
+                              Export stem
+                            </a>
+                          ))}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  type="button"
+                  title="Re-estimate BPM/key for the selected pack or track"
+                  onClick={() => void reestimatePackOrSelection()}
+                >
+                  Re-estimate BPM/key
+                </button>
+                <button
+                  type="button"
+                  title="Bounce all non-muted pack tracks currently selected, or all audible"
+                  onClick={() => void bounceSelected()}
+                >
+                  Bounce selection
+                </button>
+              </div>
+            )}
+            {keyConflict && (
+              <div className="studio-key-conflict" role="status">
+                <p>{keyConflict}</p>
+                {pendingTranspose && pendingTranspose.semitones !== 0 && (
+                  <button type="button" className="primary" onClick={() => void applyPendingTranspose()}>
+                    Apply transpose
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="ghost"
+                  onClick={() => {
+                    setKeyConflict(null)
+                    setPendingTranspose(null)
+                  }}
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
             <div className="mixer-tools">
               <button
                 type="button"
@@ -1140,7 +2283,9 @@ export function StudioModule() {
               {tracks.map((t) => (
                 <li key={t.id}>
                   <span className="swatch" style={{ background: t.color }} />
-                  {t.name}
+                  <span className="stem-badge" style={{ borderColor: t.color }}>
+                    {stemLabel(t.name)}
+                  </span>
                   {t.fileId && (
                     <a href={t.audioUrl} download>
                       dl
@@ -1151,7 +2296,7 @@ export function StudioModule() {
               {residual && (
                 <li>
                   <span className="swatch" style={{ background: stemColor('residual') }} />
-                  residual
+                  <span className="stem-badge">{stemLabel('residual')}</span>
                   <a href={residual.url} download>
                     dl
                   </a>
@@ -1166,17 +2311,26 @@ export function StudioModule() {
         <button type="button" onClick={togglePlay} title="Play or pause (Space)">
           {playing ? 'Pause' : 'Play'}
         </button>
-        <button type="button" onClick={stopToStart} title="Stop">
+        <button type="button" onClick={stopTransport} title="Stop — leave playhead">
           Stop
         </button>
         <button
           type="button"
           className={loopSel ? 'active' : ''}
           onClick={() => setLoopSel((v) => !v)}
-          title="Loop selection"
+          title="Loop selection (wraps sel end → start)"
         >
           Loop
         </button>
+        <span
+          className={`studio-live-bpm${playing ? ' is-playing' : ''}`}
+          title="Pack/session BPM under selection or playhead (phase-locked beat)"
+          style={{ ['--beat-phase' as string]: String(liveBeatPhase) }}
+        >
+          <span className="studio-live-bpm-dot" aria-hidden />
+          ~{Math.round(sessionBpm)} BPM
+          {sessionKey ? ` · ${sessionKey}` : ''}
+        </span>
         <label className="studio-seek" title="Scrub playhead">
           <span className="sr-only">Playhead</span>
           <input
@@ -1203,6 +2357,118 @@ export function StudioModule() {
       </div>
 
       {status && <p className="status-line muted">{status}</p>}
+
+      {ctxMenu && (() => {
+        const track = tracks.find((x) => x.id === ctxMenu.trackId)
+        if (!track) return null
+        return (
+          <div
+            className="studio-ctx-menu"
+            role="menu"
+            aria-label="Clip actions"
+            style={{ left: ctxMenu.x, top: ctxMenu.y }}
+          >
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                void splitAt(track, ctxMenu.time)
+                closeCtxMenu()
+              }}
+            >
+              Split here
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                patchTrack(track.id, { mute: !track.mute })
+                closeCtxMenu()
+              }}
+            >
+              {track.mute ? 'Unmute' : 'Mute'}
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                patchTrack(track.id, { solo: !track.solo })
+                closeCtxMenu()
+              }}
+            >
+              {track.solo ? 'Unsolo' : 'Solo'}
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setRenameTrackId(track.id)
+                setRenameValue(track.name)
+                closeCtxMenu()
+              }}
+            >
+              Rename…
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => setColorTrackId(track.id)}
+            >
+              Color…
+            </button>
+            {colorTrackId === track.id && (
+              <div className="studio-ctx-colors" role="group" aria-label="Clip color">
+                {CLIP_COLOR_SWATCHES.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    className="studio-color-swatch"
+                    style={{ background: c }}
+                    aria-label={`Color ${c}`}
+                    onClick={() => {
+                      pushUndo()
+                      patchTrack(track.id, { color: c })
+                      closeCtxMenu()
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                void bounceSelected([track.id], `Bounce · ${track.name}`)
+                closeCtxMenu()
+              }}
+            >
+              Bounce
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                void pitchCorrectTrack(track)
+                closeCtxMenu()
+              }}
+            >
+              Pitch correct
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setShowSpectrogram(true)
+                setSelectedIds([track.id])
+                void loadSpectrogram(track)
+                closeCtxMenu()
+              }}
+            >
+              Show spectrogram
+            </button>
+          </div>
+        )
+      })()}
     </div>
   )
 }

@@ -16,8 +16,7 @@ const MODULE_ACTIONS: { id: ModuleId; label: string; hint: string; key?: string 
   { id: 'studio', label: 'Studio', hint: 'Timeline, edits, mix/export', key: '3' },
   { id: 'separate', label: 'Separate', hint: 'Stem separation', key: '4' },
   { id: 'restore', label: 'Restore', hint: 'Enhancement chains', key: '5' },
-  { id: 'transcribe', label: 'Transcribe', hint: 'MIDI / piano roll', key: '6' },
-  { id: 'learn', label: 'Learn', hint: 'Practice mode', key: '8' },
+  { id: 'midi', label: 'MIDI Studio', hint: 'Transcribe / roll / score / edit / practice', key: '6' },
   { id: 'preferences', label: 'Preferences', hint: 'Theme, density, compute', key: '9' },
   { id: 'about', label: 'About', hint: 'Version, privacy, shortcuts' },
 ]
@@ -31,7 +30,7 @@ export function CommandPalette({
   onClose: () => void
   extraActions?: PaletteAction[]
 }) {
-  const { setModule, openStudioMix, clearSession, module } = useSession()
+  const { setModule, openStudioMix, clearSession, module, requestPracticeFocus } = useSession()
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -54,6 +53,13 @@ export function CommandPalette({
         run: () => openStudioMix(),
       },
       {
+        id: 'midi-practice',
+        label: 'MIDI Practice',
+        hint: 'Shortcut 8',
+        group: 'Actions',
+        run: () => requestPracticeFocus(),
+      },
+      {
         id: 'new',
         label: 'New session',
         hint: 'Clear file and results',
@@ -63,7 +69,7 @@ export function CommandPalette({
       ...extraActions,
     ]
     return [...mods, ...builtins]
-  }, [setModule, openStudioMix, clearSession, extraActions])
+  }, [setModule, openStudioMix, clearSession, requestPracticeFocus, extraActions])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()

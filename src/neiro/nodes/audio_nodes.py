@@ -206,11 +206,13 @@ class TranscribeNode(Node):
         profile = self.transcriber.profile
         admission = self.vram.reserve(profile.model_id, fp32_gb=profile.fp32_gb)
         try:
+            ctx.report(self.node_id, "load", 0.08, f"loading {profile.model_id}")
             self.transcriber.load(
                 admission.reservation.device.kind, admission.reservation.precision
             )
-            ctx.report(self.node_id, "transcribe", 0.3, f"running {profile.model_id}")
+            ctx.report(self.node_id, "transcribe", 0.35, f"running {profile.model_id}")
             notes = self.transcriber.transcribe(audio)
+            ctx.report(self.node_id, "transcribe", 0.92, f"decoded {profile.model_id}")
         finally:
             self.transcriber.unload()
             self.vram.release(profile.model_id)
@@ -244,6 +246,7 @@ class CompileNode(Node):
     def run(self, ctx: ExecutionContext, inputs: dict[str, Artifact]) -> dict[str, Artifact]:
         from neiro.symbolic import compile_timeline
 
+        ctx.report(self.node_id, "compile", 0.2, "compiling note streams")
         bpm = None
         report = inputs.get("__report__")
         if report is not None and getattr(report, "estimated_bpm", None):
@@ -260,6 +263,7 @@ class CompileNode(Node):
             division=self.division,
             strength=self.strength,
         )
+        ctx.report(self.node_id, "compile", 0.85, f"{timeline.total_events()} events")
         return {"timeline": timeline}
 
 

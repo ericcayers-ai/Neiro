@@ -159,3 +159,48 @@ def test_spectrogram_locates_tone_frequency():
     frac = np.log10(1000.0 / spec["fmin"]) / np.log10(spec["fmax"] / spec["fmin"])
     expected_row = int((1 - frac) * spec["rows"])
     assert abs(peak_row - expected_row) < 12
+
+
+# ---- time stretch / pitch -----------------------------------------------
+
+
+def test_time_stretch_lengthens():
+    a = _audio(1.0)
+    out = ed.time_stretch(a, 1.5)
+    assert abs(out.duration_seconds - 1.5) < 0.15
+    assert out.sample_rate == a.sample_rate
+
+
+def test_time_stretch_identity():
+    a = _audio(0.5)
+    out = ed.time_stretch(a, 1.0)
+    assert out.frames == a.frames
+
+
+def test_pitch_shift_keeps_duration():
+    a = _audio(0.8)
+    out = ed.pitch_shift(a, 2.0)
+    assert abs(out.duration_seconds - a.duration_seconds) < 0.05
+
+
+def test_pitch_correct_keeps_duration_and_channels():
+    # Slightly sharp 220 Hz tone (~A3) — should stay same length.
+    a = _audio(1.2, freq=226.0, channels=1)
+    out = ed.pitch_correct(a, strength=1.0)
+    assert out.channels == 1
+    assert abs(out.duration_seconds - a.duration_seconds) < 0.08
+    prov = out.provenance
+    text = " ".join(prov) if isinstance(prov, (tuple, list)) else str(prov)
+    assert "pitch_correct" in text
+
+
+def test_pitch_correct_strength_zero_is_noop():
+    a = _audio(0.6, freq=230.0)
+    out = ed.pitch_correct(a, strength=0.0)
+    assert np.allclose(out.samples, a.samples)
+
+
+def test_parse_key_scale_major_minor():
+    assert ed._parse_key_scale("C") == [0, 2, 4, 5, 7, 9, 11]
+    assert 9 in ed._parse_key_scale("Am")  # A
+    assert ed._parse_key_scale("") is None

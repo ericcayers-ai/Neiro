@@ -91,12 +91,22 @@ export function AboutModule() {
         Shortcuts
       </h3>
       <p className="muted" style={{ marginTop: 0 }}>
-        Ignored while typing in a field. Modules: 1–6, 7 Mix, 8 Learn, 9 Prefs. Shell: Ctrl/⌘K
-        command palette, Ctrl/⌘B collapse rail.
+        Windows-first: <strong>Ctrl</strong> is primary; <strong>⌘</strong> also works on macOS.
+        Ignored while typing in a field. Rail: <strong>1</strong> Import · <strong>2</strong> Analysis ·{' '}
+        <strong>3</strong> Studio · <strong>4</strong> Separate · <strong>5</strong> Restore ·{' '}
+        <strong>6</strong> MIDI Studio · <strong>9</strong> Prefs. Also{' '}
+        <strong>7</strong> Studio Mix drawer · <strong>8</strong> MIDI Practice. Shell:{' '}
+        <strong>Ctrl+K</strong> command palette, <strong>Ctrl+B</strong> hide/show rail.
       </p>
       <ul className="muted" style={{ lineHeight: 1.7, paddingLeft: 18 }}>
         <li>
           <strong>Space</strong> — play / pause
+        </li>
+        <li>
+          <strong>Stop</strong> — pause and leave the playhead (does not jump to 0 or selection start)
+        </li>
+        <li>
+          <strong>Loop</strong> + selection — wrap selection end → start only (not whole track)
         </li>
         <li>
           <strong>V</strong> Select · <strong>A</strong> Scrub · <strong>C</strong> Split tool
@@ -105,16 +115,16 @@ export function AboutModule() {
           <strong>Del</strong> silence selection · <strong>Shift+Del</strong> delete / splice
         </li>
         <li>
-          <strong>Ctrl+Z</strong> / <strong>Ctrl+Y</strong> undo / redo
+          <strong>Ctrl+Z</strong> / <strong>Ctrl+Y</strong> undo / redo (⌘Z / ⌘Y on macOS)
         </li>
         <li>
           <strong>[</strong> / <strong>]</strong> nudge selection or clip ±50 ms
         </li>
         <li>
-          <strong>Esc</strong> clear selection
+          <strong>Esc</strong> clear selection · <strong>?</strong> Studio shortcut sheet
         </li>
         <li>
-          <strong>=</strong> / <strong>-</strong> zoom · scroll pan · Ctrl+scroll zoom
+          <strong>=</strong> / <strong>-</strong> zoom · scroll pan · <strong>Ctrl+scroll</strong> zoom
         </li>
         <li>
           <strong>M</strong> toggle Mix drawer

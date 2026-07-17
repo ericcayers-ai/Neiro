@@ -26,12 +26,47 @@ from pathlib import Path
 
 from neiro.engine.artifacts import Timeline
 from neiro.symbolic.musicxml import write_musicxml
+from neiro.util import subprocess_win
 
-__all__ = ["export_score", "find_score_renderer"]
+__all__ = [
+    "export_score",
+    "find_score_renderer",
+    "write_musescore_override",
+    "clear_musescore_override",
+]
+
+
+def _musescore_override_path() -> Path:
+    from neiro.engine.downloader import default_neiro_home
+
+    return default_neiro_home() / "musescore_path.txt"
+
+
+def write_musescore_override(path: str) -> None:
+    """Persist a user-selected MuseScore CLI path (Prefs browse)."""
+    target = _musescore_override_path()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(path.strip(), encoding="utf-8")
+
+
+def clear_musescore_override() -> None:
+    target = _musescore_override_path()
+    if target.is_file():
+        target.unlink()
 
 
 def find_score_renderer() -> str | None:
-    """Path to a MuseScore CLI binary, if one is on PATH, else None."""
+    """Path to a MuseScore CLI binary: env, Prefs override, then PATH."""
+    import os
+
+    env = (os.environ.get("NEIRO_MUSESCORE") or "").strip().strip('"')
+    if env and Path(env).is_file():
+        return str(Path(env).resolve())
+    override = _musescore_override_path()
+    if override.is_file():
+        raw = override.read_text(encoding="utf-8").strip().strip('"')
+        if raw and Path(raw).is_file():
+            return str(Path(raw).resolve())
     for name in ("musescore", "musescore4", "musescore3", "mscore", "mscore4", "mscore3"):
         found = shutil.which(name)
         if found:
@@ -41,7 +76,7 @@ def find_score_renderer() -> str | None:
 
 def _musescore_render(binary: str, musicxml_path: Path, out_path: Path) -> bool:
     try:
-        result = subprocess.run(
+        result = subprocess_win.run(
             [binary, str(musicxml_path), "-o", str(out_path)],
             capture_output=True,
             timeout=120,

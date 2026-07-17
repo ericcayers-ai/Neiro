@@ -44,9 +44,10 @@ ALLOWED_MODULES: frozenset[str] = frozenset(
         "studio",
         "separate",
         "restore",
-        "transcribe",
+        "midi",
+        "transcribe",  # legacy → midi
         "mixer",
-        "learn",
+        "learn",  # legacy → midi
         "preferences",
         "about",
     }
@@ -54,11 +55,15 @@ ALLOWED_MODULES: frozenset[str] = frozenset(
 
 # Default after Edison-style capture: send the clip into preprocess (Separate).
 _DEFAULT_CAPTURE_MODULE = "separate"
-_DEFAULT_FOCUS_MODULE = "learn"
+_DEFAULT_FOCUS_MODULE = "midi"
 
 
 def normalize_module(module: str | None, *, default: str = _DEFAULT_FOCUS_MODULE) -> str:
     m = (module or default).strip().lower()
+    if m in ("transcribe", "learn"):
+        return "midi"
+    if m == "mixer":
+        return "studio"
     return m if m in ALLOWED_MODULES else default
 
 

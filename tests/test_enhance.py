@@ -108,6 +108,9 @@ def test_analysis_detects_hum_and_echo():
     assert got is not None and abs(got - 0.375) < 0.03
     conf = report2.vocal_conditions.get("echo_confidence")
     assert conf is not None and conf > 0.35
+    cands = report2.vocal_conditions.get("echo_candidates_ms")
+    assert isinstance(cands, list) and cands
+    assert any(abs(int(c["ms"]) - 375) < 40 for c in cands)
 
 
 def test_stem_preview_echo_prefers_vocal_stem():
@@ -193,6 +196,8 @@ def test_planner_prefers_stem_conditioned_echo_notes(tmp_path, monkeypatch):
     class _FakeReport:
         clipping_ratio = 0.0
         bandwidth_hz = 20000.0
+        noise_floor_dbfs = -60.0
+        notes = ()
         vocal_conditions = {
             "echo_delay_s": 0.28,
             "echo_confidence": 0.62,
@@ -269,3 +274,65 @@ def test_planner_consumes_analysis_corrections_for_detect_all(tmp_path, monkeypa
     joined = " | ".join(plan.notes)
     assert "using Analysis corrections for instrument routing" in joined
     assert "detect-all cascade order (by confidence): drums, bass" in joined
+
+
+def test_instrument_detection_not_bass_only():
+    """Broadband/mid-heavy material must not assert bass from kick bleed alone."""
+    from neiro.analysis.report import _detect_instruments, _vote_instrument_tags
+
+    rng = np.random.default_rng(11)
+    n = int(3.0 * SR)
+    t = np.arange(n) / SR
+    # Mid-heavy "keys-ish" + sparse hi-hat clicks (no sustained sub bass).
+    tone = 0.25 * np.sin(2 * np.pi * 440.0 * t)
+    tone += 0.15 * np.sin(2 * np.pi * 880.0 * t)
+    clicks = np.zeros(n, dtype=np.float32)
+    for start in (0.2, 0.45, 0.7, 0.95, 1.2, 1.45, 1.7, 1.95, 2.2, 2.45):
+        i = int(start * SR)
+        clicks[i : i + 80] = rng.normal(0, 0.35, 80)
+    mix = (tone + clicks).astype(np.float32)
+    stereo = np.stack([mix, mix * 0.98])
+    hints = _detect_instruments(stereo, SR)
+    by_name = {h["instrument"]: h for h in hints}
+    # Bass should not dominate a mid-heavy mix.
+    if "bass" in by_name:
+        assert by_name["bass"]["status"] != "asserted" or by_name["bass"]["confidence"] < 0.7
+    # Some mid/high instrument should appear.
+    mid_ish = {"piano", "keys", "electric guitar", "drums", "vocals", "strings"}
+    assert any(name in by_name for name in mid_ish)
+
+    # Vote merges DSP + neural without dropping agreed tags.
+    neural = (
+        {"instrument": "piano", "confidence": 0.4, "status": "asserted"},
+        {"instrument": "drums", "confidence": 0.35, "status": "tentative"},
+    )
+    voted = _vote_instrument_tags(hints, neural)
+    assert voted
+    assert any(h.get("source") in ("vote", "dsp", "neural") for h in voted)
+
+
+def test_restore_recommend_multi_condition():
+    from types import SimpleNamespace
+
+    from neiro.analysis.restore_recommend import recommend_enhance_chain, resolve_layman_chain
+
+    report = SimpleNamespace(
+        clipping_ratio=0.01,
+        bandwidth_hz=12000.0,
+        noise_floor_dbfs=-38.0,
+        notes=("clipping detected",),
+        vocal_conditions={
+            "hum_hz": 60.0,
+            "hum_prominence_db": 35.0,
+            "echo_delay_s": 0.25,
+            "echo_confidence": 0.5,
+        },
+    )
+    rec = recommend_enhance_chain(report)
+    assert "declip" in rec["chain"]
+    assert "dehum" in rec["chain"]
+    assert "dereverb" in rec["suggested_neural"] or "restore" in rec["suggested_neural"]
+    assert rec["why"]
+    assert resolve_layman_chain("clean") == ["declick", "dehum", "normalize"]
+    assert resolve_layman_chain("auto") is None
+    assert resolve_layman_chain("fix-clipping") == ["declip", "normalize"]

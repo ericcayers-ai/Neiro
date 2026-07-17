@@ -15,14 +15,20 @@ import type {
   EnhanceResult,
   JobKind,
   JobStatus,
+  MidiStudioMode,
   ModuleId,
   SeparateResult,
+  StemPack,
+  StudioPackIntent,
   TranscribeResult,
 } from '../api/types'
 
 const MODULE_KEY = 'neiro.session.module'
 const FILE_META_KEY = 'neiro.session.fileMeta'
 const CORRECTIONS_KEY = 'neiro.session.analysisCorrections'
+const STEM_PACKS_KEY = 'neiro.session.stemPacks'
+/** Poll interval while any engine job is running — denser progress bar updates. */
+const JOB_POLL_MS = 400
 
 export interface SessionFile {
   fileId: string
@@ -41,6 +47,8 @@ export interface SessionJob {
   progress: string[]
   fraction: number | null
   stage: string | null
+  /** Latest planner node id from progress_events (for DAG highlight). */
+  runningNodeId?: string | null
   eta_s: number | null
   error: string | null
   result?: SeparateResult | TranscribeResult | EnhanceResult
@@ -66,6 +74,11 @@ interface SessionState {
   setModule: (m: ModuleId) => void
   file: SessionFile | null
   setFile: (f: SessionFile | null) => void
+  /** Multi-import queue for batch Separate → mashup packs. */
+  importQueue: SessionFile[]
+  addToImportQueue: (f: SessionFile) => void
+  removeFromImportQueue: (fileId: string) => void
+  clearImportQueue: () => void
   clearSession: () => void
   openInStudio: (fileId: string, audioUrl: string, name?: string) => void
   studioTarget: { fileId: string; audioUrl: string; name: string } | null
@@ -74,12 +87,23 @@ interface SessionState {
   studioMixOpen: boolean
   setStudioMixOpen: (open: boolean) => void
   openStudioMix: () => void
-  /** When true, Transcribe should scroll/focus the Practice panel (shortcut 8 / Learn redirect). */
+  /** When true, MIDI Studio focuses Practice mode (shortcut 8 / Learn redirect). */
   practiceFocus: boolean
   requestPracticeFocus: () => void
   clearPracticeFocus: () => void
+  /** Preferred MIDI Studio sub-mode after navigation (optional). */
+  midiModeFocus: MidiStudioMode | null
+  setMidiModeFocus: (m: MidiStudioMode | null) => void
   separateResult: SeparateResult | null
   setSeparateResult: (r: SeparateResult | null) => void
+  /** Mashup packs accumulated from Separate → Studio. */
+  stemPacks: StemPack[]
+  setStemPacks: (packs: StemPack[] | ((prev: StemPack[]) => StemPack[])) => void
+  updateStemPack: (id: string, patch: Partial<StemPack>) => void
+  /** Queued pack load for Studio (replace timeline or append). */
+  studioPackIntent: StudioPackIntent | null
+  queueStudioPack: (intent: StudioPackIntent) => void
+  clearStudioPackIntent: () => void
   transcribeResult: TranscribeResult | null
   setTranscribeResult: (r: TranscribeResult | null) => void
   enhanceResult: EnhanceResult | null
@@ -102,11 +126,16 @@ interface SessionState {
 
 const Ctx = createContext<SessionState | null>(null)
 
+function canonicalizeModule(m: ModuleId | string): ModuleId {
+  if (m === 'mixer') return 'studio'
+  if (m === 'transcribe' || m === 'learn') return 'midi'
+  return m as ModuleId
+}
+
 function readStoredModule(): ModuleId {
   try {
     const v = sessionStorage.getItem(MODULE_KEY)
-    if (v === 'mixer') return 'studio'
-    if (v) return v as ModuleId
+    if (v) return canonicalizeModule(v)
   } catch {
     /* ignore */
   }
@@ -132,6 +161,29 @@ function readStoredCorrections(): AnalysisCorrectionsPayload | null {
   }
 }
 
+function readStoredStemPacks(): StemPack[] {
+  try {
+    const raw = sessionStorage.getItem(STEM_PACKS_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as StemPack[]
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter(
+      (p) => p && typeof p.id === 'string' && typeof p.name === 'string' && Array.isArray(p.trackIds),
+    )
+  } catch {
+    return []
+  }
+}
+
+function persistStemPacks(packs: StemPack[]) {
+  try {
+    if (packs.length) sessionStorage.setItem(STEM_PACKS_KEY, JSON.stringify(packs))
+    else sessionStorage.removeItem(STEM_PACKS_KEY)
+  } catch {
+    /* ignore */
+  }
+}
+
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [module, setModuleState] = useState<ModuleId>(readStoredModule)
   const [file, setFileState] = useState<SessionFile | null>(null)
@@ -148,11 +200,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   })
   const [separateResult, setSeparateResult] = useState<SeparateResult | null>(null)
+  const [importQueue, setImportQueue] = useState<SessionFile[]>([])
+  const [stemPacks, setStemPacksState] = useState<StemPack[]>(readStoredStemPacks)
+  const [studioPackIntentQueue, setStudioPackIntentQueue] = useState<StudioPackIntent[]>([])
+  const studioPackIntent = studioPackIntentQueue[0] ?? null
   const [transcribeResult, setTranscribeResult] = useState<TranscribeResult | null>(null)
   const [enhanceResult, setEnhanceResult] = useState<EnhanceResult | null>(null)
   const [analysisCorrections, setAnalysisCorrectionsState] =
     useState<AnalysisCorrectionsPayload | null>(readStoredCorrections)
   const [practiceFocus, setPracticeFocus] = useState(false)
+  const [midiModeFocus, setMidiModeFocus] = useState<MidiStudioMode | null>(null)
   const [jobs, setJobs] = useState<SessionJob[]>([])
   const [engineStatus, setEngineStatus] = useState<'unknown' | 'ok' | 'down'>('unknown')
   const jobsRef = useRef(jobs)
@@ -173,10 +230,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const setModule = useCallback((m: ModuleId) => {
-    let next: ModuleId = m
-    if (next === 'mixer') {
-      next = 'studio'
+    let next = canonicalizeModule(m)
+    if (m === 'mixer') {
       setStudioMixOpen(true)
+    }
+    if (m === 'learn') {
+      setPracticeFocus(true)
+      setMidiModeFocus('practice')
     }
     setModuleState(next)
     try {
@@ -188,13 +248,53 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const requestPracticeFocus = useCallback(() => {
     setPracticeFocus(true)
-    setModuleState('transcribe')
+    setMidiModeFocus('practice')
+    setModuleState('midi')
     try {
-      sessionStorage.setItem(MODULE_KEY, 'transcribe')
+      sessionStorage.setItem(MODULE_KEY, 'midi')
     } catch {
       /* ignore */
     }
   }, [])
+
+  const setStemPacks = useCallback((packs: StemPack[] | ((prev: StemPack[]) => StemPack[])) => {
+    setStemPacksState((prev) => {
+      const next = typeof packs === 'function' ? packs(prev) : packs
+      persistStemPacks(next)
+      return next
+    })
+  }, [])
+
+  const updateStemPack = useCallback((id: string, patch: Partial<StemPack>) => {
+    setStemPacksState((prev) => {
+      const next = prev.map((p) => (p.id === id ? { ...p, ...patch } : p))
+      persistStemPacks(next)
+      return next
+    })
+  }, [])
+
+  const queueStudioPack = useCallback((intent: StudioPackIntent) => {
+    setStudioPackIntentQueue((q) => [...q, intent])
+    setModule('studio')
+  }, [setModule])
+
+  const clearStudioPackIntent = useCallback(
+    () => setStudioPackIntentQueue((q) => q.slice(1)),
+    [],
+  )
+
+  const addToImportQueue = useCallback((f: SessionFile) => {
+    setImportQueue((prev) => {
+      if (prev.some((x) => x.fileId === f.fileId)) return prev
+      return [...prev, f]
+    })
+  }, [])
+
+  const removeFromImportQueue = useCallback((fileId: string) => {
+    setImportQueue((prev) => prev.filter((x) => x.fileId !== fileId))
+  }, [])
+
+  const clearImportQueue = useCallback(() => setImportQueue([]), [])
 
   const clearPracticeFocus = useCallback(() => setPracticeFocus(false), [])
 
@@ -247,13 +347,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const clearSession = useCallback(() => {
     setFile(null)
     setSeparateResult(null)
+    setImportQueue([])
+    setStemPacks([])
+    setStudioPackIntentQueue([])
     setTranscribeResult(null)
     setEnhanceResult(null)
     setAnalysisCorrections(null)
     setStudioTarget(null)
     setJobs([])
     setModule('import')
-  }, [setFile, setModule, setAnalysisCorrections])
+  }, [setFile, setModule, setAnalysisCorrections, setStemPacks])
 
   const openInStudio = useCallback(
     (fileId: string, audioUrl: string, name = 'audio') => {
@@ -304,11 +407,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         for (;;) {
           if (!pollActive.current) return null
           const job = await getJob(job_id)
+          const events = job.progress_events || []
+          const lastNode = [...events].reverse().find((e) => e.node_id)?.node_id ?? null
           patchJob(job_id, {
             status: job.status,
             progress: job.progress?.length ? job.progress : ['working…'],
             fraction: job.fraction ?? null,
             stage: job.stage ?? null,
+            runningNodeId: job.status === 'running' ? lastNode : null,
             eta_s: job.eta_s ?? null,
             error:
               job.status === 'error'
@@ -321,7 +427,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           if (job.status === 'done' || job.status === 'error' || job.status === 'cancelled') {
             return job
           }
-          await new Promise((r) => setTimeout(r, 400))
+          await new Promise((r) => setTimeout(r, JOB_POLL_MS))
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
@@ -434,6 +540,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setModule,
       file,
       setFile,
+      importQueue,
+      addToImportQueue,
+      removeFromImportQueue,
+      clearImportQueue,
       clearSession,
       openInStudio,
       studioTarget,
@@ -444,8 +554,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       practiceFocus,
       requestPracticeFocus,
       clearPracticeFocus,
+      midiModeFocus,
+      setMidiModeFocus,
       separateResult,
       setSeparateResult,
+      stemPacks,
+      setStemPacks,
+      updateStemPack,
+      studioPackIntent,
+      queueStudioPack,
+      clearStudioPackIntent,
       transcribeResult,
       setTranscribeResult,
       enhanceResult,
@@ -469,6 +587,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setModule,
       file,
       setFile,
+      importQueue,
+      addToImportQueue,
+      removeFromImportQueue,
+      clearImportQueue,
       clearSession,
       openInStudio,
       studioTarget,
@@ -478,7 +600,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       practiceFocus,
       requestPracticeFocus,
       clearPracticeFocus,
+      midiModeFocus,
       separateResult,
+      stemPacks,
+      setStemPacks,
+      updateStemPack,
+      studioPackIntent,
+      queueStudioPack,
+      clearStudioPackIntent,
       transcribeResult,
       enhanceResult,
       analysisCorrections,

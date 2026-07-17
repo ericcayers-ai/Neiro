@@ -6,14 +6,13 @@ import { AnalysisModule } from './modules/AnalysisModule'
 import { StudioModule } from './modules/StudioModule'
 import { SeparateModule } from './modules/SeparateModule'
 import { RestoreModule } from './modules/RestoreModule'
-import { TranscribeModule } from './modules/TranscribeModule'
-import { LearnModule } from './modules/LearnModule'
+import { MidiStudioModule } from './modules/MidiStudioModule'
 import { PreferencesModule } from './modules/PreferencesModule'
 import { AboutModule } from './modules/AboutModule'
 import type { ModuleId } from './api/types'
 
 function ModuleSwitcher() {
-  const { module, setModule, openStudioMix } = useSession()
+  const { module, setModule, openStudioMix, requestPracticeFocus } = useSession()
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -25,23 +24,26 @@ function ModuleSwitcher() {
         openStudioMix()
         return
       }
+      // 8 → MIDI Studio Practice focus (former Learn).
+      if (e.key === '8') {
+        requestPracticeFocus()
+        return
+      }
       const map: Record<string, ModuleId> = {
         '1': 'import',
         '2': 'analysis',
         '3': 'studio',
         '4': 'separate',
         '5': 'restore',
-        '6': 'transcribe',
-        '8': 'learn',
+        '6': 'midi',
         '9': 'preferences',
       }
       if (map[e.key]) setModule(map[e.key])
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [setModule, openStudioMix])
+  }, [setModule, openStudioMix, requestPracticeFocus])
 
-  // mixer → Studio (setModule already redirects; keep case for safety)
   switch (module) {
     case 'import':
       return <ImportModule />
@@ -54,10 +56,10 @@ function ModuleSwitcher() {
       return <SeparateModule />
     case 'restore':
       return <RestoreModule />
+    case 'midi':
     case 'transcribe':
-      return <TranscribeModule />
     case 'learn':
-      return <LearnModule />
+      return <MidiStudioModule />
     case 'preferences':
       return <PreferencesModule />
     case 'about':

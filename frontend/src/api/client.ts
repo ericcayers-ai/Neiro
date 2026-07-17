@@ -91,14 +91,22 @@ export async function fetchPlan(params: {
   quality?: string
   bleed_suppress?: string
   mode?: string
+  model?: string
+  members?: string[]
   chain?: string
+  corrections?: AnalysisCorrectionsPayload | null
 }): Promise<PlanStripPayload> {
   const q = new URLSearchParams({ kind: params.kind, file_id: params.file_id })
   if (params.preset) q.set('preset', params.preset)
   if (params.quality) q.set('quality', params.quality)
   if (params.bleed_suppress) q.set('bleed_suppress', params.bleed_suppress)
   if (params.mode) q.set('mode', params.mode)
+  if (params.model) q.set('model', params.model)
+  if (params.members?.length) q.set('members', params.members.join(','))
   if (params.chain) q.set('chain', params.chain)
+  if (params.corrections && Object.keys(params.corrections.overrides || {}).length) {
+    q.set('corrections', JSON.stringify(params.corrections))
+  }
   const res = await fetch(`/api/plan?${q}`, { cache: 'no-store' })
   return readJson(res)
 }
@@ -187,13 +195,76 @@ export interface ModelStatus {
   status: 'ready' | 'needs-install' | 'needs-download' | string
   requires: string[]
   license_spdx: string
+  size_hint?: string | null
 }
 
 export async function fetchModels(task?: string): Promise<ModelStatus[]> {
   const q = task ? `?task=${encodeURIComponent(task)}` : ''
   const res = await fetch(`/api/models${q}`, { cache: 'no-store' })
-  const data = await readJson<{ models: ModelStatus[] }>(res)
+  const data = await readJson<{ models: ModelStatus[]; packs?: Record<string, string[]> }>(res)
   return data.models
+}
+
+export async function fetchModelsFull(): Promise<{
+  models: ModelStatus[]
+  packs: Record<string, string[]>
+}> {
+  const res = await fetch('/api/models', { cache: 'no-store' })
+  const data = await readJson<{ models: ModelStatus[]; packs?: Record<string, string[]> }>(res)
+  return { models: data.models, packs: data.packs || {} }
+}
+
+export async function startModelDownload(opts: {
+  model_id?: string
+  model_ids?: string[]
+  pack?: string
+}): Promise<{ job_id: string; model_ids: string[] }> {
+  const res = await fetch('/api/models/download', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(opts),
+  })
+  return readJson(res)
+}
+
+export interface ToolsStatus {
+  verovio: { installed: boolean; hint?: string }
+  musescore: { path: string | null; installed: boolean; download_url?: string }
+  soundfont: { installed: boolean; files: string[]; urls?: string[]; hint?: string }
+  packs: Record<string, string[]>
+}
+
+export async function fetchToolsStatus(): Promise<ToolsStatus> {
+  const res = await fetch('/api/tools', { cache: 'no-store' })
+  return readJson(res)
+}
+
+export async function installTool(tool: 'verovio' | 'soundfont'): Promise<{
+  ok: boolean
+  error?: string
+  status?: ToolsStatus
+  path?: string
+}> {
+  const res = await fetch('/api/tools/install', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tool }),
+  })
+  return readJson(res)
+}
+
+export async function setMuseScorePath(path: string | null): Promise<{
+  ok: boolean
+  error?: string
+  path?: string | null
+  status?: ToolsStatus
+}> {
+  const res = await fetch('/api/tools/musescore', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path }),
+  })
+  return readJson(res)
 }
 
 export async function startEnhance(
@@ -287,6 +358,9 @@ export type EditOp =
   | 'split'
   | 'bounce'
   | 'combine'
+  | 'time_stretch'
+  | 'pitch_shift'
+  | 'pitch_correct'
 
 export interface BounceTrack {
   file_id: string
@@ -304,6 +378,10 @@ export async function applyEdit(body: {
   db?: number
   target_dbfs?: number
   tracks?: BounceTrack[]
+  rate?: number
+  semitones?: number
+  key?: string
+  strength?: number
 }): Promise<EditResponse> {
   const res = await fetch('/api/edit', {
     method: 'POST',
@@ -315,6 +393,34 @@ export async function applyEdit(body: {
 
 export async function bounceTracks(tracks: BounceTrack[]): Promise<EditResponse> {
   return applyEdit({ op: 'bounce', tracks })
+}
+
+export async function timeStretchFile(fileId: string, rate: number): Promise<EditResponse> {
+  return applyEdit({ file_id: fileId, op: 'time_stretch', rate })
+}
+
+export async function pitchShiftFile(fileId: string, semitones: number): Promise<EditResponse> {
+  return applyEdit({ file_id: fileId, op: 'pitch_shift', semitones })
+}
+
+export async function pitchCorrectFile(
+  fileId: string,
+  opts?: { key?: string; strength?: number },
+): Promise<EditResponse> {
+  return applyEdit({
+    file_id: fileId,
+    op: 'pitch_correct',
+    key: opts?.key,
+    strength: opts?.strength ?? 1,
+  })
+}
+
+export async function reanalyzeFile(
+  fileId: string,
+): Promise<{ file_id: string; estimated_bpm: number | null; estimated_key: string | null }> {
+  const q = new URLSearchParams({ file_id: fileId })
+  const res = await fetch(`/api/analyze?${q}`, { cache: 'no-store' })
+  return readJson(res)
 }
 
 export function exportUrl(fileId: string, format: 'wav16' | 'wav24' | 'flac'): string {

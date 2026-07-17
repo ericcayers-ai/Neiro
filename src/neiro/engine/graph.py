@@ -87,6 +87,26 @@ class CancelledError(RuntimeError):
     pass
 
 
+def _node_progress_weight(node: Node) -> float:
+    """Relative bar span for a DAG node — heavy stages consume more of 0..1."""
+    name = f"{node.node_id} {node.__class__.__name__}".lower()
+    for key, weight in (
+        ("transcribe", 4.0),
+        ("ensemble", 3.5),
+        ("reconcile", 2.0),
+        ("separate", 3.0),
+        ("split", 2.5),
+        ("enhance", 2.5),
+        ("compile", 1.2),
+        ("analyze", 1.0),
+        ("ingest", 0.6),
+        ("lane", 0.4),
+    ):
+        if key in name:
+            return weight
+    return 1.0
+
+
 class Graph:
     def __init__(self) -> None:
         self._nodes: dict[str, Node] = {}
@@ -149,18 +169,30 @@ class Graph:
         total = len(order)
         user_progress = ctx.progress
 
+        # Weight long-running stages so the bar moves more during decode/separate
+        # and less during cheap ingest/lane hops (Wave 4 denser stage→fraction).
+        weights = [_node_progress_weight(n) for n in order]
+        weight_sum = sum(weights) or float(total)
+        cum = 0.0
+
         for i, node in enumerate(order):
             if ctx.cancelled:
                 raise CancelledError(f"cancelled before {node.node_id}")
 
-            # Map each node's local 0..1 fraction into the DAG span so job
-            # progress / ETA advance across the whole plan, not only within
-            # the currently running node (and not only on "done").
-            def _dag_progress(prog: Progress, _i: int = i, _n: int = total) -> None:
+            w = weights[i]
+            start_frac = cum / weight_sum
+            span = w / weight_sum
+            cum += w
+
+            def _dag_progress(
+                prog: Progress,
+                _start: float = start_frac,
+                _span: float = span,
+            ) -> None:
                 if user_progress is None:
                     return
                 local = max(0.0, min(1.0, prog.fraction))
-                overall = (_i + local) / _n if _n else 1.0
+                overall = _start + local * _span
                 user_progress(Progress(prog.node_id, prog.stage, overall, prog.message))
 
             ctx.progress = _dag_progress
