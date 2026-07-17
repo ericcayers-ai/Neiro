@@ -1,158 +1,121 @@
-# Neiro
+<p align="center">
+  <img src="docs/media/hero-banner.jpg" alt="Neiro — local source separation, restoration, and transcription" width="100%"/>
+</p>
 
-**Local source separation, restoration, transcription, and audio editing.**
+<p align="center">
+  <strong>Local source separation, restoration, transcription, and audio editing.</strong><br/>
+  <em>Neiro</em> (音色) means <strong>timbre</strong> — the color of a sound.<br/>
+  Everything runs on your machine. Audio never leaves it.
+</p>
 
-[![CI](https://github.com/ericcayers-ai/Neiro/actions/workflows/ci.yml/badge.svg)](https://github.com/ericcayers-ai/Neiro/actions/workflows/ci.yml)
-[![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Ruff](https://img.shields.io/badge/lint-ruff-261230)](https://github.com/astral-sh/ruff)
-[![Tests](https://img.shields.io/badge/tests-100%2B%20passing-brightgreen)](tests/)
-
-*Neiro* (音色) is Japanese for **timbre** — the color of a sound. Telling timbres
-apart and drawing them out of a mix is the whole job of this software. Everything
-runs locally; no audio leaves the machine, ever.
-
-Neiro is built on a decoupled, graph-based engine where every neural network is a
-replaceable node behind a uniform interface — so the app survives the churn of
-open-source model development without rewrites. It ships with a **pure-DSP floor**
-that works with **no model downloads**, and neural backends (Demucs, RoFormer,
-Basic Pitch, AudioSR, Matchering, …) plug in through JSON manifests.
-
-> **Status: Neiro 1.1.1** builds on 1.1.0 with a navigation/QOL shell revamp
-> (command palette, collapsible rail, session dialogs, clearer empty states)
-> while keeping the shared-window DAW injector, model zoo, and local-only
-> processing model. Neural weights stay opt-in (not redistributed). See
-> [`CHANGELOG.md`](CHANGELOG.md) and
-> [`docs/roadmap-traceability.md`](docs/roadmap-traceability.md).
+<p align="center">
+  <a href="https://github.com/ericcayers-ai/Neiro/actions/workflows/ci.yml"><img src="https://github.com/ericcayers-ai/Neiro/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
+  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.10%2B-2a5a88" alt="Python"/></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-6a9e8a" alt="License"/></a>
+  <a href="https://github.com/ericcayers-ai/Neiro/releases"><img src="https://img.shields.io/github/v/release/ericcayers-ai/Neiro?color=7b9fc4" alt="Release"/></a>
+</p>
 
 ---
 
-## Highlights
+## At a glance
 
-- **Separate** — vocals/instrumental, harmonic/percussive, karaoke, 4/6-stem, or
-  drum-kit decomposition, with a weighted spectral-fusion **ensemble** engine and
-  test-time augmentation. Every result includes a **null-test** residual so you can
-  hear what was left behind.
-- **Restore** — declip, mains-hum removal, spectral-gate denoise, dereverb,
-  bandwidth extension (AudioSR), reference mastering (Matchering) — applied
-  automatically as **conditioning chains** from what the analysis detects, or on
-  demand.
-- **Transcribe** — audio → MIDI. A dependency-free YIN pitch tracker covers the
-  model-free floor; Basic Pitch and a piano-specific model (with pedal) upgrade
-  polyphonic accuracy when installed. A timeline compiler does **reversible**
-  groove-preserving quantization (grid for notation, micro-offsets for feel) and
-  auto-splits dense mixes before decoding.
-- **Analyze** — loudness, tempo, key, clipping, bandwidth (lossy-source flag),
-  effective-mono detection, mains-hum and echo/delay detection, heuristic
-  instrument hints.
-- **Edit** — a waveform + spectrogram Studio (trim, delete, silence, fade, gain,
-  normalize, reverse) with non-destructive undo.
-- **Mix & practice** — a stem mixer with mute/solo/gain preview, A/B, and null-test
-  audition; a Learn module with pitch-preserving speed control, loop regions, and a
-  step/WebMIDI wait mode for the transcribed result.
-- **Two ways in, one engine** — a Tauri 2 + React desktop app, or a full CLI and
-  Python API. Every surface is a thin client over the same graph-based engine; the
-  desktop app's UI is served by the local engine itself, so the browser-based
-  worksuite and the desktop window show exactly the same thing.
+| | |
+|:---|:---|
+| **Separate** | Vocals, karaoke, harmonic/percussive, 4/6-stem, drums — ensembles + null-test residual |
+| **Restore** | Declip, dehum, denoise, dereverb, super-res, mastering — auto chains from analysis |
+| **Transcribe** | Audio → MIDI (YIN floor; Basic Pitch / piano when installed) + MusicXML / tab / lyrics |
+| **Studio** | Waveform + spectrogram edits, Mix drawer, Learn practice, DAW injector capture |
+| **Privacy** | Binds to `127.0.0.1` only. Pure-DSP floor works with **no model downloads**. |
 
-## Install
+<p align="center">
+  <img src="docs/media/stems.svg" alt="Okabe–Ito stem color palette used consistently in Neiro" width="100%"/>
+</p>
 
-### Desktop app (Windows / macOS / Linux)
+---
 
-The desktop app is a small Tauri shell that supervises a local Python engine
-process on `127.0.0.1`; it needs a Python 3.10–3.12 interpreter available on the
-machine (the one-click launchers below bootstrap that for you if you don't want to
-manage Python yourself).
+## The worksuite
 
-- **One-click launchers** (`packaging/launchers/`) — `Neiro UI.bat` (Windows) or
-  `neiro-ui.sh` (macOS/Linux) create an isolated virtual environment next to the
-  extracted release, install the bundled wheel with the neural extras, and launch
-  the UI. Get them from a [release](https://github.com/ericcayers-ai/Neiro/releases)
-  zip; see `packaging/launchers/START HERE.txt`.
-- **Built desktop bundle** — release artifacts include native installers
-  (`.msi`/`.exe` on Windows, `.dmg`/`.app` on macOS, `.AppImage`/`.deb` on Linux)
-  produced by `tauri build`, for users who already have Python set up and just want
-  the app icon.
-- **From source** — see [Development](#development) below;
-  `npm install && npm run tauri:dev` runs the desktop shell against a live engine.
+One engine, two doors: **Tauri desktop** or **`neiro ui` in the browser**. Same modules, same jobs, same local cache.
 
-### CLI / Python package
+<p align="center">
+  <img src="docs/media/shell-separate.jpg" alt="Neiro Separate module — presets, quality tier, and plan strip" width="100%"/>
+  <br/><sub>Separate — labeled presets, quality tiers, honest stage progress</sub>
+</p>
+
+<p align="center">
+  <img src="docs/media/shell-studio.jpg" alt="Neiro Studio multi-track timeline with Mix drawer" width="100%"/>
+  <br/><sub>Studio — multi-track timeline, Mix drawer, non-destructive edits</sub>
+</p>
+
+<p align="center">
+  <img src="docs/media/shell-transcribe.jpg" alt="Neiro Transcribe piano-roll and MIDI export" width="100%"/>
+  <br/><sub>Transcribe — piano roll, MIDI / MusicXML, Practice panel</sub>
+</p>
+
+**Keyboard** — modules `1`–`6` / `8`–`9`, Mix `7`, command palette `Ctrl/⌘K`, collapse rail `Ctrl/⌘B`.
+
+---
+
+## Quick start
+
+### Desktop
+
+Grab a [release](https://github.com/ericcayers-ai/Neiro/releases) and use the one-click launcher in `packaging/launchers/` (`Neiro UI.bat` / `neiro-ui.sh`), or run from source:
+
+```bash
+npm install && npm run tauri:dev
+```
+
+### CLI / Python
 
 ```bash
 pip install -e .
 # optional backends:
 pip install -e ".[all]"          # separation, piano, restoration, loudness, HF hub, yt-dlp
 pip install -e ".[demucs]"       # HTDemucs 4-stem
-pip install -e ".[basicpitch]"   # Spotify Basic Pitch — Python ≤3.11 only (needs TensorFlow <2.15.1)
-pip install -e ".[superres]"     # AudioSR — Python ≤3.11 only
-pip install -e ".[youtube]"      # YouTube / URL ingest (yt-dlp)
+pip install -e ".[basicpitch]"   # Spotify Basic Pitch — Python ≤3.11
+pip install -e ".[superres]"     # AudioSR — Python ≤3.11
+pip install -e ".[youtube]"      # URL ingest (yt-dlp)
 pip install -e ".[dev]"          # tests + linting
 ```
 
-Requires Python ≥ 3.10 (3.10–3.12 supported for the core and `[all]` extras) and
-[ffmpeg](https://ffmpeg.org) on `PATH` (for compressed/video inputs and URL ingest;
-WAV/FLAC work without it).
+Requires **Python 3.10–3.12** and [ffmpeg](https://ffmpeg.org) on `PATH` for compressed/video inputs (WAV/FLAC work without it).  
+`[all]` omits `basicpitch` / `superres` so Python 3.12 installs stay clean — add those on 3.10/3.11.
 
-`[all]` intentionally omits `basicpitch` and `superres` so one-click / wheel
-installs succeed on Python 3.12. Install those extras separately on 3.10 or 3.11.
-
-## Usage
+<p align="center">
+  <img src="docs/media/cli-examples.svg" alt="Example Neiro CLI commands" width="100%"/>
+</p>
 
 ```bash
-neiro ui                                   # open the local interface (browser or desktop shell)
+neiro ui                                   # local interface (browser or desktop shell)
 
-neiro ingest "https://youtu.be/…"          # download audio to local cache (needs [youtube])
+neiro ingest "https://youtu.be/…"          # cache audio locally (needs [youtube])
 neiro analyze song.flac                    # tempo, key, loudness, conditions (JSON)
-neiro analyze "https://youtu.be/…"         # same, after fetching the URL
 
-neiro separate song.flac --preset vocals   # vocals + instrumental (+ residual)
-neiro separate song.wav  --preset vocals-ensemble   # 3-member ensemble + TTA
-neiro separate song.wav  --preset harmonic          # harmonic + percussive
+neiro separate song.flac --preset vocals
+neiro separate song.wav  --preset vocals-ensemble
 neiro separate song.wav  --preset 4stem             # HTDemucs when installed
 
-neiro transcribe song.wav --out song.mid            # audio -> MIDI (auto-split)
-neiro transcribe solo.wav --mode direct --no-quantize   # keep performance timing
+neiro enhance old.wav                      # auto-repair from analysis
+neiro enhance vox.wav --chain dehum,denoise,normalize
 
-neiro enhance old.wav                      # auto-repair from detected conditions
-neiro enhance vox.wav --chain dehum,denoise,normalize   # explicit chain
+neiro transcribe song.wav --out song.mid
+neiro transcribe solo.wav --mode direct --no-quantize
 
-neiro models                               # list models and availability here
-neiro download <model-id>                  # fetch a model's weights ahead of time
-neiro watch ./inbox --out ./done --job separate --preset vocals   # batch-process a folder
+neiro models
+neiro download <model-id>
+neiro watch ./inbox --out ./done --job separate --preset vocals
 ```
 
-Transcription also exports MusicXML, ASCII tablature, and LRC lyrics alongside
-MIDI (dependency-free writers; a MuseScore/Verovio install upgrades the score
-export to a real engraved PDF) — see
-[`src/neiro/symbolic/`](src/neiro/symbolic/) and
-[`docs/adding-models.md`](docs/adding-models.md) for the transcription export
-pipeline.
+Transcription also writes MusicXML, ASCII tab, and LRC lyrics beside MIDI. MuseScore / Verovio on `PATH` upgrades score export to engraved PDF/SVG — see [`src/neiro/symbolic/`](src/neiro/symbolic/).
 
-## The interface
-
-`neiro ui` opens the local worksuite — in a browser, or as the native window when
-you're running the desktop build. Processing always stays on this machine.
-
-1. **Import** a file or URL → **Analysis** report (duration, loudness, tempo, key,
-   flagged conditions with why they matter).
-2. **Separate / Restore / Transcribe** — labeled presets with intent copy and
-   honest, named progress (cancel works).
-3. **Mixer** — mute/solo/gain preview, A/B, null test, Open in Studio per stem.
-4. **Studio** — waveform + spectrogram editor (selection, edits, undo/redo,
-   keyboard shortcuts, WAV/FLAC export).
-5. **Learn** — pitch-preserving practice speed, loop regions, count-in/metronome,
-   and step or WebMIDI wait-mode over a transcription result.
-6. **Preferences** — theme, density, font scale, motion, cache budget, warm-pool
-   TTL; a privacy panel that states plainly what does and doesn't touch the network.
-
-Dev: `npm --prefix frontend run build` (or Vite with a running engine). Desktop:
-`npm run tauri:dev` from the repo root.
-
-Nothing is exposed to the network; the interface binds to `127.0.0.1` only, and
-file serving is confined to a per-session temporary workspace with path-traversal
-protection.
+---
 
 ## How it works
+
+<p align="center">
+  <img src="docs/media/pipeline.svg" alt="Neiro ingest → analyze → separate / enhance / transcribe pipeline" width="100%"/>
+</p>
 
 ```
 ingest → lane(sr) → analyze
@@ -161,91 +124,108 @@ ingest → lane(sr) → analyze
                  └→ [split] → transcribe(model) → compile → Timeline → MIDI
 ```
 
-- **Everything is a typed artifact** flowing through a **DAG of nodes**, keyed in a
-  **content-addressed cache** so re-runs recompute only what changed.
-- **The Planner** turns intent + analysis + hardware into a concrete graph; the CLI,
-  the desktop app, and the browser worksuite are all clients of it.
-- **The VRAM manager** owns accelerator memory and applies a downgrade ladder
-  (evict → fp16 → shrink chunk → CPU) so a CUDA OOM never reaches the user.
-- **Models are manifests, not dependencies** — the core engine imports only
-  numpy/scipy; the desktop shell is a small Rust binary that supervises the Python
-  engine process and renders its UI.
+- **Typed artifacts** flow through a **DAG**, keyed in a **content-addressed cache** — re-runs recompute only what changed.
+- **The Planner** turns intent + analysis + hardware into a concrete graph. CLI, desktop, and browser are thin clients.
+- **VRAM manager** applies a downgrade ladder (evict → fp16 → shrink chunk → CPU) so CUDA OOM never surfaces raw.
+- **Models are manifests**, not hard deps — core is numpy/scipy; neural backends plug in via JSON.
 
-Full details: [`docs/architecture.md`](docs/architecture.md).
+Deep dive: [`docs/architecture.md`](docs/architecture.md).
+
+---
+
+## Features (detail)
+
+<details>
+<summary><strong>Separate</strong> — stems, ensembles, null test</summary>
+
+Vocals/instrumental, harmonic/percussive, karaoke, 4/6-stem, drum-kit decomposition. Weighted spectral-fusion **ensemble** + test-time augmentation. Every result includes a **null-test residual** so you can hear what was left behind.
+</details>
+
+<details>
+<summary><strong>Restore</strong> — repair chains</summary>
+
+Declip, mains-hum removal, spectral-gate denoise, dereverb, AudioSR bandwidth extension, Matchering reference mastering — automatic **conditioning chains** from analysis, or explicit chains on demand.
+</details>
+
+<details>
+<summary><strong>Transcribe</strong> — audio → MIDI</summary>
+
+Dependency-free YIN for the model-free floor; Basic Pitch and piano (with pedal) when installed. Timeline compiler does **reversible** groove-preserving quantization (grid for notation, micro-offsets for feel) and auto-splits dense mixes before decoding.
+</details>
+
+<details>
+<summary><strong>Analyze · Edit · Learn · DAW</strong></summary>
+
+- **Analyze** — loudness, tempo, key, clipping, bandwidth, effective-mono, hum/echo, instrument hints  
+- **Studio** — trim / silence / fade / gain / normalize / reverse with non-destructive undo  
+- **Learn** — loop regions, count-in, metronome, step / WebMIDI / DAW wait mode  
+- **DAW** — shared-window VST2 / CLAP injectors, Edison-style capture into the same UI  
+</details>
+
+---
 
 ## Documentation
 
-- [Architecture](docs/architecture.md) — how the engine and desktop shell are built
-- [Model registry](docs/models.md) — the shipped manifests, licenses, and how to fetch weights
-- [Adding a model](docs/adding-models.md) — manifests, adapters, ensembles
-- [UI](docs/ui.md) — desktop shell, worksuite modules, design language
-- [Session format](docs/session.md) — provenance, caching, and reproducibility
-- [Plugins](docs/plugins.md) — the manifest-based extension points and their trust boundaries
-- [Performance](docs/performance.md) — RTF benchmarks and how they're achieved
-- [Evaluation](docs/evaluation.md) — the quality/testing harness and how to run it
-- [Roadmap](roadmap.md) — the full product and architecture vision
-- [Roadmap traceability](docs/roadmap-traceability.md) — requirement-by-requirement status
-- [Changelog](CHANGELOG.md)
+| Doc | What it covers |
+|---|---|
+| [Architecture](docs/architecture.md) | Engine + desktop shell |
+| [UI](docs/ui.md) | Modules, design language, shortcuts |
+| [Models](docs/models.md) | Manifests, licenses, fetching weights |
+| [Adding a model](docs/adding-models.md) | Adapters & ensembles |
+| [Session](docs/session.md) | Provenance & reproducibility |
+| [Plugins](docs/plugins.md) | Extension points & trust boundaries |
+| [Performance](docs/performance.md) | RTF benchmarks |
+| [Evaluation](docs/evaluation.md) | Quality harness |
+| [Roadmap](roadmap.md) / [Traceability](docs/roadmap-traceability.md) | Vision & status |
+| [Changelog](CHANGELOG.md) | Release history |
+
+---
 
 ## Development
 
 ```bash
 # Python engine
 pip install -e ".[dev]"
-ruff check . && ruff format --check .   # lint + format (CI enforces both)
-pytest                                   # tests
-pytest --cov=neiro                       # with coverage
-python scripts/benchmark.py              # throughput on your machine
-python scripts/verify_models.py          # sanity-check every manifest
+ruff check . && ruff format --check .
+pytest
+python scripts/benchmark.py
+python scripts/verify_models.py
 
 # Frontend
 npm --prefix frontend ci
 npm --prefix frontend run lint
 npm --prefix frontend run build
 
-# Desktop shell (Rust/Tauri)
+# Desktop shell
 cd src-tauri && cargo fmt --all && cargo clippy --all-targets && cargo check
-npm run tauri:dev                        # from the repo root
+npm run tauri:dev   # from repo root
 ```
 
-Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). The
-lowest-friction contribution is a new model: a manifest plus a small adapter, no
-core changes ([guide](docs/adding-models.md)).
+Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Lowest-friction path: a new model manifest + adapter ([guide](docs/adding-models.md)).
+
+---
 
 ## Status
 
 | Area | State |
 |---|---|
-| Ingest + sample-rate lanes, DAG runtime, content cache | ✅ |
-| VRAM manager with downgrade ladder | ✅ |
-| Registry + JSON manifests + availability probing | ✅ |
-| Analysis (loudness, tempo, key, clipping, bandwidth, hum, echo, heuristic instruments) | ✅ |
-| Separation — DSP (centre, HPSS) + ensembles + TTA + residual | ✅ no downloads |
-| Separation — neural (HTDemucs, RoFormer, MDX23C, karaoke, drumsep, …) | ✅ adapters + manifests |
-| Restoration — declip, dehum, denoise, dereverb + conditioning chains | ✅ |
-| Restoration — neural (AudioSR super-resolution, Matchering mastering) | ✅ adapters |
-| Transcription — YIN (mono) + timeline compiler + MIDI export | ✅ no downloads |
-| Transcription — neural (Basic Pitch, piano with pedal) | ✅ adapters |
-| Audio editor (Studio) — waveform + spectrogram + edits | ✅ |
-| Desktop shell (Tauri 2 + React worksuite) with engine health supervision | ✅ |
-| Mixer (A/B, null test, Open in Studio), Learn module UI, Preferences UI | ✅ UI; WebMIDI + DAW MIDI wait; Learn speed uses browser playbackRate |
-| Disk-backed artifact cache, export license sidecars | ✅ |
-| Symbolic export — MusicXML, ASCII tab, LRC lyrics, best-effort engraved PDF/SVG | ✅ dependency-free writers; real engraving PDF needs Verovio/MuseScore on `PATH` |
-| Portable session format (provenance, model pinning, checkpoints) | ✅ format + store + UI Save/Open |
-| Watch-folder batch daemon (`neiro watch`) | ✅ |
-| Bleed suppression, mid/side stereo-integrity helpers | ✅ DSP + planner + UI wiring |
-| DAW shared-window injector (VST2 + CLAP bridge), Edison capture, all modes | ✅ |
-| Signed model index verification | ✅ HMAC sign/verify helpers; registry doesn't fetch a remote index yet |
-| Evaluation harness — synthetic goldens (SDR/SI-SDR/F1) + fault injection, always in CI | ✅ |
-| Evaluation harness — full MUSDB18-HQ / MAESTRO runs | ⏳ requires user-provisioned datasets (see [docs/evaluation.md](docs/evaluation.md)) |
-| Sheet-music *in-app* rendering (SVG when Verovio available), Advanced plan strip | ✅ 1.1.0 MVP |
+| DAG runtime, cache, VRAM ladder, manifests | ✅ |
+| Analysis + DSP separation / restore / YIN transcription | ✅ no downloads |
+| Neural adapters (Demucs, RoFormer, Basic Pitch, AudioSR, …) | ✅ opt-in weights |
+| Studio, Mixer, Learn, Preferences, session Save/Open | ✅ |
+| Desktop shell (Tauri 2 + React) | ✅ |
+| Watch-folder batch (`neiro watch`) | ✅ |
+| DAW shared-window injector + Edison capture | ✅ |
+| Symbolic export (MusicXML / tab / LRC; PDF via Verovio/MuseScore) | ✅ |
+| Full MUSDB / MAESTRO eval tables | ⏳ needs user datasets |
 
-## Licensing note
+**Neiro 1.1.1** — UI navigation QOL (command palette, collapsible rail, session dialogs) on top of the 1.1.0 DAW + model-zoo release. See [`CHANGELOG.md`](CHANGELOG.md).
 
-The engine, desktop shell, and frontend are MIT (see [LICENSE](LICENSE)).
-Individual **models** carry their own licenses — several state-of-the-art
-separation weights are non-commercial or research-only. Each manifest records its
-license; `neiro models` shows it, and it follows model output into export
-metadata. See [docs/models.md](docs/models.md) for the full registry and
-[SECURITY.md](SECURITY.md) for the local-first security model and the
-model-weight supply-chain note.
+---
+
+## Licensing
+
+Engine, desktop shell, and frontend are **MIT** ([LICENSE](LICENSE)).  
+Individual **models** keep their own licenses (some non-commercial / research-only). Manifests record them; `neiro models` shows them; export metadata carries them forward.
+
+See [docs/models.md](docs/models.md) and [SECURITY.md](SECURITY.md) for the local-first security model and weight supply-chain notes.
