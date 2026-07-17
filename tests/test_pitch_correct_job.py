@@ -40,7 +40,7 @@ def test_plan_enhancement_auto_download_does_not_silent_skip_undownloaded(tmp_pa
     """When auto_download=True, undownloaded neural steps must download or needs-install — not silent skip."""
     sr = 16000
     wav = tmp_path / "t.wav"
-    samples = (0.1 * np.random.randn(2, sr).astype(np.float32))
+    samples = 0.1 * np.random.randn(2, sr).astype(np.float32)
     import soundfile as sf
 
     sf.write(str(wav), samples.T, sr)

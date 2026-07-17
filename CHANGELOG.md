@@ -1,4 +1,4 @@
-﻿# Changelog
+# Changelog
 
 ## 1.2.1 — DAW shell + pipeline matrix (2026-07-18)
 
