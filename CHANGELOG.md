@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.1.1 — UI navigation QOL (2026-07-17)
+
+Product-shell polish for easier navigation and lower cognitive load, plus CI
+fixes inherited from main.
+
+### Added
+- Command palette (`Ctrl/⌘K`) for module jump and common actions
+- Collapsible module rail (`Ctrl/⌘B`) with shortcut digits
+- Session Save/Open dialogs (replacing `prompt()`)
+- Shared `ModuleHeader` / `EmptyGate` patterns across modules
+- `PRODUCT.md` + `DESIGN.md` design context
+
+### Changed
+- Shorter module copy; progressive disclosure for advanced Separate/Transcribe options
+- Mobile horizontal scroll module strip; collapsible job tray
+- Spacing / z-index / motion tokens; stronger primary button affordance
+
+### Fixed
+- Ruff import/unused-import and format drift blocking CI
+- Rustfmt on Tauri engine log helper
+- Ensemble member checks accept `model_id` references (`tr-ensemble-default`)
+
 ## 1.1.0 — DAW all-modes, full zoo, roadmap close-out (2026-07-16)
 
 QOL / QA / function / aesthetic overhaul on top of 1.0.0: CI green, shared-window

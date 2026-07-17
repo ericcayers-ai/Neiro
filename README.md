@@ -18,10 +18,10 @@ open-source model development without rewrites. It ships with a **pure-DSP floor
 that works with **no model downloads**, and neural backends (Demucs, RoFormer,
 Basic Pitch, AudioSR, Matchering, …) plug in through JSON manifests.
 
-> **Status: Neiro 1.1.0** builds on the 1.0 program with a shared-window DAW
-> injector (all modes + Edison capture), full model-zoo wiring, Advanced plan
-> strip, WebGL canvases, note editing, in-app score SVG, user plugins, and
-> session Save/Open. Neural weights stay opt-in (not redistributed). See
+> **Status: Neiro 1.1.1** builds on 1.1.0 with a navigation/QOL shell revamp
+> (command palette, collapsible rail, session dialogs, clearer empty states)
+> while keeping the shared-window DAW injector, model zoo, and local-only
+> processing model. Neural weights stay opt-in (not redistributed). See
 > [`CHANGELOG.md`](CHANGELOG.md) and
 > [`docs/roadmap-traceability.md`](docs/roadmap-traceability.md).
 
