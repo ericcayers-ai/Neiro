@@ -199,7 +199,18 @@ export interface EnhanceResult {
   file_id?: string
 }
 
-export type JobKind = 'separate' | 'transcribe' | 'enhance' | 'import' | 'download'
+export interface PitchCorrectResult {
+  file_id: string
+  parent?: string
+  op?: string
+  audio_url: string
+  duration: number
+  waveform?: WaveformData
+  provenance?: string | string[] | null
+  notes?: string[]
+}
+
+export type JobKind = 'separate' | 'transcribe' | 'enhance' | 'import' | 'download' | 'pitch_correct'
 
 export interface ProgressEvent {
   stage: string
@@ -218,7 +229,7 @@ export interface JobStatus {
   stage?: string | null
   fraction?: number | null
   eta_s?: number | null
-  result?: SeparateResult | TranscribeResult | EnhanceResult
+  result?: SeparateResult | TranscribeResult | EnhanceResult | PitchCorrectResult
   error?: string
 }
 

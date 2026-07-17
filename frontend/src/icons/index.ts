@@ -29,6 +29,11 @@ export {
   IconStudio,
   IconZoomIn,
   IconZoomOut,
+  IconUndo,
+  IconRedo,
+  IconReset,
+  IconPencil,
+  IconErase,
 } from './set'
 
 import type { ComponentType } from 'react'

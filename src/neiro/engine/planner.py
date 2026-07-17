@@ -971,7 +971,7 @@ def _ensemble_member_specs(
             notes.append(f"ensemble: unknown member {mid}, skipped")
             continue
         if not entry.available():
-            notes.append(f"ensemble: {mid} needs install, skipped")
+            notes.append(f"ensemble: {mid} needs-install (dependency missing)")
             continue
         resolved.append((mid, weight))
 
@@ -1362,11 +1362,18 @@ def plan_enhancement(
             registry, ENHANCE_STEPS[name], notes, auto_download=auto_download, progress=progress
         )
         if entry is None:
-            notes.append(f"step {name!r}: no available model, skipped")
+            notes.append(f"step {name!r}: no available model, needs-install")
             continue
         if entry.needs_download and not entry.downloaded():
-            notes.append(f"{entry.id} not downloaded; skipping {name}")
-            continue
+            if auto_download:
+                notes.append(f"downloading {entry.id} weights (first use)")
+                entry.ensure_downloaded(progress=progress)
+            else:
+                notes.append(f"{entry.id} not downloaded; skipping {name}")
+                continue
+            if entry.needs_download and not entry.downloaded():
+                notes.append(f"{entry.id} download incomplete; needs-install for {name}")
+                continue
         enhancer = entry.instantiate()
         if name == "master" and reference_path is not None:
             enhancer.reference_path = reference_path

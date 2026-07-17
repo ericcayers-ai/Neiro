@@ -14,8 +14,10 @@ Endpoints:
     GET  /api/models            ?task=transcribe -> registry status (ready/needs-install)
     POST /api/transcribe        {file_id, mode, model?, members?, ensemble?} -> job id
     POST /api/enhance           {file_id, chain?}   -> job id
+    POST /api/pitch_correct     {file_id, key?, strength?} -> job id (cancellable)
     GET  /api/job/<id>          job status, progress lines, result
     POST /api/job/<id>/cancel   cooperative cancel
+    GET  /api/file/<id>/parent  parent file_id from edit chain (Reset to original)
     GET  /api/prefs             cache budget, warm-pool TTL, residents
     POST /api/prefs             update cache_budget_gb / warm_pool_ttl_s
     POST /api/prefs/flush       drop warm-pool residents (+ optional cache clear)
@@ -464,10 +466,72 @@ def _run_enhancement(
         state.jobs[job_id].update(status="done", result=result)
 
 
+def _run_pitch_correct(
+    state: _State,
+    job_id: str,
+    file_id: str,
+    key: str | None,
+    strength: float,
+) -> None:
+    from neiro.dsp import edit as ed
+    from neiro.dsp import waveform_peaks
+    from neiro.io import write_audio
+
+    job_dir = state.workspace / "jobs" / job_id
+    job_dir.mkdir(parents=True, exist_ok=True)
+    progress = _job_progress(state, job_id)
+    ctx = ExecutionContext(cache=state.cache, progress=progress)
+    with state.lock:
+        state.job_contexts[job_id] = ctx
+    try:
+        progress("pitch_correct: loading", fraction=0.05)
+        if ctx.cancelled:
+            raise CancelledError()
+        audio = state.load(file_id)
+        progress("pitch_correct: analyzing pitch", fraction=0.15)
+        if ctx.cancelled:
+            raise CancelledError()
+
+        def _cancel() -> bool:
+            return bool(ctx.cancelled)
+
+        result = ed.pitch_correct(
+            audio,
+            key=key,
+            strength=strength,
+            cancel_check=_cancel,
+        )
+        if ctx.cancelled:
+            raise CancelledError()
+        progress("pitch_correct: writing", fraction=0.9)
+        name = _safe_name(Path(state.files[file_id]).stem + ".pitch-correct.wav")
+        p = write_audio(result, job_dir / name, fmt="wav", bit_depth=16)
+        new_id = state.register_path(p)
+        with state.lock:
+            state.parents[new_id] = file_id
+        payload = {
+            "file_id": new_id,
+            "parent": file_id,
+            "op": "pitch_correct",
+            "audio_url": f"/files/jobs/{job_id}/{p.name}",
+            "duration": result.duration_seconds,
+            "waveform": waveform_peaks(result, width=1200),
+            "provenance": getattr(result, "provenance", None),
+            "notes": [f"pitch_correct key={key or 'chromatic'} strength={strength:g}"],
+        }
+        progress("pitch_correct: done", fraction=1.0)
+        with state.lock:
+            state.jobs[job_id].update(status="done", result=payload)
+    finally:
+        with state.lock:
+            state.job_contexts.pop(job_id, None)
+
+
 _RUNNERS = {
     "separate": _run_separation,
     "transcribe": _run_transcription,
     "enhance": _run_enhancement,
+    "pitch_correct": _run_pitch_correct,
 }
 
 
@@ -516,6 +580,10 @@ def start_job(state: _State, kind: str, file_id: str, body: dict) -> str:
         elif tr_members and len(tr_members) >= 2:
             tr_mode = "ensemble"
         args = (tr_mode, tr_model, tr_members, corrections)
+    elif kind == "pitch_correct":
+        key = body.get("key")
+        strength = float(body.get("strength", 1.0))
+        args = (str(key) if key else None, strength)
     else:
         args = (_parse_enhance_chain(body.get("chain")), corrections)
 
@@ -1015,6 +1083,27 @@ def _make_handler(state: _State):
                 else:
                     self._json(payload)
                 return
+            if path.startswith("/api/file/") and path.rstrip("/").endswith("/parent"):
+                parts = path.rstrip("/").split("/")
+                # /api/file/<id>/parent
+                file_id = parts[3] if len(parts) >= 5 else ""
+                if not file_id or file_id not in state.files:
+                    self._error(404, "unknown file_id")
+                    return
+                parent = state.parents.get(file_id)
+                root = file_id
+                seen: set[str] = set()
+                while root in state.parents and root not in seen:
+                    seen.add(root)
+                    root = state.parents[root]
+                self._json(
+                    {
+                        "file_id": file_id,
+                        "parent": parent,
+                        "original": root if root != file_id else parent,
+                    }
+                )
+                return
             if path == "/api/prefs":
                 self._json(state.prefs_snapshot())
                 return
@@ -1069,7 +1158,12 @@ def _make_handler(state: _State):
                 elif self.path.startswith("/api/job/") and self.path.endswith("/cancel"):
                     job_id = self.path.rstrip("/").rsplit("/", 2)[-2]
                     self._handle_cancel(job_id)
-                elif self.path in ("/api/separate", "/api/transcribe", "/api/enhance"):
+                elif self.path in (
+                    "/api/separate",
+                    "/api/transcribe",
+                    "/api/enhance",
+                    "/api/pitch_correct",
+                ):
                     self._handle_job(self.path.rsplit("/", 1)[-1])
                 elif self.path == "/api/daw/capture":
                     self._handle_daw_capture()

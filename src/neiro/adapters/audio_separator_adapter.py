@@ -43,9 +43,24 @@ __all__ = ["AudioSeparatorModel", "AudioSeparatorEnhancer"]
 
 _LABEL_RE = re.compile(r"\(([^)]+)\)")
 
+# Mel/BS-RoFormer backends in audio-separator crash on very short clips
+# (tensor length mismatch in overlap-add). Pad below this floor, then crop.
+_MIN_INFER_SECONDS = 10.0
+
 
 def _normalize_label(label: str) -> str:
     return label.strip().lower().replace(" ", "_").replace("-", "_")
+
+
+def _crop_or_pad(samples, frames: int):
+    import numpy as np
+
+    if samples.shape[-1] == frames:
+        return samples
+    if samples.shape[-1] > frames:
+        return samples[..., :frames]
+    pad = np.zeros(samples.shape[:-1] + (frames - samples.shape[-1],), dtype=samples.dtype)
+    return np.concatenate([samples, pad], axis=-1)
 
 
 class _AudioSeparatorBase:
@@ -91,6 +106,14 @@ class _AudioSeparatorBase:
             model_file_dir=self._model_file_dir or "/tmp/audio-separator-models/",
             output_format="WAV",
             sample_rate=self.profile.sample_rate,
+            # Avoid RoFormer segment-size mismatches on odd/short lengths.
+            mdxc_params={
+                "segment_size": 256,
+                "override_model_segment_size": True,
+                "batch_size": 1,
+                "overlap": 8,
+                "pitch_shift": 0,
+            },
         )
         self._separator.load_model(model_filename=self.model_filename)
 
@@ -98,11 +121,23 @@ class _AudioSeparatorBase:
         self._separator = None
 
     def _run(self, audio: AudioTensor) -> dict[str, AudioTensor]:
+        import numpy as np
+
         if self._separator is None:
             self.load("cpu", "fp32")
+
+        target_frames = audio.frames
+        samples = audio.samples
+        min_frames = int(_MIN_INFER_SECONDS * audio.sample_rate)
+        if target_frames < min_frames:
+            pad = np.zeros(
+                (samples.shape[0], min_frames - target_frames), dtype=samples.dtype
+            )
+            samples = np.concatenate([samples, pad], axis=1)
+
         with tempfile.TemporaryDirectory() as tmp:
             in_path = Path(tmp) / "input.wav"
-            sf.write(str(in_path), audio.samples.T, audio.sample_rate)
+            sf.write(str(in_path), samples.T, audio.sample_rate)
             self._separator.output_dir = tmp
             output_names = self._separator.separate(str(in_path))
 
@@ -117,10 +152,12 @@ class _AudioSeparatorBase:
                     _normalize_label(raw_label), _normalize_label(raw_label)
                 )
                 data, sr = sf.read(str(path), dtype="float32", always_2d=True)
-                results[stem] = AudioTensor(data.T.copy(), sr).with_provenance(
+                cropped = _crop_or_pad(data.T.copy(), target_frames)
+                results[stem] = AudioTensor(cropped, sr).with_provenance(
                     f"audio-separator:{self.model_filename}"
                 )
         return results
+
 
 
 class AudioSeparatorModel(_AudioSeparatorBase):

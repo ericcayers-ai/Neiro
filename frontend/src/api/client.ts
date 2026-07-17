@@ -406,6 +406,33 @@ export async function pitchShiftFile(fileId: string, semitones: number): Promise
 export async function pitchCorrectFile(
   fileId: string,
   opts?: { key?: string; strength?: number },
+): Promise<{ job_id: string }> {
+  const res = await fetch('/api/pitch_correct', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      file_id: fileId,
+      key: opts?.key,
+      strength: opts?.strength ?? 1,
+    }),
+  })
+  return readJson(res)
+}
+
+/** Resolve immediate parent / root original for an edited file (Reset to original). */
+export async function fetchFileParent(fileId: string): Promise<{
+  file_id: string
+  parent: string | null
+  original: string | null
+}> {
+  const res = await fetch(`/api/file/${encodeURIComponent(fileId)}/parent`, { cache: 'no-store' })
+  return readJson(res)
+}
+
+/** Sync edit path kept for non-job ops; prefer pitchCorrectFile + poll for pitch. */
+export async function pitchCorrectFileSync(
+  fileId: string,
+  opts?: { key?: string; strength?: number },
 ): Promise<EditResponse> {
   return applyEdit({
     file_id: fileId,

@@ -12,7 +12,7 @@ import {
   uploadFile,
   type EditOp,
 } from '../api/client'
-import type { SpectrogramData, StemPack, WaveformData } from '../api/types'
+import type { PitchCorrectResult, SpectrogramData, StemPack, WaveformData } from '../api/types'
 import {
   EXPORT_FORMATS,
   STEM_COLORS,
@@ -29,15 +29,19 @@ import {
   IconPause,
   IconPitchCorrect,
   IconPlay,
+  IconRedo,
+  IconReset,
   IconScrub,
   IconSelect,
   IconSolo,
   IconSpectrogram,
   IconSplit,
   IconStop,
+  IconUndo,
   IconZoomIn,
   IconZoomOut,
 } from '../icons'
+import { JobProgress } from '../components/JobProgress'
 import { useSession } from '../state/session'
 import {
   readStudioTracks,
@@ -50,6 +54,7 @@ import {
   clipLength,
   fitDefaultViewEnd,
   timelineToMedia,
+  timelineToMediaHold,
   trackTimelineEnd,
   type StudioClip,
 } from './studioTimeline'
@@ -72,6 +77,11 @@ interface Track {
   duration: number
   clips: Clip[]
   packId?: string
+  /** Immediate edit parent (pitch/trim/…). */
+  parentFileId?: string
+  /** Root file before any edits on this chain — Reset to original. */
+  originalFileId?: string
+  originalAudioUrl?: string
 }
 
 type TrackGraph = {
@@ -282,7 +292,12 @@ export function StudioModule() {
     updateStemPack,
     studioPackIntent,
     clearStudioPackIntent,
+    startEngineJob,
+    jobForKind,
+    cancelSessionJob,
   } = useSession()
+
+  const pitchJob = jobForKind('pitch_correct')
 
   const [tracks, setTracks] = useState<Track[]>([])
   const [selectedIds, setSelectedIds] = useState<string[]>([])
@@ -797,20 +812,18 @@ export function StudioModule() {
     (tr: Track, timelineT: number, wantPlay: boolean) => {
       const el = audioRefs.current[tr.id]
       if (!el || !tr.audioUrl) return
-      const media = timelineToMedia(tr, timelineT)
+      const { media, inClip } = timelineToMediaHold(tr, timelineT)
       const shouldHear =
         wantPlay &&
-        media !== null &&
+        inClip &&
         (ab === 'original' ? tr.id === tracks[0]?.id : audible(tr))
-      if (media === null) {
-        if (!el.paused) el.pause()
-        return
-      }
       if (!Number.isFinite(el.duration) || el.duration <= 0) {
         /* metadata not ready yet */
       } else {
         const clamped = Math.min(Math.max(0, media), Math.max(0, el.duration - 0.001))
-        if (Math.abs(el.currentTime - clamped) > 0.045) {
+        // Force seek after scrub / when holding a gap edge (lower hysteresis).
+        const hyst = inClip ? 0.045 : 0.001
+        if (Math.abs(el.currentTime - clamped) > hyst) {
           try {
             el.currentTime = clamped
           } catch {
@@ -1116,7 +1129,21 @@ export function StudioModule() {
     try {
       pushUndo()
       setStatus('Pitch correcting…')
-      const data = await pitchCorrectFile(target.fileId, { key: keyHint || undefined, strength: 1 })
+      const done = await startEngineJob({
+        kind: 'pitch_correct',
+        label: `Pitch correct · ${target.name}`,
+        module: 'studio',
+        startFn: () => pitchCorrectFile(target.fileId, { key: keyHint || undefined, strength: 1 }),
+      })
+      if (!done || done.status !== 'done' || !done.result) {
+        setStatus(done?.error || 'Pitch correct cancelled or failed.')
+        return
+      }
+      const data = done.result as PitchCorrectResult
+      if (!data?.file_id || !data.audio_url) {
+        setStatus('Pitch correct returned an unexpected payload.')
+        return
+      }
       const corrected = trackFromFile(
         `${target.name} · pitch`,
         data.file_id,
@@ -1127,6 +1154,9 @@ export function StudioModule() {
       corrected.color = target.color
       corrected.gain = target.gain
       corrected.pan = target.pan
+      corrected.parentFileId = data.parent || target.fileId
+      corrected.originalFileId = target.originalFileId || target.parentFileId || target.fileId
+      corrected.originalAudioUrl = target.originalAudioUrl || target.audioUrl
       corrected.clips = [
         {
           id: uid('clip'),
@@ -1143,13 +1173,37 @@ export function StudioModule() {
         return next
       })
       setSelectedIds([corrected.id])
-      wavesRef.current[corrected.id] = data.waveform
+      if (data.waveform) wavesRef.current[corrected.id] = data.waveform
       void loadWave(corrected)
       setStatus(`Pitch correct → new clip${keyHint ? ` (${keyHint})` : ' (chromatic)'}`)
       setMixOpen(true)
     } catch (err) {
       setStatus(err instanceof Error ? err.message : String(err))
     }
+  }
+
+  const resetTrackToOriginal = (track?: Track | null) => {
+    const target = track || selectedTrack
+    if (!target) {
+      setStatus('Select a track first.')
+      return
+    }
+    const origId = target.originalFileId || target.parentFileId
+    const origUrl = target.originalAudioUrl
+    if (!origId || !origUrl || origId === target.fileId) {
+      setStatus('No original parent for this track (already at source).')
+      return
+    }
+    pushUndo()
+    patchTrack(target.id, {
+      fileId: origId,
+      audioUrl: origUrl,
+      parentFileId: undefined,
+      originalFileId: undefined,
+      originalAudioUrl: undefined,
+      name: target.name.replace(/ · pitch$/, ''),
+    })
+    setStatus('Reset to original audio.')
   }
 
   const openCtxMenu = (track: Track, e: React.MouseEvent, time?: number) => {
@@ -1516,8 +1570,8 @@ export function StudioModule() {
         originOffset: 0,
         pushedUndo: false,
       }
+      // Live scrub: seek while keeping transport state (playing stays playing).
       seekAll(t)
-      pauseAll()
       lane.setPointerCapture(e.pointerId)
       return
     }
@@ -1839,15 +1893,31 @@ export function StudioModule() {
               {t.label}
             </button>
           ))}
-          <button type="button" disabled={!undoStack.length} title="Undo (Ctrl+Z)" onClick={undo}>
-            Undo
-          </button>
-          <button type="button" disabled={!redoStack.length} title="Redo (Ctrl+Y)" onClick={redo}>
-            Redo
+          <button
+            type="button"
+            className="studio-icon-btn"
+            disabled={!undoStack.length}
+            title="Undo (Ctrl+Z)"
+            aria-label="Undo"
+            onClick={undo}
+          >
+            <IconUndo size={16} />
           </button>
           <button
             type="button"
+            className="studio-icon-btn"
+            disabled={!redoStack.length}
+            title="Redo (Ctrl+Y)"
+            aria-label="Redo"
+            onClick={redo}
+          >
+            <IconRedo size={16} />
+          </button>
+          <button
+            type="button"
+            className="studio-icon-btn"
             title="Bounce / combine selected tracks"
+            aria-label="Bounce"
             onMouseEnter={() => setIntentOverride('Combine selected tracks into one bounced clip.')}
             onMouseLeave={() => setIntentOverride(null)}
             onClick={() => void bounceSelected()}
@@ -1859,6 +1929,7 @@ export function StudioModule() {
             className="studio-icon-btn"
             title="Pitch correct — new clip (YIN snap + Rubber Band)"
             aria-label="Pitch correct"
+            disabled={pitchJob?.status === 'running'}
             onMouseEnter={() =>
               setIntentOverride(
                 'Corrective pitch snap for mono vocals → new timeline clip (Rubber Band when installed).',
@@ -1869,13 +1940,33 @@ export function StudioModule() {
           >
             <IconPitchCorrect size={16} />
           </button>
+          <button
+            type="button"
+            className="studio-icon-btn"
+            title="Reset to original (before edits on this chain)"
+            aria-label="Reset to original"
+            disabled={
+              !selectedTrack ||
+              !(selectedTrack.originalFileId || selectedTrack.parentFileId) ||
+              (selectedTrack.originalFileId || selectedTrack.parentFileId) === selectedTrack.fileId
+            }
+            onMouseEnter={() =>
+              setIntentOverride('Restore this track’s audio from the edit parent / original source.')
+            }
+            onMouseLeave={() => setIntentOverride(null)}
+            onClick={() => resetTrackToOriginal()}
+          >
+            <IconReset size={16} />
+          </button>
         </ToolGroup>
 
         <ToolGroup label="Mix">
           <button
             type="button"
-            className={mixOpen ? 'active' : ''}
+            className={`studio-icon-btn${mixOpen ? ' active' : ''}`}
             title="Mix drawer (M)"
+            aria-label="Mix"
+            aria-pressed={mixOpen}
             onMouseEnter={() =>
               setIntentOverride('Mix drawer — mute/solo/gain/pan and export. Pan applies in live preview.')
             }
@@ -1889,6 +1980,12 @@ export function StudioModule() {
       <p className="studio-intent" role="status">
         {activeIntent}
       </p>
+      {pitchJob && (
+        <JobProgress
+          status={pitchJob}
+          onCancel={() => void cancelSessionJob(pitchJob.id)}
+        />
+      )}
 
       {helpOpen && (
         <StudioHelpSheet onClose={() => setHelpOpen(false)} onAbout={() => setModule('about')} />
@@ -2083,7 +2180,7 @@ export function StudioModule() {
                           originOffset: 0,
                           pushedUndo: false,
                         }
-                        pauseAll()
+                        // Live playhead scrub — do not pause transport.
                         ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
                       }}
                       onPointerMove={(e) => {
@@ -2340,10 +2437,8 @@ export function StudioModule() {
             step={0.01}
             value={Math.min(playhead, timelineDur || 0)}
             onChange={(e) => {
-              const was = playing
-              pauseAll()
+              // Live transport scrub — seek without pause→play stutter.
               seekAll(Number(e.target.value))
-              if (was) void playAll()
             }}
           />
         </label>
@@ -2453,6 +2548,20 @@ export function StudioModule() {
               }}
             >
               Pitch correct
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              disabled={
+                !(track.originalFileId || track.parentFileId) ||
+                (track.originalFileId || track.parentFileId) === track.fileId
+              }
+              onClick={() => {
+                resetTrackToOriginal(track)
+                closeCtxMenu()
+              }}
+            >
+              Reset to original
             </button>
             <button
               type="button"

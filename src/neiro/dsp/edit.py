@@ -9,6 +9,8 @@ raising.
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import numpy as np
 
 from neiro.dsp.enhance import peak_normalize
@@ -360,6 +362,7 @@ def pitch_correct(
     *,
     key: str | None = None,
     strength: float = 1.0,
+    cancel_check: Callable[[], bool] | None = None,
 ) -> AudioTensor:
     """Corrective pitch snap for suitable mono / near-mono material (Autotone-class).
 
@@ -370,7 +373,17 @@ def pitch_correct(
     Stereo inputs are analyzed from a mono mix; the same semitone shifts are
     applied to every channel so imaging is preserved. Returns a copy with a
     skip provenance note when little/no voiced content is found.
+
+    ``cancel_check`` (optional) is polled between note stages; when it returns
+    True a :class:`~neiro.engine.graph.CancelledError` is raised so job runners
+    can abort cooperatively.
     """
+    from neiro.engine.graph import CancelledError
+
+    def _bail() -> None:
+        if cancel_check is not None and cancel_check():
+            raise CancelledError("pitch_correct cancelled")
+
     strength = float(np.clip(strength, 0.0, 1.0))
     if strength < 1e-6:
         return AudioTensor(audio.samples.copy(), audio.sample_rate).with_provenance(
@@ -386,6 +399,7 @@ def pitch_correct(
             "pitch_correct(skip:too-short)"
         )
 
+    _bail()
     try:
         times, f0, voiced = yin_track(mono, audio.sample_rate)
     except ValueError:
@@ -418,6 +432,7 @@ def pitch_correct(
     total_cents = 0.0
 
     for ev in events:
+        _bail()
         # Median continuous MIDI over the note's voiced frames
         mask = (times >= ev.onset) & (times <= ev.offset) & voiced & (f0 > 0)
         if not np.any(mask):

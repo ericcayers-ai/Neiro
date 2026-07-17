@@ -9,6 +9,7 @@
   "params": {
     "mode": "mean",
     "tta": true,
+    "chunk_seconds": 30.0,
     "members": [
       {
         "adapter": "neiro.adapters.audio_separator_adapter:AudioSeparatorModel",

@@ -32,6 +32,46 @@ def test_fuse_rejects_mismatched_stems(stereo_mix):
         )
 
 
+def test_fuse_aligns_mismatched_lengths(stereo_mix):
+    a = stereo_mix.samples
+    b = stereo_mix.samples[:, : a.shape[1] - 64]
+    fused = fuse_stems(
+        [{"vocals": a, "instrumental": a}, {"vocals": b, "instrumental": b}],
+        stereo_mix.sample_rate,
+        weights=[1.0, 1.0],
+        mode="mean",
+    )
+    assert fused["vocals"].shape == a.shape
+
+
+def test_ensemble_skips_zero_weight_members(stereo_mix):
+    from neiro.adapters.dsp_separators import CenterSeparator
+    from neiro.adapters.ensemble_separator import EnsembleSeparator
+
+    class TrackingSeparator(CenterSeparator):
+        calls = 0
+
+        def separate(self, audio):
+            type(self).calls += 1
+            return super().separate(audio)
+
+    TrackingSeparator.calls = 0
+    ens = EnsembleSeparator(
+        model_id="test-ens",
+        members=[
+            {"adapter": "neiro.adapters.dsp_separators:CenterSeparator", "weight": 1.0},
+            {"adapter": "neiro.adapters.dsp_separators:CenterSeparator", "weight": 0.0},
+        ],
+        tta=False,
+    )
+    # Replace second member with a tracker after instantiate.
+    ens.members[1] = TrackingSeparator()
+    ens.weights = [1.0, 0.0]
+    stems = ens.separate(stereo_mix)
+    assert TrackingSeparator.calls == 0
+    assert stems["vocals"].samples.shape == stereo_mix.samples.shape
+
+
 def test_tta_preserves_alignment(stereo_mix):
     sep = CenterSeparator()
     plain = sep.separate(stereo_mix)

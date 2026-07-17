@@ -1,4 +1,4 @@
-"""Neiro — local source separation, restoration, and symbolic transcription.
+﻿"""Neiro — local source separation, restoration, and symbolic transcription.
 
 `neiro` (音色) is Japanese for *timbre* — the color of a sound. This package
 implements the engine described in ``roadmap.md``: a typed-artifact DAG runtime
@@ -9,7 +9,7 @@ model downloads; neural backends (Demucs, RoFormer, …) plug in through manifes
 
 from __future__ import annotations
 
-__version__ = "1.2.0"
+__version__ = "1.2.1"
 
 from neiro.engine.artifacts import (
     AnalysisReport,

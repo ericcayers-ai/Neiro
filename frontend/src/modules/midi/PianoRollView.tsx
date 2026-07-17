@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { MidiEvent, TranscribeResult } from '../../api/types'
 import { stemColor } from '../../constants/options'
+import { IconErase, IconPause, IconPencil, IconPlay, IconSelect, IconStop } from '../../icons'
 import { useSession } from '../../state/session'
 import { startPhaseLockedMetronome, type MetronomeHandle } from './metronome'
 import { MidiAudition } from './soundfontPlayer'
@@ -332,7 +333,18 @@ export function PianoRollView({
   const onPointerDown = (e: React.PointerEvent) => {
     if (!interactive) {
       const hit = hitTest(e.clientX, e.clientY)
-      if (hit && onPlayhead) onPlayhead(hit.t)
+      if (hit) {
+        // Live scrub: seek playhead + media without pausing if already playing.
+        if (onPlayhead) onPlayhead(hit.t)
+        const audio = audioRef.current
+        if (audio && Number.isFinite(hit.t)) {
+          try {
+            audio.currentTime = Math.max(0, hit.t)
+          } catch {
+            /* ignore */
+          }
+        }
+      }
       return
     }
     const hit = hitTest(e.clientX, e.clientY)
@@ -458,15 +470,36 @@ export function PianoRollView({
         </div>
       </div>
       <div className="row piano-transport" style={{ marginTop: '0.7rem' }}>
-        <button type="button" className="primary" onClick={() => void play()} disabled={isPlaying}>
-          Play
+        <button
+          type="button"
+          className="primary studio-icon-btn"
+          onClick={() => void play()}
+          disabled={isPlaying}
+          title="Play"
+          aria-label="Play"
+        >
+          <IconPlay size={16} />
         </button>
-        <button type="button" onClick={pause} disabled={!isPlaying}>
-          Pause
+        <button
+          type="button"
+          className="studio-icon-btn"
+          onClick={pause}
+          disabled={!isPlaying}
+          title="Pause"
+          aria-label="Pause"
+        >
+          <IconPause size={16} />
         </button>
-        <button type="button" onClick={stop}>
-          Stop
+        <button type="button" className="studio-icon-btn" onClick={stop} title="Stop" aria-label="Stop">
+          <IconStop size={16} />
         </button>
+        {interactive && (
+          <span className="muted" style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+            <IconSelect size={14} />
+            <IconPencil size={14} />
+            <IconErase size={14} />
+          </span>
+        )}
         {soundfontEnabled === false && (
           <span className="muted">Soundfont off — install GM SF2 in Prefs → Tools</span>
         )}

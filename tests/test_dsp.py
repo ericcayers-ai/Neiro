@@ -16,6 +16,31 @@ def test_separate_chunked_matches_whole_file(mono_tone):
     assert err < 2e-4
 
 
+def test_chunk_starts_avoids_tiny_draft_tail():
+    """Draft overlap 10% on 30s / 8s chunks must not leave a ~1.2s stub."""
+    from neiro.dsp.chunking import chunk_starts
+
+    sr = 44100
+    total = 30 * sr
+    chunk_frames = 8 * sr
+    hop = int(chunk_frames * 0.9)  # draft tier
+    starts = chunk_starts(total, chunk_frames, hop)
+    lengths = [min(total, s + chunk_frames) - s for s in starts]
+    assert min(lengths) == chunk_frames
+    assert starts[-1] + chunk_frames == total
+
+
+def test_separate_chunked_aligns_short_stem_output(mono_tone):
+    """Separator returning a shorter stem than the chunk must still fuse."""
+
+    def short_stem(chunk: AudioTensor) -> dict[str, AudioTensor]:
+        n = max(1, chunk.frames - 17)
+        return {"dry": AudioTensor(chunk.samples[:, :n].copy(), chunk.sample_rate)}
+
+    out = separate_chunked(short_stem, mono_tone, chunk_seconds=0.25, overlap=0.1, chunk_scale=0.5)
+    assert out["dry"].frames == mono_tone.frames
+
+
 def test_stft_istft_roundtrip_interior(mono_tone):
     x = mono_tone.samples[0]
     y = istft(stft(x, 2048, 512), 2048, 512, length=len(x))

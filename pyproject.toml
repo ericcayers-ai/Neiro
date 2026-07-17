@@ -1,10 +1,10 @@
-[build-system]
+﻿[build-system]
 requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "neiro"
-version = "1.2.0"
+version = "1.2.1"
 description = "Local source separation, restoration, and symbolic transcription."
 readme = "README.md"
 requires-python = ">=3.10"

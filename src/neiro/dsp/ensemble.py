@@ -49,14 +49,44 @@ def fuse_stems(
     w = w / w.sum()
     phase_ref = int(np.argmax(w))
 
+    def _align_stereo(arr: np.ndarray, channels: int, frames: int) -> np.ndarray:
+        """Crop/pad member stems so STFT fusion never sees mismatched lengths."""
+        a = np.asarray(arr, dtype=np.float32)
+        if a.ndim == 1:
+            a = a[np.newaxis, :]
+        if a.shape[0] < channels:
+            a = np.vstack([a, np.zeros((channels - a.shape[0], a.shape[1]), dtype=np.float32)])
+        elif a.shape[0] > channels:
+            a = a[:channels]
+        if a.shape[1] == frames:
+            return a
+        if a.shape[1] > frames:
+            return a[:, :frames]
+        out = np.zeros((channels, frames), dtype=np.float32)
+        out[:, : a.shape[1]] = a
+        return out
+
     fused: dict[str, np.ndarray] = {}
     for name in names:
         arrays = [m[name] for m in members]
-        channels, frames = arrays[0].shape
+        channels = max(a.shape[0] if a.ndim > 1 else 1 for a in arrays)
+        frames = max(a.shape[-1] for a in arrays)
+        aligned = [_align_stereo(a, channels, frames) for a in arrays]
         out = np.empty((channels, frames), dtype=np.float32)
         for ch in range(channels):
-            specs = [stft(a[ch], n_fft, hop) for a in arrays]
-            mags = np.stack([np.abs(s) for s in specs])
+            specs = [stft(a[ch], n_fft, hop) for a in aligned]
+            # STFT frame counts can still differ by one hop after pad/crop; align.
+            t_max = max(s.shape[-1] for s in specs)
+            specs_a = []
+            for s in specs:
+                if s.shape[-1] == t_max:
+                    specs_a.append(s)
+                elif s.shape[-1] > t_max:
+                    specs_a.append(s[..., :t_max])
+                else:
+                    pad = np.zeros(s.shape[:-1] + (t_max - s.shape[-1],), dtype=s.dtype)
+                    specs_a.append(np.concatenate([s, pad], axis=-1))
+            mags = np.stack([np.abs(s) for s in specs_a])
             if mode == "mean":
                 mag = np.tensordot(w, mags, axes=1)
             elif mode == "median":
@@ -65,10 +95,11 @@ def fuse_stems(
                 mag = mags.max(axis=0)
             else:  # min
                 mag = mags.min(axis=0)
-            phase = np.exp(1j * np.angle(specs[phase_ref]))
+            phase = np.exp(1j * np.angle(specs_a[phase_ref]))
             out[ch] = istft(mag * phase, n_fft, hop, length=frames)
         fused[name] = out
     return fused
+
 
 
 def tta_separate(separator, audio: AudioTensor) -> dict[str, AudioTensor]:

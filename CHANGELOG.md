@@ -1,4 +1,17 @@
-# Changelog
+﻿# Changelog
+
+## 1.2.1 — DAW shell + pipeline matrix (2026-07-18)
+
+### Added
+- `scripts/matrix_youtube_song.py` — full UI-registry matrix (Separate × quality, Restore + neural steps, Transcribe) with `needs-install` honesty; YouTube fixture ingest path
+- Cancellable **`pitch_correct` job** (`POST /api/pitch_correct`) with stage logs; Studio JobProgress + Cancel
+- Studio **Reset to original** (edit parent chain); `GET /api/file/<id>/parent`
+- Icon undo/redo/reset/pencil/erase; denser icon rail when collapsed; Studio/MIDI DAW chrome strip
+
+### Changed
+- Planner enhance path downloads when `auto_download` (no silent skip of undownloaded neural steps)
+- MIDI ensemble: `needs-download` members selectable + auto-download on Transcribe (install-only stays Prefs)
+- Live scrub / playhead (Studio + MIDI) without pause→play stutter; gap hold via `timelineToMediaHold`
 
 ## 1.2.0 — Studio / MIDI mashup overhaul (2026-07-17)
 

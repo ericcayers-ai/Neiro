@@ -1,7 +1,7 @@
-{
+﻿{
   "name": "neiro",
   "private": true,
-  "version": "1.2.0",
+  "version": "1.2.1",
   "license": "MIT",
   "description": "Neiro desktop shell (Tauri) + UI build helpers",
   "scripts": {
