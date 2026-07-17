@@ -34,7 +34,17 @@ def silent_kwargs(**extra: Any) -> dict[str, Any]:
     flags = int(kwargs.pop("creationflags", 0) or 0) | CREATE_NO_WINDOW
     kwargs["creationflags"] = flags
     if "startupinfo" not in kwargs:
-        si = subprocess.STARTUPINFO()
+        # STARTUPINFO exists only on Windows; keep a tiny fallback so unit tests
+        # that mock platform=win32 still exercise this branch on Linux/macOS.
+        StartupInfo = getattr(subprocess, "STARTUPINFO", None)
+        if StartupInfo is None:
+
+            class StartupInfo:  # type: ignore[no-redef]
+                def __init__(self) -> None:
+                    self.dwFlags = 0
+                    self.wShowWindow = 0
+
+        si = StartupInfo()
         si.dwFlags |= STARTF_USESHOWWINDOW
         si.wShowWindow = SW_HIDE
         kwargs["startupinfo"] = si
