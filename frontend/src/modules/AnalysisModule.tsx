@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { AnalysisCorrectionsPayload, VocalConditions } from '../api/types'
+import { EmptyGate } from '../components/EmptyGate'
+import { ModuleHeader } from '../components/ModuleHeader'
 import { fmtTime } from '../constants/options'
 import { useSession } from '../state/session'
 import './modules.css'
@@ -145,10 +147,9 @@ export function AnalysisModule() {
 
   if (!file) {
     return (
-      <div className="module-panel">
-        <h2>Analysis</h2>
-        <p className="muted">Load a file in Import to see the report.</p>
-      </div>
+      <EmptyGate title="Analysis">
+        Load a file in Import to see loudness, tempo, key, and detected conditions.
+      </EmptyGate>
     )
   }
 
@@ -242,12 +243,16 @@ export function AnalysisModule() {
   }
 
   return (
-    <div className="module-panel">
-      <h2>Analysis</h2>
-      <p className="lede">
-        Report for <strong>{file.name}</strong>. Corrections change routing for this session; they
-        do not rewrite the source analysis artifact.
-      </p>
+    <div className="module-panel module-enter">
+      <ModuleHeader
+        title="Analysis"
+        lede={
+          <>
+            Report for <strong>{file.name}</strong>. Corrections change routing for this session —
+            they do not rewrite the source artifact.
+          </>
+        }
+      />
 
       <table className="report-table">
         <caption className="sr-only">Analysis summary</caption>

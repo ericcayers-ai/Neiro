@@ -150,7 +150,6 @@ def test_stem_preview_echo_prefers_vocal_stem():
     assert any("preview split" in n for n in report.notes)
 
 
-
 def test_analysis_corrections_apply_and_reset():
     from neiro.analysis import AnalysisCorrections, analyze
     from neiro.engine.artifacts import AudioTensor
@@ -188,8 +187,8 @@ def test_analysis_corrections_apply_and_reset():
 
 def test_planner_prefers_stem_conditioned_echo_notes(tmp_path, monkeypatch):
     from neiro.engine import planner as planner_mod
-    from neiro.engine.vram import VRAMManager
     from neiro.engine.registry import default_registry
+    from neiro.engine.vram import VRAMManager
 
     class _FakeReport:
         clipping_ratio = 0.0
@@ -270,4 +269,3 @@ def test_planner_consumes_analysis_corrections_for_detect_all(tmp_path, monkeypa
     joined = " | ".join(plan.notes)
     assert "using Analysis corrections for instrument routing" in joined
     assert "detect-all cascade order (by confidence): drums, bass" in joined
-

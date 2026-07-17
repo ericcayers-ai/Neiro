@@ -17,12 +17,18 @@ npm run tauri:dev        # desktop shell, from the repo root (spawns the engine 
 ## Module rail
 
 A left-hand rail switches between modules (numeric shortcuts `1`–`6` / `8`–`9`,
-ignored while a text input is focused; `7` opens Studio Mix — the former Mixer);
-a session bar across the top always shows the loaded file, live job status with
-a working cancel button, DAW injector status when connected, Save/Open session,
-and an "engine unreachable" indicator if the local API stops responding. A
-bottom-right **job tray** lists running and recent jobs with progress, cancel,
-and jump-to-module — jobs keep polling when you switch modules.
+ignored while a text input is focused; `7` opens Studio Mix — the former Mixer).
+The rail shows keyboard digits, collapses with **Ctrl/⌘B**, and exposes a
+**command palette** (**Ctrl/⌘K**) for jump-to-module and common actions. On
+narrow viewports the rail becomes a horizontal scroll strip.
+
+A session bar across the top always shows the loaded file (or a one-click Import
+CTA when empty), live job status with cancel, DAW injector status when connected,
+a **Session** menu (Save / Open dialogs — no `prompt()`), and an "engine down"
+indicator if the local API stops responding. A bottom-right **job tray** lists
+running and recent jobs with progress, cancel, jump-to-module, and collapse —
+jobs keep polling when you switch modules. Empty modules use a shared gate with
+a clear path back to Import.
 
 | # | Module | What it does |
 |---|--------|---------------|

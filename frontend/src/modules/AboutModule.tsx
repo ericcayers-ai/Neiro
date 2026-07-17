@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { fetchVersion } from '../api/client'
+import { ModuleHeader } from '../components/ModuleHeader'
 
 export function AboutModule() {
   const [version, setVersion] = useState<string>('…')
@@ -27,7 +28,9 @@ export function AboutModule() {
       if (latest === version) {
         setUpdateMsg(`You are on the latest release (${latest}).`)
       } else {
-        setUpdateMsg(`Latest is ${latest} (you have ${version}). Open ${data.html_url || 'GitHub Releases'}.`)
+        setUpdateMsg(
+          `Latest is ${latest} (you have ${version}). Open ${data.html_url || 'GitHub Releases'}.`,
+        )
       }
     } catch (err) {
       setUpdateMsg(
@@ -37,13 +40,26 @@ export function AboutModule() {
   }
 
   return (
-    <div className="module-panel">
-      <h2>About / Privacy</h2>
-      <p className="lede">
-        <strong>Neiro {version}</strong> — local source separation, restoration, and symbolic
-        transcription. The interface talks only to a local engine on 127.0.0.1; audio is not
-        uploaded to a remote service for processing.
-      </p>
+    <div className="module-panel module-enter">
+      <ModuleHeader
+        title="About / Privacy"
+        lede={
+          <>
+            <strong>Neiro {version}</strong> — local separation, restoration, and transcription. The
+            UI talks only to 127.0.0.1; audio is not uploaded for processing.
+          </>
+        }
+        actions={
+          <button type="button" onClick={() => void checkUpdates()}>
+            Check for updates
+          </button>
+        }
+      />
+      {updateMsg && (
+        <p className="muted" role="status" aria-live="polite" style={{ marginTop: 0 }}>
+          {updateMsg}
+        </p>
+      )}
       <ul className="muted" style={{ lineHeight: 1.7, paddingLeft: 18 }}>
         <li>Jobs cancel locally; nothing is queued in the cloud.</li>
         <li>Model weights download only when you install or request them.</li>
@@ -52,21 +68,11 @@ export function AboutModule() {
         <li>Telemetry is off by default. Crash reports are opt-in only.</li>
         <li>DAW injectors (VST2 / CLAP) share one Neiro window for every mode, including capture.</li>
       </ul>
-      <div className="row" style={{ marginTop: 16 }}>
-        <button type="button" onClick={() => void checkUpdates()}>
-          Check for updates
-        </button>
-        {updateMsg && (
-          <span className="muted" role="status" aria-live="polite">
-            {updateMsg}
-          </span>
-        )}
-      </div>
 
       <h3 style={{ marginTop: 28 }}>Headless / batch</h3>
       <p className="muted" style={{ marginTop: 0 }}>
-        These paths are functional today via the CLI (not fake UI stubs). The desktop shell does
-        not host a watch-folder daemon panel.
+        These paths are functional today via the CLI. The desktop shell does not host a watch-folder
+        daemon panel.
       </p>
       <ul className="muted" style={{ lineHeight: 1.7, paddingLeft: 18 }}>
         <li>
@@ -82,11 +88,11 @@ export function AboutModule() {
       </ul>
 
       <h3 id="studio-shortcuts" style={{ marginTop: 28 }}>
-        Studio shortcuts
+        Shortcuts
       </h3>
       <p className="muted" style={{ marginTop: 0 }}>
-        Focus is ignored while typing in a text field. Numeric keys switch modules (1–6;
-        7 opens Studio Mix; 8 opens Learn / Practice; 9 Prefs). DAW injectors can focus Learn.
+        Ignored while typing in a field. Modules: 1–6, 7 Mix, 8 Learn, 9 Prefs. Shell: Ctrl/⌘K
+        command palette, Ctrl/⌘B collapse rail.
       </p>
       <ul className="muted" style={{ lineHeight: 1.7, paddingLeft: 18 }}>
         <li>

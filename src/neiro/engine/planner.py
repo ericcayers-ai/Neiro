@@ -978,9 +978,7 @@ def _ensemble_member_specs(
     if len(resolved) >= 2:
         return resolved
     if len(resolved) == 1:
-        notes.append(
-            f"ensemble: only {resolved[0][0]} available — running single-decoder path"
-        )
+        notes.append(f"ensemble: only {resolved[0][0]} available — running single-decoder path")
         return None
     notes.append("ensemble: no members available")
     return None
@@ -1017,9 +1015,7 @@ def plan_transcription(
     downloaded on demand. ``members`` selects an explicit ensemble set.
     """
     notes: list[str] = []
-    ensemble_specs = _ensemble_member_specs(
-        registry, model=model, members=members, notes=notes
-    )
+    ensemble_specs = _ensemble_member_specs(registry, model=model, members=members, notes=notes)
     if mode == "ensemble" and ensemble_specs is None and not members and model != ENSEMBLE_MODEL_ID:
         # Explicit ensemble mode without members → default manifest.
         ensemble_specs = _ensemble_member_specs(

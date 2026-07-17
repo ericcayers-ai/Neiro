@@ -45,11 +45,7 @@ fn drain_stderr_to_log(mut child: Child) -> Child {
     if let Some(mut stderr) = child.stderr.take() {
         let path = engine_log_path();
         thread::spawn(move || {
-            let mut file = match OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(&path)
-            {
+            let mut file = match OpenOptions::new().create(true).append(true).open(&path) {
                 Ok(f) => f,
                 Err(_) => return,
             };

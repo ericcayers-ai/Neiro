@@ -66,10 +66,10 @@ export function JobProgress({
           className="job-bar-fill"
           style={
             fraction != null
-              ? { width: `${Math.round(fraction * 100)}%` }
+              ? { transform: `scaleX(${fraction})` }
               : running
                 ? undefined
-                : { width: status?.status === 'done' ? '100%' : '0%' }
+                : { transform: `scaleX(${status?.status === 'done' ? 1 : 0})` }
           }
         />
       </div>

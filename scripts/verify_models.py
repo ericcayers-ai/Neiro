@@ -96,9 +96,18 @@ def verify_structural(entry: ModelEntry) -> list[str]:
     if not missing and not avail:
         issues.append("available=False but requires present")
 
+    known_ids = {e.id for e in default_registry().all()}
     for mem in entry.manifest.get("params", {}).get("members", []):
+        mid = mem.get("model_id")
+        if mid:
+            if mid not in known_ids:
+                issues.append(f"ensemble member model_id missing: {mid}")
+            continue
         try:
-            spec = mem["adapter"]
+            spec = mem.get("adapter")
+            if not spec:
+                issues.append(f"ensemble member needs model_id or adapter: {mem!r}")
+                continue
             mod_name, _, cls_name = spec.partition(":")
             getattr(importlib.import_module(mod_name), cls_name)
         except Exception as exc:

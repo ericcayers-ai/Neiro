@@ -181,9 +181,7 @@ def _hum_detect(samples: np.ndarray, sample_rate: int) -> tuple[float | None, fl
     return None, best[1]
 
 
-def _echo_detect(
-    samples: np.ndarray, sample_rate: int
-) -> tuple[float, float] | None:
+def _echo_detect(samples: np.ndarray, sample_rate: int) -> tuple[float, float] | None:
     """Detect a discrete delay/echo via autocorrelation of the RMS envelope.
 
     Returns ``(delay_seconds, confidence)`` or None. Confidence is the
@@ -215,9 +213,7 @@ def _echo_detect(
     return None
 
 
-def _draft_preview_stems(
-    samples: np.ndarray, sample_rate: int
-) -> dict[str, np.ndarray] | None:
+def _draft_preview_stems(samples: np.ndarray, sample_rate: int) -> dict[str, np.ndarray] | None:
     """DSP-fast vocals/drums proxies for stem-conditioned condition detection.
 
     Uses centre-extract (vocals) and HPSS percussive (drums). Returns None when
@@ -237,9 +233,7 @@ def _draft_preview_stems(
     return {"vocals": vocals, "drums": drums}
 
 
-def _stem_echo_conditions(
-    samples: np.ndarray, sample_rate: int
-) -> dict[str, Any]:
+def _stem_echo_conditions(samples: np.ndarray, sample_rate: int) -> dict[str, Any]:
     """Run echo/delay detection on the mix and optional draft vocal/drum stems.
 
     Prefers stem-conditioned delays when the preview split succeeds. Always

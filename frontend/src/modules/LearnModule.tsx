@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import { EmptyGate } from '../components/EmptyGate'
+import { ModuleHeader } from '../components/ModuleHeader'
 import { useSession } from '../state/session'
 import { useDawBridge } from '../hooks/useDawBridge'
 import './modules.css'
@@ -158,32 +160,28 @@ export function LearnModule() {
 
   if (!file && !dawConnected) {
     return (
-      <div className="module-panel">
-        <h2>Learn</h2>
-        <div className="gate muted">
-          Import a file and optionally transcribe it first — or open the Neiro VST injector from
-          your DAW to practice against a track.
-        </div>
-      </div>
+      <EmptyGate title="Learn">
+        Import (and optionally transcribe) a track — or open the Neiro VST injector from your DAW.
+      </EmptyGate>
     )
   }
 
   return (
-    <div className="module-panel">
-      <h2>Learn{file ? ` — ${file.name}` : ' — DAW injector'}</h2>
-      <p className="lede">
-        Practice with loop regions, count-in, metronome clicks, and wait mode. Speed currently uses
-        browser playbackRate (not engine pitch-preserving stretch). Wrong-note feedback is
-        informative, not punitive. DAW injectors share this single window for every mode — capture
-        a take, then Separate / Restore / Transcribe here.
-      </p>
+    <div className="module-panel module-enter">
+      <ModuleHeader
+        title={file ? `Learn — ${file.name}` : 'Learn — DAW injector'}
+        lede="Loop, count-in, metronome, and wait mode. Speed uses browser playbackRate for now."
+      />
 
       {dawConnected && dawStatus && (
         <div className="gate" role="status" aria-live="polite">
-          <strong>DAW bridge active</strong> — {dawStatus.instance_count} injector
-          {dawStatus.instance_count === 1 ? '' : 's'}; focused{' '}
-          {dawStatus.focus_instance || 'none'}.
-          <ul className="intent" style={{ marginTop: 8 }}>
+          <div className="gate-title">DAW bridge active</div>
+          <p className="gate-body">
+            {dawStatus.instance_count} injector
+            {dawStatus.instance_count === 1 ? '' : 's'}; focused{' '}
+            {dawStatus.focus_instance || 'none'}.
+          </p>
+          <ul className="intent" style={{ marginTop: 8, marginBottom: 0, paddingLeft: '1.1rem' }}>
             {dawStatus.instances.map((inst) => (
               <li key={inst.instance_id}>
                 {inst.track_name} ({inst.host}) — {inst.instance_id}
@@ -196,7 +194,8 @@ export function LearnModule() {
 
       {!transcribeResult && (
         <div className="gate">
-          <p className="muted">No transcription yet — you can still slow the source audio.</p>
+          <div className="gate-title">No transcription yet</div>
+          <p className="gate-body">You can still slow the source audio, or run Transcribe first.</p>
           <button type="button" onClick={() => setModule('transcribe')}>
             Go to Transcribe
           </button>

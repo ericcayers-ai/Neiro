@@ -1,8 +1,10 @@
 import { startSeparate } from '../api/client'
 import { useLocalPref } from '../api/hooks'
 import type { SeparateResult } from '../api/types'
+import { EmptyGate } from '../components/EmptyGate'
 import { IntentField } from '../components/IntentField'
 import { JobProgress } from '../components/JobProgress'
+import { ModuleHeader } from '../components/ModuleHeader'
 import { PlanStrip } from '../components/PlanStrip'
 import { SEPARATE_PRESETS, QUALITY_TIERS } from '../constants/options'
 import { useSession } from '../state/session'
@@ -50,22 +52,34 @@ export function SeparateModule() {
 
   if (!file) {
     return (
-      <div className="module-panel">
-        <h2>Separate</h2>
-        <div className="gate muted">Import a file first — or capture from a DAW injector.</div>
-      </div>
+      <EmptyGate title="Separate">
+        Import a track first — or capture from a DAW injector — then pick a stem preset.
+      </EmptyGate>
     )
   }
 
   return (
-    <div className="module-panel">
-      <h2>Separate</h2>
-      <p className="lede">
-        Run a stem separation job on <strong>{file.name}</strong>. Results open in Studio Mix.
-        {hasCorrections
-          ? ' Applied Analysis corrections will influence detect-all routing and restore hints.'
-          : ''}
-      </p>
+    <div className="module-panel module-enter">
+      <ModuleHeader
+        title="Separate"
+        lede={
+          <>
+            Stem job on <strong>{file.name}</strong>. Results open in Studio Mix.
+            {hasCorrections ? ' Analysis corrections will influence routing.' : ''}
+          </>
+        }
+        actions={
+          <button
+            type="button"
+            className="primary"
+            disabled={running}
+            onClick={() => void run()}
+            title="Start separation"
+          >
+            Separate
+          </button>
+        }
+      />
 
       <div className="row">
         <IntentField label="Preset" intent={selected.intent} htmlFor="sep-preset">
@@ -96,35 +110,29 @@ export function SeparateModule() {
             ))}
           </select>
         </IntentField>
-        <button
-          type="button"
-          className="primary"
-          disabled={running}
-          onClick={() => void run()}
-          title="Start separation"
-        >
-          Separate
-        </button>
       </div>
 
-      <div className="row" style={{ marginTop: '0.7rem' }}>
-        <IntentField
-          label="Bleed suppression"
-          intent="Post-pass rival-stem leakage control. Off in Draft unless forced."
-          htmlFor="sep-bleed"
-        >
-          <select
-            id="sep-bleed"
-            value={bleed}
-            disabled={running}
-            onChange={(e) => setBleed(e.target.value)}
+      <details className="advanced-block">
+        <summary>Advanced</summary>
+        <div className="advanced-block-body">
+          <IntentField
+            label="Bleed suppression"
+            intent="Post-pass rival-stem leakage control. Off in Draft unless forced."
+            htmlFor="sep-bleed"
           >
-            <option value="auto">Auto (tier policy)</option>
-            <option value="on">On</option>
-            <option value="off">Off</option>
-          </select>
-        </IntentField>
-      </div>
+            <select
+              id="sep-bleed"
+              value={bleed}
+              disabled={running}
+              onChange={(e) => setBleed(e.target.value)}
+            >
+              <option value="auto">Auto (tier policy)</option>
+              <option value="on">On</option>
+              <option value="off">Off</option>
+            </select>
+          </IntentField>
+        </div>
+      </details>
 
       <PlanStrip
         kind="separate"
@@ -142,11 +150,6 @@ export function SeparateModule() {
         </div>
         <p>{selectedTier.detail}</p>
       </div>
-
-      <span className="intent" style={{ marginTop: '0.55rem' }}>
-        Separate starts the planner for this preset. Progress lists real pipeline stages — cancel
-        stops work on this machine. Jobs keep running if you switch modules.
-      </span>
 
       <JobProgress
         status={job}

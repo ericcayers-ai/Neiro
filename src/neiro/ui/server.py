@@ -909,6 +909,7 @@ def _make_handler(state: _State):
                 with contextlib.suppress(Exception):
                     webbrowser.open(f"http://127.0.0.1:{state.port}/")
             self._json({"ok": True, "capture": status.get("last_capture"), "status": status})
+
         def _handle_prefs_update(self) -> None:
             body = json.loads(self._read_body() or b"{}")
             try:
@@ -1120,6 +1121,7 @@ def _make_handler(state: _State):
                     job["result"]["event_count"] = sum(len(v) for v in public["tracks"].values())
                     job["result"]["midi_url"] = f"/files/jobs/{job_id}/{midi_path.name}"
             self._json({"ok": True, "job_id": job_id, **public})
+
         def _handle_models(self) -> None:
             q = self._query()
             task = q.get("task")
@@ -1127,7 +1129,10 @@ def _make_handler(state: _State):
             for entry in state.registry.all():
                 if task:
                     if task == "transcribe":
-                        if entry.task not in ("transcribe", "transcribe-lyrics") and entry.id != "whisper-lyrics":
+                        if (
+                            entry.task not in ("transcribe", "transcribe-lyrics")
+                            and entry.id != "whisper-lyrics"
+                        ):
                             continue
                     elif entry.task != task:
                         continue
