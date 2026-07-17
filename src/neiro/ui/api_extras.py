@@ -67,9 +67,11 @@ def plan_payload(
     preset: str = "vocals",
     mode: str = "auto",
     model: str | None = None,
+    members: list[str] | None = None,
     chain: list[str] | None = None,
     quality: str | None = None,
     bleed_suppress: bool = True,
+    corrections: Any = None,
 ) -> dict[str, Any]:
     from neiro.engine.planner import plan_enhancement, plan_separation, plan_transcription
 
@@ -82,13 +84,28 @@ def plan_payload(
             quality=quality,
             bleed_suppress=bleed_suppress,
             auto_download=False,
+            corrections=corrections,
         )
     elif kind == "transcribe":
         plan = plan_transcription(
-            file_path, registry, vram, mode=mode, model=model, auto_download=False
+            file_path,
+            registry,
+            vram,
+            mode=mode,
+            model=model,
+            members=members,
+            auto_download=False,
+            corrections=corrections,
         )
     elif kind == "enhance":
-        plan = plan_enhancement(file_path, registry, vram, chain=chain, auto_download=False)
+        plan = plan_enhancement(
+            file_path,
+            registry,
+            vram,
+            chain=chain,
+            auto_download=False,
+            corrections=corrections,
+        )
     else:
         raise ValueError(f"unknown plan kind {kind!r}")
     return serialize_plan(plan)

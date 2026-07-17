@@ -191,7 +191,7 @@ a.btn-link:hover {
   display: block;
   margin-top: 0.3rem;
   font-size: 0.85rem;
-  color: var(--faint);
+  color: var(--muted);
   line-height: 1.35;
   max-width: 40rem;
 }
@@ -274,6 +274,16 @@ h3 {
   text-wrap: pretty;
 }
 
+.gate-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  width: 100%;
+  min-height: min(40vh, 22rem);
+  padding: clamp(1.5rem, 6vh, 3rem) var(--space-4);
+  box-sizing: border-box;
+}
+
 .gate {
   display: flex;
   flex-direction: column;
@@ -284,6 +294,12 @@ h3 {
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   max-width: 28rem;
+  width: min(28rem, 100%);
+  margin: 0;
+}
+
+.empty-gate-panel .module-header {
+  max-width: 56rem;
 }
 
 .gate-title {

@@ -1,6 +1,9 @@
-import { useState } from 'react'
 import type { JobStatus } from '../api/types'
 import type { SessionJob } from '../state/session'
+import { useChromeCollapsed } from '../hooks/useChromeCollapsed'
+import { IconChevronDown, IconChevronRight } from '../icons'
+
+const LOG_COLLAPSE_KEY = 'neiro.jobProgress.logsCollapsed'
 
 function linesFrom(status: JobStatus | SessionJob | null): string[] {
   if (!status) return []
@@ -24,7 +27,7 @@ export function JobProgress({
   error?: string | null
   onCancel?: () => void
 }) {
-  const [logsOpen, setLogsOpen] = useState(false)
+  const [logsCollapsed, setLogsCollapsed] = useChromeCollapsed(LOG_COLLAPSE_KEY, true)
   if (!status && !error) return null
   const lines = linesFrom(status)
   const latest = lines[lines.length - 1]
@@ -45,7 +48,7 @@ export function JobProgress({
   return (
     <div className="job-progress" role="status" aria-live="polite">
       <div className="job-progress-head">
-        <div>
+        <div className="job-progress-copy">
           <strong>{running ? 'Working' : status?.status || 'Error'}</strong>
           <div className="mono muted" style={{ marginTop: '0.3rem' }}>
             {err || `${stage}${eta}`}
@@ -76,20 +79,25 @@ export function JobProgress({
       {fraction != null && (
         <div className="mono muted job-bar-pct">{Math.round(fraction * 100)}%</div>
       )}
-      <button
-        type="button"
-        className="details-toggle"
-        onClick={() => setLogsOpen((v) => !v)}
-        aria-expanded={logsOpen}
-      >
-        {logsOpen ? 'Hide stage log' : 'Show stage log'}
-      </button>
-      {logsOpen && (
-        <pre className="job-details mono" aria-label="Job stage log">
-          {lines.join('\n')}
-          {err ? `\nFailed: ${err}` : ''}
-        </pre>
-      )}
+      <div className={`chrome-collapse job-log-chrome${logsCollapsed ? ' is-collapsed' : ''}`}>
+        <button
+          type="button"
+          className="details-toggle chrome-collapse-toggle"
+          onClick={() => setLogsCollapsed()}
+          aria-expanded={!logsCollapsed}
+          aria-label={logsCollapsed ? 'Show stage log' : 'Hide stage log'}
+          title={logsCollapsed ? 'Show stage log' : 'Hide stage log'}
+        >
+          {logsCollapsed ? <IconChevronRight size={14} /> : <IconChevronDown size={14} />}
+          {!logsCollapsed && <span>Stage log</span>}
+        </button>
+        {!logsCollapsed && (
+          <pre className="job-details mono" aria-label="Job stage log">
+            {lines.join('\n')}
+            {err ? `\nFailed: ${err}` : ''}
+          </pre>
+        )}
+      </div>
     </div>
   )
 }

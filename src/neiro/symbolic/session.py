@@ -63,6 +63,29 @@ class TranscriptionSession:
             raise IndexError(f"no note at {track}[{index}]")
         del events[index]
 
+    def quantize(
+        self,
+        *,
+        division: int = 4,
+        strength: float = 1.0,
+        track: str | None = None,
+    ) -> None:
+        """Snap notes to a beat grid (groove-preserving when strength < 1)."""
+        from neiro.symbolic.timeline import quantize_stream
+
+        bpm = float(self.tempo_bpm or 120)
+        names = [track] if track else list(self._tracks)
+        for name in names:
+            events = self._tracks.get(name) or []
+            if not events:
+                continue
+            stream = NoteStream(tuple(events), bpm, self._sources.get(name, ""))
+            qstream, offs = quantize_stream(stream, bpm, division=division, strength=strength)
+            self._tracks[name] = [
+                replace(e, confidence=1.0, user_verified=True) for e in qstream.events
+            ]
+            self.micro_offsets[name] = offs
+
     def confidence_summary(self) -> dict[str, dict[str, float | int]]:
         """Per-track note count, mean confidence, and verified-note count."""
         out: dict[str, dict[str, float | int]] = {}

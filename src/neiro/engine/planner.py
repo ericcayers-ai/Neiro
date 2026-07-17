@@ -1276,13 +1276,21 @@ def plan_enhancement(
         report = _quick_analysis(input_path, corrections=corrections, registry=registry)
         if _coerce_corrections(corrections) is not None:
             notes.append("using Analysis corrections for conditioning chain")
-        if report.clipping_ratio > 0.0005:
-            steps.append(("declip", {}))
-            notes.append("clipping detected -> declip")
-        hum_hz = report.vocal_conditions.get("hum_hz")
-        if hum_hz:
-            steps.append(("dehum", {"fundamental": float(hum_hz)}))
-            notes.append(f"mains hum at {hum_hz:.0f} Hz -> dehum")
+        from neiro.analysis.restore_recommend import recommend_enhance_chain
+
+        rec = recommend_enhance_chain(report)
+        for step in rec.get("chain") or []:
+            if step == "declip":
+                steps.append(("declip", {}))
+            elif step == "declick":
+                steps.append(("declick", {}))
+            elif step == "dehum":
+                hum_hz = report.vocal_conditions.get("hum_hz") or 60.0
+                steps.append(("dehum", {"fundamental": float(hum_hz)}))
+            else:
+                continue
+        if rec.get("why"):
+            notes.append(f"auto: {rec['why']}")
         # Neural repairs are deliberately *not* auto-added: doing so would make
         # the auto chain depend on which models happen to be downloaded (i.e.
         # non-deterministic across machines) and could silently pull a large
@@ -1300,6 +1308,14 @@ def plan_enhancement(
         if preferred_echo:
             conf = vc.get("echo_confidence")
             conf_txt = f" (confidence {conf:.0%})" if isinstance(conf, (int, float)) else ""
+            cands = vc.get("echo_candidates_ms")
+            cand_txt = ""
+            if isinstance(cands, list) and cands:
+                ms_list = ", ".join(
+                    f"{int(c['ms'])} ms" for c in cands[:4] if isinstance(c, dict) and "ms" in c
+                )
+                if ms_list:
+                    cand_txt = f"; candidates: {ms_list}"
             if vc.get("echo_based_on_preview_split") and (vocal_echo or drum_echo):
                 parts = []
                 if vocal_echo is not None:
@@ -1309,18 +1325,24 @@ def plan_enhancement(
                 notes.append(
                     "stem-conditioned echo/delay on preview split ("
                     + ", ".join(parts)
-                    + f"){conf_txt} — 'enhance --chain dereverb' for neural de-reverb"
+                    + f"){conf_txt}{cand_txt} — 'enhance --chain dereverb' for neural de-reverb"
                 )
             else:
                 notes.append(
                     f"reverb/echo detected ~{float(preferred_echo) * 1000:.0f} ms{conf_txt}"
-                    " — 'enhance --chain dereverb' for neural de-reverb"
+                    f"{cand_txt} — 'enhance --chain dereverb' for neural de-reverb"
                 )
         if report.bandwidth_hz and report.bandwidth_hz < 16000:
             notes.append(
                 "limited bandwidth — 'enhance --chain restore' (Apollo/SonicMaster) or "
                 "'superres' (AudioSR) can extend it"
             )
+        for neural in rec.get("suggested_neural") or []:
+            if neural == "dereverb" and preferred_echo:
+                continue  # already noted above
+            if neural == "restore" and report.bandwidth_hz and report.bandwidth_hz < 16000:
+                continue
+            notes.append(f"suggested: {neural} (opt-in; not auto-downloaded)")
         if not steps:
             notes.append("no auto-repairable conditions detected")
     else:

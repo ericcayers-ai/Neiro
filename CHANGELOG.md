@@ -1,5 +1,42 @@
 # Changelog
 
+## 1.2.0 — Studio / MIDI mashup overhaul (2026-07-17)
+
+Waves 1–5 of the Studio + MIDI Studio + analysis roadmap: mashup packs, unified
+MIDI Studio, chrome/icons, restore/analysis polish, transcription UX, pitch
+correct, and session persistence.
+
+### Added
+- **MIDI Studio** module (replaces Transcribe + Learn): Transcribe / Roll /
+  Roll+score / Edit / Practice; soundfont audition; Verovio score + PDF path;
+  Rubber Band practice speed; shortcut `6` (Practice via `8`)
+- Studio **mashup packs**: multi-song stem packs, BPM align + key transpose,
+  beat snap, stem identity badges, bounce pack/selection
+- Prefs **Models packs** + **Tools** (Install Verovio, MuseScore path/link,
+  Soundfont download)
+- Studio pitch-correct job, clip context menu, spectrogram lane
+- Collapsible chrome (rail / jobs / plan / logs) to chevron-only; shared icon set
+- Windows subprocess helper (`CREATE_NO_WINDOW`) for ffmpeg / MuseScore / adapters
+- Analysis corrections draft autosave; Restore layman presets + detector why-text
+- Separate grouped presets + “Send stems to Studio” / “Add as mashup pack”
+
+### Changed
+- Job progress poll ~400ms while running; denser stage→fraction mapping
+- Studio timeline↔media mapping (offset/range), loop selection-only, live pan
+- Plan strip / DAG preview consumes analysis corrections
+- About + Studio `?` shortcuts: Windows **Ctrl** primary, ⌘ secondary
+- Session Save/Open persists stem packs, MIDI Studio state, and **Studio track/clip timeline**
+- Studio Open remounts timeline while Studio is already open (`neiro:studio-tracks` event)
+- Separate batch pack queue drains without dropping intents when the active file changes
+
+### Fixed
+- Prefs GM SF2 install was a dead gate for MIDI piano — now verifies SF2 URL then unlocks FluidR3 browser kit
+- Empty CLI window flashes on Windows helper subprocesses (incl. Verovio pip install)
+- Loop restarting from whole-track start when a selection was active
+- UI scaling / overflow on resize (`min-width: 0`, rem shell spacing)
+- Job tray not user-resizable; MuseScore had no path browse/set; no multi-import Separate batch
+- About shortcuts mislabeled modules; empty “No file” gates left-aligned on wide layouts; dropzone helper text too faint
+
 ## 1.1.1 — UI navigation QOL (2026-07-17)
 
 Product-shell polish for easier navigation and lower cognitive load, plus CI

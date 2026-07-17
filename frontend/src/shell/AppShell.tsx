@@ -3,7 +3,21 @@ import { listSessions, openSession, saveSession } from '../api/client'
 import type { ModuleId } from '../api/types'
 import { CommandPalette } from '../components/CommandPalette'
 import { JobTray } from '../components/JobTray'
+import {
+  IconChevronLeft,
+  IconChevronRight,
+  IconSearch,
+  MODULE_ICONS,
+} from '../icons'
 import { useSession } from '../state/session'
+import {
+  buildSessionGraphConfig,
+  parseSessionGraphConfig,
+  restoreMidiNoteEdits,
+  writeCorrectionsDraft,
+  writeMidiMode,
+  restoreStudioTracks,
+} from '../state/sessionGraph'
 import { useDawBridge } from '../hooks/useDawBridge'
 import { fmtTime } from '../constants/options'
 import './shell.css'
@@ -14,8 +28,7 @@ const MODULES: { id: ModuleId; label: string; hint: string; key?: string }[] = [
   { id: 'studio', label: 'Studio', hint: 'Timeline, edits, and mix/export', key: '3' },
   { id: 'separate', label: 'Separate', hint: 'Stem separation jobs', key: '4' },
   { id: 'restore', label: 'Restore', hint: 'Enhancement and repair chains', key: '5' },
-  { id: 'transcribe', label: 'Transcribe', hint: 'MIDI / piano roll / Practice', key: '6' },
-  { id: 'learn', label: 'Learn', hint: 'Practice with loop, wait mode, DAW MIDI', key: '8' },
+  { id: 'midi', label: 'MIDI', hint: 'Transcribe, roll, score, edit, practice', key: '6' },
   { id: 'preferences', label: 'Prefs', hint: 'Theme, density, models, compute', key: '9' },
   { id: 'about', label: 'About', hint: 'Version, privacy, Studio shortcuts' },
 ]
@@ -41,6 +54,13 @@ export function AppShell({ children }: { children: ReactNode }) {
     requestCancel,
     clearSession,
     engineStatus,
+    stemPacks,
+    setStemPacks,
+    analysisCorrections,
+    setAnalysisCorrections,
+    transcribeResult,
+    setTranscribeResult,
+    setMidiModeFocus,
   } = useSession()
 
   const { dawConnected, status: dawStatus } = useDawBridge()
@@ -141,10 +161,16 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (!name) return
     setSessionBusy(true)
     try {
+      const graph_config = buildSessionGraphConfig({
+        module,
+        stemPacks,
+        analysisCorrections,
+        transcribeResult,
+      }) as Record<string, unknown>
       const res = await saveSession({
         name,
         file_id: file?.fileId,
-        graph_config: { module },
+        graph_config,
       })
       setSessionDialog(null)
       flash(`Saved session “${res.name}”`)
@@ -161,10 +187,24 @@ export function AppShell({ children }: { children: ReactNode }) {
     setSessionBusy(true)
     try {
       const res = await openSession(name)
-      const cfg = (res.session?.graph_config || {}) as { module?: ModuleId }
+      const cfg = parseSessionGraphConfig(res.session?.graph_config)
       if (cfg.module) setModule(cfg.module)
+      if (cfg.stemPacks) setStemPacks(cfg.stemPacks)
+      if (cfg.analysisCorrections) setAnalysisCorrections(cfg.analysisCorrections)
+      if (cfg.analysisCorrectionsDraft) writeCorrectionsDraft(cfg.analysisCorrectionsDraft)
+      if (cfg.midiMode) {
+        writeMidiMode(cfg.midiMode)
+        setMidiModeFocus(cfg.midiMode)
+      }
+      const notes = restoreMidiNoteEdits(cfg.midiNoteEdits)
+      if (notes) setTranscribeResult(notes)
+      if (cfg.studioTracks?.length) {
+        restoreStudioTracks(cfg.studioTracks)
+      }
       setSessionDialog(null)
-      flash(`Opened “${name}” — re-import source if needed.`)
+      flash(
+        `Opened “${name}” — packs/MIDI/Studio timeline/corrections restored; re-import audio if URLs expired.`,
+      )
     } catch (err) {
       flash(err instanceof Error ? err.message : String(err))
     } finally {
@@ -177,59 +217,81 @@ export function AppShell({ children }: { children: ReactNode }) {
       <a className="skip-link" href="#module-content">
         Skip to content
       </a>
-      <aside className="rail" aria-label="Modules">
+
+      {railCollapsed && (
+        <button
+          type="button"
+          className="rail-edge-toggle"
+          aria-label="Show navigation"
+          title="Show navigation (Ctrl+B)"
+          onClick={() => setRailCollapsed(false)}
+        >
+          <IconChevronRight size={18} />
+        </button>
+      )}
+
+      <aside className="rail" aria-label="Modules" hidden={railCollapsed}>
         <div className="rail-brand">
           <div className="rail-brand-row">
             <div className="rail-logo" title="Neiro">
-              {railCollapsed ? 'N' : 'Neiro'}
+              Neiro
             </div>
             <button
               type="button"
               className="icon-btn ghost rail-toggle"
-              aria-pressed={railCollapsed}
-              aria-label={railCollapsed ? 'Expand navigation' : 'Collapse navigation'}
-              title="Collapse rail (Ctrl/⌘B)"
-              onClick={() => setRailCollapsed((v) => !v)}
+              aria-pressed={false}
+              aria-label="Hide navigation"
+              title="Hide navigation (Ctrl+B)"
+              onClick={() => setRailCollapsed(true)}
             >
-              {railCollapsed ? '»' : '«'}
+              <IconChevronLeft size={18} />
             </button>
           </div>
-          {!railCollapsed && <div className="rail-tagline">local audio worksuite</div>}
+          <div className="rail-tagline">local audio worksuite</div>
         </div>
 
         <button
           type="button"
           className="rail-search"
           onClick={() => setPaletteOpen(true)}
-          title="Command palette (Ctrl/⌘K)"
+          title="Command palette (Ctrl+K)"
+          aria-label="Open command palette"
         >
-          <span>{railCollapsed ? '⌕' : 'Jump…'}</span>
-          {!railCollapsed && <kbd className="rail-kbd">⌘K</kbd>}
+          <span className="rail-search-inner">
+            <IconSearch size={16} />
+            <span>Jump…</span>
+          </span>
+          <kbd className="rail-kbd">Ctrl+K</kbd>
         </button>
 
         <nav className="rail-nav">
-          {MODULES.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              className={`rail-item${module === m.id ? ' active' : ''}`}
-              onClick={() => setModule(m.id)}
-              aria-current={module === m.id ? 'page' : undefined}
-              title={m.key ? `${m.hint} (${m.key})` : m.hint}
-            >
-              <span className="rail-item-row">
-                <span className="rail-label">{railCollapsed ? m.label.slice(0, 1) : m.label}</span>
-                {!railCollapsed && m.key && <span className="rail-key mono faint">{m.key}</span>}
-              </span>
-              {!railCollapsed && module === m.id && <span className="rail-hint">{m.hint}</span>}
-            </button>
-          ))}
+          {MODULES.map((m) => {
+            const ModIcon = MODULE_ICONS[m.id]
+            return (
+              <button
+                key={m.id}
+                type="button"
+                className={`rail-item${module === m.id ? ' active' : ''}`}
+                onClick={() => setModule(m.id)}
+                aria-current={module === m.id ? 'page' : undefined}
+                aria-label={m.label}
+                title={m.key ? `${m.hint} (${m.key})` : m.hint}
+              >
+                <span className="rail-item-row">
+                  <span className="rail-item-main">
+                    <ModIcon className="rail-icon" size={20} />
+                    <span className="rail-label">{m.label}</span>
+                  </span>
+                  {m.key && <span className="rail-key mono faint">{m.key}</span>}
+                </span>
+                {module === m.id && <span className="rail-hint">{m.hint}</span>}
+              </button>
+            )
+          })}
         </nav>
-        {!railCollapsed && (
-          <footer className="rail-foot">
-            Processing stays on this machine. Audio never leaves it.
-          </footer>
-        )}
+        <footer className="rail-foot">
+          Processing stays on this machine. Audio never leaves it.
+        </footer>
       </aside>
 
       <div className="shell-main">

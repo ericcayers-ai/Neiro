@@ -15,10 +15,14 @@ fetch — and reads the resulting MIDI back with
 from __future__ import annotations
 
 import shutil
-import subprocess
+import tempfile
+from pathlib import Path
+
+import soundfile as sf
 
 from neiro.engine.artifacts import AudioTensor, NoteStream
 from neiro.nodes.base import ModelProfile
+from neiro.util import subprocess_win
 
 __all__ = ["TranskunPianoAdapter"]
 
@@ -62,11 +66,6 @@ class TranskunPianoAdapter:
         self._binary = binary
 
     def transcribe(self, audio: AudioTensor) -> NoteStream:
-        import tempfile
-        from pathlib import Path
-
-        import soundfile as sf
-
         from neiro.symbolic.midi import read_midi_notes
 
         if self._binary is None:
@@ -80,7 +79,7 @@ class TranskunPianoAdapter:
                 cmd += ["--device", "cuda"]
             if self.weight_path:
                 cmd += ["--weight", self.weight_path]
-            result = subprocess.run(cmd, capture_output=True, timeout=600, check=False)
+            result = subprocess_win.run(cmd, capture_output=True, timeout=600, check=False)
             if result.returncode != 0 or not mid.is_file():
                 raise RuntimeError(
                     f"transkun failed (exit {result.returncode}): "

@@ -1,103 +1,168 @@
-export const STEM_COLORS: Record<string, string> = {
-  vocals: '#E69F00',
-  instrumental: '#56B4E9',
-  harmonic: '#009E73',
-  percussive: '#D55E00',
-  drums: '#D55E00',
-  bass: '#0072B2',
-  other: '#CC79A7',
-  melody: '#E69F00',
-  residual: '#8b93a1',
-  guitar: '#F0E442',
-  keys: '#009E73',
-  piano: '#009E73',
-  strings: '#56B4E9',
-  winds: '#CC79A7',
+import { stemColor, stemLabel } from './stemIdentity'
+
+export { STEM_COLORS, stemColor, stemIcon, stemId, stemLabel, snapTime, transposeSuggestion } from './stemIdentity'
+
+export type SeparatePresetGroupId =
+  | 'vocals'
+  | '4stem'
+  | '6stem'
+  | 'individual'
+  | 'specialty'
+
+export interface SeparatePreset {
+  value: string
+  label: string
+  group: SeparatePresetGroupId
+  intent: string
+  detail: string
+  /** Plain-language “connections” for the planner strip. */
+  connections: string
 }
 
-export function stemColor(name: string): string {
-  return STEM_COLORS[name.toLowerCase()] || '#F0E442'
-}
+export const SEPARATE_PRESET_GROUPS: {
+  id: SeparatePresetGroupId
+  label: string
+}[] = [
+  { id: 'vocals', label: 'Vocals + instrumental' },
+  { id: '4stem', label: 'Classic 4-stem' },
+  { id: '6stem', label: 'Classic 6-stem' },
+  { id: 'individual', label: 'Individual / detect-all' },
+  { id: 'specialty', label: 'Specialty' },
+]
 
-export const SEPARATE_PRESETS = [
+export const SEPARATE_PRESETS: SeparatePreset[] = [
   {
     value: 'vocals',
     label: 'vocals + instrumental',
+    group: 'vocals',
     intent: 'Split lead vocal from the rest of the mix. Fast DSP path when neural models are absent.',
     detail:
       'Runs a centre-extract DSP floor first (always available), then upgrades to the best installed vocal model when present. Expect seconds on CPU for short clips; neural paths need a few GB VRAM. Use for karaoke prep, vocal editing, or a quick check before a heavier ensemble.',
+    connections: 'This preset connects the mix → Vocals and Instrumental stems.',
   },
   {
     value: 'vocals-ensemble',
     label: 'vocals (DSP ensemble + TTA)',
+    group: 'vocals',
     intent: 'Blend several DSP separators with test-time augmentation for cleaner vocals; slower.',
     detail:
       'Blends multiple DSP separators with polarity / mild TTA and averages the vocal mask. No neural download required. Roughly 2–4× a single DSP pass. Prefer when you want cleaner vocals without installing Demucs-class models.',
+    connections: 'This preset connects the mix → Vocals and Instrumental (DSP ensemble blend).',
   },
   {
     value: 'vocals-neural-ensemble',
     label: 'vocals (neural ensemble)',
+    group: 'vocals',
     intent: 'Blend neural separators for cleaner vocals; slower, needs installed models.',
     detail:
       'Runs two or more installed neural vocal models and fuses stems. Highest quality vocal isolation when models are present; multi-minute jobs and multi-GB VRAM are typical. Skip if only the DSP floor is installed — the planner will note missing members.',
+    connections: 'This preset connects the mix → Vocals and Instrumental via neural ensemble fusion.',
   },
   {
     value: 'vocals-best',
     label: 'vocals (best available)',
+    group: 'vocals',
     intent: 'Planner picks the strongest installed vocal model for this machine.',
     detail:
       'Lets the planner choose the highest-ranked available vocal separator for this host (neural if downloaded, else DSP). Good default when you care about quality but not which backend wins. Time and VRAM follow whatever model is selected.',
+    connections: 'This preset connects the mix → Vocals and Instrumental using the best installed model.',
   },
   {
     value: 'karaoke',
     label: 'karaoke / lead vocal',
+    group: 'vocals',
     intent: 'Isolate or remove the lead vocal for karaoke-style tracks; needs karaoke model.',
     detail:
       'Targets lead-vocal removal or isolation via a karaoke-oriented model when installed. Falls back to centre/sides DSP if the model is missing. Use for practice tracks and vocal-off mixes; expect bleed on heavily stereo leads.',
-  },
-  {
-    value: 'harmonic',
-    label: 'harmonic + percussive',
-    intent: 'HPSS split — tones vs. attacks. No neural model required.',
-    detail:
-      'Median-filter HPSS (Fitzgerald): sustained harmonic content vs. transient/percussive. Pure DSP, fast on CPU, no VRAM. Ideal for drum vs. pitched-bus previews, remix prep, or feeding stem-aware analysis.',
+    connections: 'This preset connects the mix → Vocals and Instrumental (karaoke / lead focus).',
   },
   {
     value: '4stem',
     label: '4 stems',
+    group: '4stem',
     intent: 'Vocals, drums, bass, other. Needs Demucs / HTDemucs installed.',
     detail:
       'Classic four-way split (vocals / drums / bass / other) via Demucs or HTDemucs when installed. Minutes per track on GPU; multi-GB weights. Use for remixing, transcription-after-split, and Studio multi-track load-in.',
+    connections: 'This preset connects the mix → Vocals, Drums, Bass, and Other.',
   },
   {
     value: '6stem',
     label: '6 stems',
+    group: '6stem',
     intent: 'Six-way Demucs split including guitar and piano. Needs htdemucs_6s.',
     detail:
       'Six-way HTDemucs (adds guitar and piano buses). Heavier than 4-stem; requires htdemucs_6s weights. Choose when guitar/piano isolation matters more than speed.',
+    connections: 'This preset connects the mix → Vocals, Drums, Bass, Other, Guitar, and Piano.',
   },
   {
     value: 'detect-all',
     label: 'all detected (cascade)',
+    group: 'individual',
     intent: 'Separate every asserted instrument via cascaded extract-subtract; residual last.',
     detail:
       'Cascades extract-subtract for each asserted instrument from analysis, leaving a residual. Runtime scales with instrument count and chosen backends. Best after confirming instruments in Analysis corrections.',
+    connections:
+      'This preset connects the mix → each asserted instrument in turn (cascade), then a residual.',
+  },
+  {
+    value: 'harmonic',
+    label: 'harmonic + percussive',
+    group: 'specialty',
+    intent: 'HPSS split — tones vs. attacks. No neural model required.',
+    detail:
+      'Median-filter HPSS (Fitzgerald): sustained harmonic content vs. transient/percussive. Pure DSP, fast on CPU, no VRAM. Ideal for drum vs. pitched-bus previews, remix prep, or feeding stem-aware analysis.',
+    connections: 'This preset connects the mix → Harmonic and Percussive.',
   },
   {
     value: 'cinematic',
     label: 'cinematic (dialog / music / FX)',
+    group: 'specialty',
     intent: 'Video-oriented split into dialog, music, and effects buses.',
     detail:
       'Dialog / music / FX buses for post and video stems. Uses cinematic-oriented models when installed; otherwise a coarse DSP proxy. Prefer for dialogue cleanup and soundtrack remixes, not music-only 4-stem work.',
+    connections: 'This preset connects the mix → Dialog, Music, and FX.',
   },
   {
     value: 'drums',
     label: 'drum kit',
+    group: 'specialty',
     intent: 'Break the drum bus into kit pieces. Needs drumsep model.',
     detail:
       'Splits a drum bus into kit-piece proxies (kick/snare/hats/… via drumsep when installed, else DSP band+transient floor). Feed a drum stem or dense mix; neural path needs the drumsep weights and modest GPU time.',
+    connections: 'This preset connects drums → Kick, Snare, Toms, Hi-hat, Ride, and Crash.',
   },
-] as const
+  {
+    value: 'duet-vocals',
+    label: 'duet vocals',
+    group: 'specialty',
+    intent: 'Split two lead singers plus instrumental. Needs MedleyVox when available.',
+    detail:
+      'Targets Singer 1 / Singer 2 / Instrumental via MedleyVox when installed; otherwise falls back to a single vocal/instrumental split. Use for duets and harmony leads before Studio mashups.',
+    connections: 'This preset connects the mix → Singer 1, Singer 2, and Instrumental.',
+  },
+  {
+    value: 'drums-deep-dive',
+    label: 'drums deep-dive',
+    group: 'specialty',
+    intent: 'Kit pieces plus bass/vocals/other residual buses — cascade specialty.',
+    detail:
+      'Deep drum cascade: kit pieces (kick/snare/toms/hats) plus drum_other, then bass, vocals, and other from the residual stack. Heavier than plain drum kit; use when you need both kit detail and mix context stems.',
+    connections:
+      'This preset connects the mix → Kick, Snare, Toms, Hi-hat, Drum other, Bass, Vocals, and Other.',
+  },
+]
+
+export function presetsInGroup(group: SeparatePresetGroupId): SeparatePreset[] {
+  return SEPARATE_PRESETS.filter((p) => p.group === group)
+}
+
+export function displayStemName(raw: string): string {
+  return stemLabel(raw)
+}
+
+export function displayStemColor(raw: string): string {
+  return stemColor(raw)
+}
 
 export const QUALITY_TIERS = [
   {
@@ -147,6 +212,41 @@ export const TRANSCRIBE_MODES = [
   },
 ] as const
 
+/**
+ * NeuralNote-inspired quality presets for MIDI Studio → Transcribe.
+ * Each picks a sensible mode + model; Advanced still lets you override both.
+ */
+export const TRANSCRIBE_QUALITY_PRESETS = [
+  {
+    value: 'draft',
+    label: 'Draft',
+    intent: 'Fast monophonic YIN — preview pitches before a heavier neural run.',
+    mode: 'direct',
+    model: 'dsp-yin',
+  },
+  {
+    value: 'standard',
+    label: 'Standard',
+    intent: 'Planner picks the best installed decoder (auto split when helpful).',
+    mode: 'auto',
+    model: '',
+  },
+  {
+    value: 'reference',
+    label: 'Reference',
+    intent: 'YourMT3+ → multi-instrument cascade (degrades to Basic Pitch / YIN if extras missing).',
+    mode: 'direct',
+    model: 'multi-instrument',
+  },
+  {
+    value: 'ensemble',
+    label: 'Ensemble',
+    intent: 'Hybrid vote across installed members (default set or your checklist).',
+    mode: 'ensemble',
+    model: 'tr-ensemble-default',
+  },
+] as const
+
 /** MIDI / symbolic decoders selectable in Transcribe (lyrics listed separately). */
 export const TRANSCRIBE_MODELS = [
   {
@@ -164,9 +264,23 @@ export const TRANSCRIBE_MODELS = [
     lyricsOnly: false,
   },
   {
+    value: 'yourmt3',
+    label: 'YourMT3+',
+    intent: 'Multi-instrument MT3-family decoder (whole mix). Needs neiro[mt3].',
+    ensembleMember: true,
+    lyricsOnly: false,
+  },
+  {
     value: 'piano-transcription',
-    label: 'piano (Kong)',
-    intent: 'Specialized piano decoder with pedal and velocity. Needs neiro[piano].',
+    label: 'piano (Kong / ByteDance)',
+    intent: 'High-res piano with pedal and velocity. Needs neiro[piano].',
+    ensembleMember: true,
+    lyricsOnly: false,
+  },
+  {
+    value: 'transkun-piano',
+    label: 'Transkun piano',
+    intent: 'Semi-Markov CRF piano transcription. Needs the transkun package on PATH.',
     ensembleMember: true,
     lyricsOnly: false,
   },
@@ -178,16 +292,30 @@ export const TRANSCRIBE_MODELS = [
     lyricsOnly: false,
   },
   {
-    value: 'dsp-yin',
-    label: 'YIN (DSP)',
-    intent: 'Fast monophonic pitch tracker. Always available; best for exposed melodies.',
+    value: 'multi-instrument',
+    label: 'multi-instrument',
+    intent: 'Whole-mix path: YourMT3 → omnizart → Basic Pitch / YIN floor.',
     ensembleMember: true,
     lyricsOnly: false,
   },
   {
-    value: 'transkun-piano',
-    label: 'Transkun piano',
-    intent: 'Semi-Markov CRF piano transcription. Needs the transkun package on PATH.',
+    value: 'svt-melody',
+    label: 'SVT melody',
+    intent: 'Vocal / lead melody (SVT-class). Needs install; falls back to Basic Pitch / YIN.',
+    ensembleMember: true,
+    lyricsOnly: false,
+  },
+  {
+    value: 'timbre-amt',
+    label: 'TimbreAMT guitar',
+    intent: 'Guitar AMT (opt-in). Needs neiro[timbre_amt] + package.',
+    ensembleMember: true,
+    lyricsOnly: false,
+  },
+  {
+    value: 'dsp-yin',
+    label: 'YIN (DSP)',
+    intent: 'Fast monophonic pitch tracker. Always available; best for exposed melodies.',
     ensembleMember: true,
     lyricsOnly: false,
   },
@@ -206,9 +334,9 @@ export const TRANSCRIBE_MODELS = [
     lyricsOnly: false,
   },
   {
-    value: 'multi-instrument',
-    label: 'multi-instrument',
-    intent: 'Whole-mix multi-instrument path (omnizart when installed; else Basic Pitch / YIN floor).',
+    value: 'noise-to-notes',
+    label: 'Noise-to-Notes drums',
+    intent: 'Neural drum AMT (opt-in). Needs neiro[noise_to_notes] + package.',
     ensembleMember: true,
     lyricsOnly: false,
   },
@@ -224,45 +352,44 @@ export const TRANSCRIBE_MODELS = [
 export const RESTORE_CHAINS = [
   {
     value: 'auto',
-    label: 'auto (from analysis)',
-    intent: 'Apply only the repairs the analysis flagged for this file.',
+    label: 'Auto',
+    intent: 'Apply only the repairs analysis flagged for this file.',
     detail:
-      'Builds a DSP-safe conditioning chain from analysis flags (declip, dehum, …). Neural steps such as dereverb are suggested from stem-aware echo/delay but not auto-downloaded. Fast, deterministic across machines — start here.',
+      'Builds a DSP-safe chain from detected conditions (declip, declick, dehum). Neural steps such as denoise/dereverb/restore are suggested but not auto-downloaded. Fast and deterministic — start here.',
   },
   {
-    value: 'declip,dehum,normalize',
-    label: 'declip + dehum + normalize',
-    intent: 'Fix clipped peaks, remove mains hum, then peak-normalize. Pure DSP.',
+    value: 'clean',
+    label: 'Clean recording',
+    intent: 'Light cleanup for a mostly good take: clicks, hum, normalize.',
     detail:
-      'Sequential DSP: reconstruct clipped peaks, notch mains hum (50/60 Hz), then peak-normalize. No neural weights. Use when Analysis shows clipping and/or hum and you want a clean floor before separation.',
+      'declick → dehum → normalize. Pure DSP. Use when the recording is fine but has light clicks or mains hum.',
   },
   {
-    value: 'denoise',
-    label: 'denoise',
-    intent: 'Reduce broadband noise. Uses a neural model when installed; otherwise DSP denoise.',
+    value: 'old-noisy',
+    label: 'Old & noisy',
+    intent: 'Transfer / tape / room noise cleanup.',
     detail:
-      'Broadband noise reduction. Prefers an installed neural denoiser; otherwise spectral gating. Modest GPU when neural; DSP path is CPU-only. Good for tape hiss and room noise before transcription.',
+      'declick → dehum → denoise → normalize. Prefers a neural denoiser when installed; otherwise DSP gating. Good for hissy or crackly sources.',
   },
   {
-    value: 'dereverb',
-    label: 'dereverb',
-    intent: 'Reduce room reverb on the mix. Needs a dereverb model when available.',
-    detail:
-      'Targets room reverb / discrete echo. Pair with Analysis stem-aware delay flags (preview-split vocals/drums). Needs a dereverb model for best results; skipped honestly if missing. Prefer when RT60 or echo_delay_s is elevated.',
+    value: 'fix-clipping',
+    label: 'Fix clipping',
+    intent: 'Reconstruct clipped peaks, then normalize.',
+    detail: 'declip → normalize. Pure DSP. Use when Analysis shows samples at the ceiling.',
   },
   {
-    value: 'superres',
-    label: 'super-resolution',
-    intent: 'Bandwidth extension via AudioSR. Needs AudioSR; skipped if not installed.',
+    value: 'more-air',
+    label: 'More air',
+    intent: 'Bandwidth extension for dull / lossy sources.',
     detail:
-      'Bandwidth extension (AudioSR) for band-limited / lossy sources. Requires AudioSR installed; otherwise the step is skipped with a note. Use when Analysis bandwidth is well below Nyquist (e.g. <16 kHz on 44.1k material).',
+      'restore → normalize. Uses Apollo/SonicMaster/AudioSR when installed; skipped honestly if missing. Prefer when bandwidth is well below Nyquist.',
   },
   {
-    value: 'master',
-    label: 'reference mastering',
-    intent: 'Matchering reference loudness/EQ. Needs Matchering installed.',
+    value: 'match-reference',
+    label: 'Match reference',
+    intent: 'Matchering loudness/EQ against a reference track.',
     detail:
-      'Reference-matched loudness/EQ via Matchering when installed. Provide a reference in CLI flows; UI uses the installed default path. Not a repair chain — finishing polish after Restore/Separate.',
+      'master (Matchering) when installed. Finishing polish after repair — not a damage fixer.',
   },
 ] as const
 

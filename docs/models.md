@@ -107,6 +107,28 @@ mandatory dependency of the MIT-licensed core. `audiosr` / `apollo` /
 | Noise-to-Notes drums (opt-in) | `noise-to-notes` | transcribe | reference | unknown | `neiro[noise_to_notes]` + package |
 | Whisper lyrics | `whisper-lyrics` | transcribe | standard | MIT | `neiro[lyrics]` |
 
+### Transcription SOTA research note (Wave 4)
+
+Surveyed against HyperAI’s Music category ([SOTA index](https://hyper.ai/en/sota) → Music Transcription / Multi-instrument Music Transcription) and the usual public AMT benchmarks (MAESTRO piano, Slakh2100 multi-instrument, ENST drums). **No new adapters were required** — Neiro already ships the open models that map to the common leaderboard families:
+
+| Family / paper trail | Typical leaderboard role | Neiro manifest |
+|---|---|---|
+| YourMT3+ (MT3 / PerceiverTF hybrid) | Multi-instrument whole-mix SOTA-class | `yourmt3`, also via `multi-instrument` |
+| Kong / ByteDance high-res piano | MAESTRO piano onset/offset + pedals | `piano-transcription` |
+| Transkun (semi-Markov CRF) | Piano specialist | `transkun-piano` |
+| Spotify Basic Pitch | General polyphonic, easy install | `basic-pitch` |
+| SVT-class melody | Vocal / lead F0 | `svt-melody` |
+| TimbreAMT | Guitar AMT (opt-in) | `timbre-amt` |
+| Noise-to-Notes / Omnizart / DSP kit | Drum AMT | `noise-to-notes`, `drums-neural`, `drums-dsp` |
+| Hybrid vote | Reference-tier fusion | `tr-ensemble-default` + ensemble UI |
+
+Closed or non-reproducible challenge winners (e.g. some 2025 AMT Challenge entries without open weights) stay **out of scope**. Prefer installing extras from Prefs → Models (Transcription pack) over adding one-off research checkpoints. MIDI Studio → Transcribe exposes these ids with NeuralNote-inspired quality presets; NeuralNote’s proprietary binary is **not** shipped.
+
+**Prefs install path:** Preferences → Models lists every manifest with Download /
+Cancel and starter packs (Separation / Piano / Restore / Transcription). Tools
+installs Verovio and a GM soundfont for MIDI Studio score + audition; MuseScore
+is path-detect + download link (not silently bundled). See [`docs/ui.md`](ui.md).
+
 ## Planner wiring
 
 Presets (`neiro separate --preset …`) and enhancement chain steps resolve through

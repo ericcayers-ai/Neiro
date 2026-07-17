@@ -1,10 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { AnalysisCorrectionsPayload, VocalConditions } from '../api/types'
+import type {
+  AnalysisCorrectionsPayload,
+  InstrumentHint,
+  VocalConditions,
+} from '../api/types'
 import { EmptyGate } from '../components/EmptyGate'
 import { ModuleHeader } from '../components/ModuleHeader'
 import { fmtTime } from '../constants/options'
 import { useSession } from '../state/session'
 import './modules.css'
+
+const DRAFT_KEY = 'neiro.session.analysisCorrectionsDraft'
 
 function flagWhy(note: string): string {
   const n = note.toLowerCase()
@@ -39,15 +45,52 @@ export interface AnalysisCorrectionsDraft {
   key: string
   bpm: string
   dismissed: string[]
+  fileId?: string
 }
 
-function emptyDraft(): AnalysisCorrectionsDraft {
-  return { instruments: [], key: '', bpm: '', dismissed: [] }
+function emptyDraft(fileId?: string): AnalysisCorrectionsDraft {
+  return { instruments: [], key: '', bpm: '', dismissed: [], fileId }
+}
+
+function readStoredDraft(fileId: string | undefined): AnalysisCorrectionsDraft | null {
+  if (!fileId) return null
+  try {
+    const raw = sessionStorage.getItem(DRAFT_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as AnalysisCorrectionsDraft
+    if (!parsed || parsed.fileId !== fileId) return null
+    return {
+      instruments: Array.isArray(parsed.instruments) ? parsed.instruments : [],
+      key: typeof parsed.key === 'string' ? parsed.key : '',
+      bpm: typeof parsed.bpm === 'string' ? parsed.bpm : '',
+      dismissed: Array.isArray(parsed.dismissed) ? parsed.dismissed : [],
+      fileId,
+    }
+  } catch {
+    return null
+  }
+}
+
+function writeStoredDraft(draft: AnalysisCorrectionsDraft) {
+  try {
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft))
+  } catch {
+    /* ignore */
+  }
+}
+
+function clearStoredDraft() {
+  try {
+    sessionStorage.removeItem(DRAFT_KEY)
+  } catch {
+    /* ignore */
+  }
 }
 
 function draftFromReport(
   asserted: string[],
   applied: AnalysisCorrectionsPayload | null,
+  fileId?: string,
 ): AnalysisCorrectionsDraft {
   const o = applied?.overrides || {}
   const instrumentsFromOverride = Array.isArray(o.instruments)
@@ -63,6 +106,7 @@ function draftFromReport(
         ? String(o.estimated_bpm)
         : '',
     dismissed: [],
+    fileId,
   }
 }
 
@@ -88,11 +132,26 @@ function toPayload(draft: AnalysisCorrectionsDraft): AnalysisCorrectionsPayload 
   return { overrides, reasons }
 }
 
-function formatEchoRow(vc: VocalConditions | undefined): string | null {
-  if (!vc?.echo_delay_s) return null
-  const ms = Math.round(vc.echo_delay_s * 1000)
+function formatEchoBlock(vc: VocalConditions | undefined): {
+  primary: string | null
+  candidates: string[]
+} {
+  if (!vc) return { primary: null, candidates: [] }
+  const candidates: string[] = []
+  if (Array.isArray(vc.echo_candidates_ms) && vc.echo_candidates_ms.length) {
+    for (const c of vc.echo_candidates_ms) {
+      if (c?.ms == null) continue
+      const conf =
+        typeof c.confidence === 'number' ? ` (${Math.round(c.confidence * 100)}%)` : ''
+      candidates.push(`${c.ms} ms${conf}`)
+    }
+  }
+  if (!vc.echo_delay_s && !candidates.length) return { primary: null, candidates: [] }
+  const ms = vc.echo_delay_s != null ? Math.round(vc.echo_delay_s * 1000) : null
   const conf =
-    typeof vc.echo_confidence === 'number' ? ` · confidence ${Math.round(vc.echo_confidence * 100)}%` : ''
+    typeof vc.echo_confidence === 'number'
+      ? ` · confidence ${Math.round(vc.echo_confidence * 100)}%`
+      : ''
   const preview = vc.echo_based_on_preview_split ? ' · based on preview split' : ''
   const stemParts: string[] = []
   if (vc.stem_echo) {
@@ -105,7 +164,13 @@ function formatEchoRow(vc: VocalConditions | undefined): string | null {
     }
   }
   const stems = stemParts.length ? ` · stems: ${stemParts.join(', ')}` : ''
-  return `~${ms} ms${conf}${preview}${stems}`
+  const primary =
+    ms != null ? `Primary ~${ms} ms${conf}${preview}${stems}` : candidates.length ? 'Candidates' : null
+  return { primary, candidates }
+}
+
+function hintMeta(hints: InstrumentHint[] | undefined, name: string): InstrumentHint | undefined {
+  return hints?.find((h) => h.instrument === name)
 }
 
 export function AnalysisModule() {
@@ -134,11 +199,22 @@ export function AnalysisModule() {
       setAppliedNote(false)
       return
     }
-    setDraft(draftFromReport(asserted, analysisCorrections))
+    const stored = readStoredDraft(file.fileId)
+    if (stored) {
+      setDraft(stored)
+    } else {
+      setDraft(draftFromReport(asserted, analysisCorrections, file.fileId))
+    }
     setAppliedNote(Boolean(analysisCorrections && Object.keys(analysisCorrections.overrides).length))
     // Re-seed when the file or applied overlay changes; asserted is derived from file.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file?.fileId, analysisCorrections])
+
+  // Autosave draft to sessionStorage on every change (survives tab leave).
+  useEffect(() => {
+    if (!file) return
+    writeStoredDraft({ ...draft, fileId: file.fileId })
+  }, [draft, file])
 
   const effectiveInstruments = useMemo(
     () => draft.instruments.filter((i) => !draft.dismissed.includes(i)),
@@ -154,7 +230,7 @@ export function AnalysisModule() {
   }
 
   const r = file.report
-  const echoRow = formatEchoRow(r.vocal_conditions)
+  const echo = formatEchoBlock(r.vocal_conditions)
   const displayKey =
     (analysisCorrections?.overrides.estimated_key as string | undefined) ||
     draft.key ||
@@ -199,7 +275,17 @@ export function AnalysisModule() {
   if (effectiveInstruments.length) {
     rows.push(['Instruments', `Detected: ${effectiveInstruments.join(', ')}`])
   }
-  if (echoRow) rows.push(['Echo / delay', echoRow])
+  if (echo.primary) {
+    const cand =
+      echo.candidates.length > 1
+        ? ` · candidates: ${echo.candidates.join(', ')}`
+        : echo.candidates.length === 1 && !echo.primary.includes(String(echo.candidates[0].split(' ')[0]))
+          ? ` · ${echo.candidates[0]}`
+          : echo.candidates.length > 0
+            ? ` · candidates: ${echo.candidates.join(', ')}`
+            : ''
+    rows.push(['Echo / delay', `${echo.primary}${cand}`])
+  }
 
   const remainingTentative = tentative.filter(
     (t) => !effectiveInstruments.includes(t) && !draft.dismissed.includes(t),
@@ -219,7 +305,10 @@ export function AnalysisModule() {
 
   const resetToAnalysis = () => {
     setAnalysisCorrections(null)
-    setDraft(draftFromReport(asserted, null))
+    const next = draftFromReport(asserted, null, file.fileId)
+    setDraft(next)
+    clearStoredDraft()
+    writeStoredDraft(next)
     const notes = (file.report.notes || []).filter((n) => !n.startsWith('user_corrections:'))
     setFile({ ...file, report: { ...file.report, notes } })
     setAppliedNote(false)
@@ -230,7 +319,7 @@ export function AnalysisModule() {
       const dismissed = d.dismissed.includes(name)
         ? d.dismissed.filter((x) => x !== name)
         : [...d.dismissed, name]
-      return { ...d, dismissed }
+      return { ...d, dismissed, fileId: file.fileId }
     })
   }
 
@@ -239,7 +328,16 @@ export function AnalysisModule() {
       ...d,
       instruments: d.instruments.includes(name) ? d.instruments : [...d.instruments, name],
       dismissed: d.dismissed.filter((x) => x !== name),
+      fileId: file.fileId,
     }))
+  }
+
+  const chipLabel = (name: string, suffix = '') => {
+    const meta = hintMeta(r.instruments, name)
+    const bits = [name]
+    if (meta?.source) bits.push(meta.source)
+    if (typeof meta?.confidence === 'number') bits.push(`${Math.round(meta.confidence * 100)}%`)
+    return `${bits.join(' · ')}${suffix}`
   }
 
   return (
@@ -248,8 +346,8 @@ export function AnalysisModule() {
         title="Analysis"
         lede={
           <>
-            Report for <strong>{file.name}</strong>. Corrections change routing for this session —
-            they do not rewrite the source artifact.
+            Report for <strong>{file.name}</strong>. Draft corrections autosave in this tab; Apply
+            publishes them for planner routing.
           </>
         }
       />
@@ -283,10 +381,11 @@ export function AnalysisModule() {
         <div className="corrections-card-head">
           <h3>Corrections</h3>
           {appliedNote && <span className="corrections-applied">Applied for routing</span>}
+          {!appliedNote && <span className="muted" style={{ fontSize: '0.8rem' }}>Draft autosaved</span>}
         </div>
         <p className="intent" style={{ marginTop: 0 }}>
-          Add or dismiss instruments, set key/BPM, then Apply so Separate and Transcribe planners
-          can read the overlay.
+          Add or dismiss instruments, set key/BPM. Draft survives leaving this tab; Apply still
+          publishes the overlay for Separate / Restore / MIDI Studio planners.
         </p>
 
         <div className="chip-row" role="group" aria-label="Instrument corrections">
@@ -298,7 +397,7 @@ export function AnalysisModule() {
               onClick={() => toggleDismiss(name)}
               title="Dismiss this instrument"
             >
-              {name} ×
+              {chipLabel(name, ' ×')}
             </button>
           ))}
           {draft.dismissed.map((name) => (
@@ -309,7 +408,7 @@ export function AnalysisModule() {
               onClick={() => toggleDismiss(name)}
               title="Restore this instrument"
             >
-              {name} (dismissed)
+              {chipLabel(name, ' (dismissed)')}
             </button>
           ))}
           {remainingTentative.map((t) => (
@@ -320,7 +419,7 @@ export function AnalysisModule() {
               onClick={() => addInstrument(t)}
               title="Confirm tentative detection"
             >
-              + {t}
+              + {chipLabel(t)}
             </button>
           ))}
         </div>
@@ -346,7 +445,7 @@ export function AnalysisModule() {
             Key
             <input
               value={draft.key}
-              onChange={(e) => setDraft((d) => ({ ...d, key: e.target.value }))}
+              onChange={(e) => setDraft((d) => ({ ...d, key: e.target.value, fileId: file.fileId }))}
               placeholder={r.estimated_key || 'e.g. F minor'}
             />
           </label>
@@ -354,7 +453,7 @@ export function AnalysisModule() {
             BPM
             <input
               value={draft.bpm}
-              onChange={(e) => setDraft((d) => ({ ...d, bpm: e.target.value }))}
+              onChange={(e) => setDraft((d) => ({ ...d, bpm: e.target.value, fileId: file.fileId }))}
               placeholder={r.estimated_bpm ? String(Math.round(r.estimated_bpm)) : '120'}
             />
           </label>
@@ -392,8 +491,8 @@ export function AnalysisModule() {
         <button type="button" onClick={() => setModule('restore')}>
           Restore
         </button>
-        <button type="button" onClick={() => setModule('transcribe')}>
-          Transcribe
+        <button type="button" onClick={() => setModule('midi')}>
+          MIDI Studio
         </button>
       </div>
     </div>

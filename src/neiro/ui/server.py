@@ -24,6 +24,7 @@ Endpoints:
     POST /api/edit              {file_id, op, ...}  -> new (edited) file_id
                             bounce: {op:bounce, tracks:[{file_id,gain,pan,offset}]}
                             split:  {file_id, op:split, at} -> {left, right}
+                            pitch_correct: {file_id, op:pitch_correct, key?, strength?}
     GET  /api/plugins           list local user Python plugins + grants
     POST /api/plugins           update plugin grants
     GET  /api/compute           warm-pool / VRAM residency status
@@ -35,6 +36,7 @@ Endpoints:
     GET  /api/bulk/waveform     Arrow IPC peaks (JSON fallback via Accept)
     GET/POST /api/notes/<job>   piano-roll note CRUD for a transcription job
     GET  /api/export            ?file_id&format     -> wav16|wav24|flac download
+    GET  /api/analyze           ?file_id            -> re-estimate BPM/key report
     GET  /api/daw/status        shared-window DAW injector status
     GET  /api/daw/midi          ?after_seq=N        Learn MIDI from DAW injectors
     POST /api/daw/register      register a VST/CLAP injector instance
@@ -568,11 +570,258 @@ def cancel_job(state: _State, job_id: str) -> dict:
 
 
 def _parse_enhance_chain(raw) -> list[str] | None:
-    if raw is None or raw == "" or raw == "auto":
-        return None
-    if isinstance(raw, list):
-        return raw
-    return [s.strip() for s in str(raw).split(",") if s.strip()]
+    from neiro.analysis.restore_recommend import resolve_layman_chain
+
+    return resolve_layman_chain(raw)
+
+
+# Starter packs for Prefs one-click downloads (ids must match manifests).
+MODEL_PACKS: dict[str, list[str]] = {
+    "separation": ["htdemucs-ft", "scnet", "mel-roformer-kim"],
+    "piano": ["piano-transcription", "transkun-piano", "basic-pitch"],
+    "restore": ["denoise-roformer", "dereverb-roformer", "apollo", "audiosr"],
+    "transcription": ["yourmt3", "multi-instrument", "svt-melody", "timbre-amt"],
+}
+
+
+def _model_size_hint(entry) -> str | None:
+    """Best-effort size hint from weight specs or VRAM footprint."""
+    for spec in entry.weights:
+        for key in ("size_bytes", "bytes", "size"):
+            if key in spec and isinstance(spec[key], (int, float)):
+                mb = float(spec[key]) / 1e6
+                return f"~{mb:.0f} MB" if mb < 1000 else f"~{mb / 1000:.1f} GB"
+        note = str(spec.get("note") or "")
+        if "GB" in note or "MB" in note:
+            return note
+    vram = entry.manifest.get("vram") or {}
+    gb = vram.get("fp32_gb")
+    if isinstance(gb, (int, float)) and gb > 0:
+        return f"~{gb:g} GB VRAM"
+    if entry.needs_download:
+        return "weights on first use"
+    return "no weights"
+
+
+def start_model_download(state: _State, *, model_ids: list[str]) -> str:
+    """Background job that fetches model weights; cancellable via cancel_job."""
+    job_id = uuid.uuid4().hex[:12]
+    with state.lock:
+        state.jobs[job_id] = {
+            "status": "running",
+            "kind": "download",
+            "progress": [],
+            "progress_events": [],
+            "stage": "queued",
+            "fraction": 0.0,
+            "eta_s": None,
+            "model_ids": list(model_ids),
+        }
+
+    def _work() -> None:
+        from neiro.engine.downloader import DownloadProgress
+
+        ctx = ExecutionContext(cache=state.cache)
+        with state.lock:
+            state.job_contexts[job_id] = ctx
+        done: list[str] = []
+        try:
+            total = max(1, len(model_ids))
+            for i, mid in enumerate(model_ids):
+                if ctx.cancelled:
+                    raise CancelledError()
+                try:
+                    entry = state.registry.get(mid)
+                except KeyError:
+                    with state.lock:
+                        job = state.jobs.get(job_id)
+                        if job:
+                            job["progress"].append(f"{mid}: unknown model id, skipped")
+                    continue
+                if not entry.available():
+                    with state.lock:
+                        job = state.jobs.get(job_id)
+                        if job:
+                            req = ", ".join(entry.manifest.get("requires", [])) or "deps"
+                            job["progress"].append(f"{mid}: needs install ({req})")
+                    continue
+                if entry.downloaded():
+                    done.append(mid)
+                    with state.lock:
+                        job = state.jobs.get(job_id)
+                        if job:
+                            job["progress"].append(f"{mid}: already downloaded")
+                            job["fraction"] = (i + 1) / total
+                            job["stage"] = mid
+                    continue
+
+                def _prog(p: DownloadProgress, _mid=mid, _i=i) -> None:
+                    if ctx.cancelled:
+                        raise CancelledError()
+                    line = f"{_mid}: downloading"
+                    if p.total_bytes:
+                        mb = p.downloaded_bytes / 1e6
+                        tot = p.total_bytes / 1e6
+                        line = f"{_mid}: {mb:.0f}/{tot:.0f} MB"
+                    with state.lock:
+                        job = state.jobs.get(job_id)
+                        if job is None:
+                            return
+                        job["progress"].append(line)
+                        job["stage"] = _mid
+                        frac_part = p.fraction if p.fraction is not None else 0.0
+                        job["fraction"] = min(0.99, (_i + frac_part) / total)
+                        job.setdefault("progress_events", []).append(
+                            {
+                                "stage": _mid,
+                                "fraction": job["fraction"],
+                                "eta_s": None,
+                                "line": line,
+                                "node_id": _mid,
+                                "message": line,
+                            }
+                        )
+
+                try:
+                    entry.ensure_downloaded(progress=_prog)
+                    done.append(mid)
+                    with state.lock:
+                        job = state.jobs.get(job_id)
+                        if job:
+                            job["progress"].append(f"{mid}: downloaded")
+                            job["fraction"] = (i + 1) / total
+                            job["stage"] = mid
+                except CancelledError:
+                    raise
+                except Exception as exc:
+                    with state.lock:
+                        job = state.jobs.get(job_id)
+                        if job:
+                            job["progress"].append(f"{mid}: failed ({exc})")
+            with state.lock:
+                job = state.jobs.get(job_id)
+                if job and job.get("status") == "running":
+                    job.update(
+                        status="done",
+                        fraction=1.0,
+                        stage="done",
+                        result={"downloaded": done, "requested": list(model_ids)},
+                    )
+        except CancelledError:
+            with state.lock:
+                if state.jobs[job_id].get("status") == "running":
+                    state.jobs[job_id].update(status="cancelled", error="cancelled")
+        except Exception as exc:
+            with state.lock:
+                if state.jobs[job_id].get("status") != "cancelled":
+                    state.jobs[job_id].update(status="error", error=str(exc))
+        finally:
+            with state.lock:
+                state.job_contexts.pop(job_id, None)
+
+    threading.Thread(target=_work, daemon=True).start()
+    return job_id
+
+
+def tools_status() -> dict:
+    """Detect Verovio / MuseScore / soundfont install state for Prefs Tools."""
+    import importlib.util
+
+    from neiro.engine.downloader import default_neiro_home
+    from neiro.symbolic.score import find_score_renderer
+
+    verovio_ok = importlib.util.find_spec("verovio") is not None
+    musescore = find_score_renderer()
+    sf_dir = default_neiro_home() / "soundfonts"
+    soundfonts = sorted(p.name for p in sf_dir.glob("*.sf2")) if sf_dir.is_dir() else []
+    return {
+        "verovio": {"installed": verovio_ok, "hint": "pip install verovio"},
+        "musescore": {
+            "path": musescore,
+            "installed": bool(musescore),
+            "download_url": "https://musescore.org/en/download",
+        },
+        "soundfont": {
+            "installed": bool(soundfonts),
+            "files": soundfonts,
+            "urls": [f"/api/soundfonts/{name}" for name in soundfonts],
+            "hint": (
+                "Download TimGM6mb.sf2 (GM) for MuseScore and to unlock MIDI Studio "
+                "browser piano (FluidR3 GM samples; SF2 verified on disk)."
+            ),
+        },
+        "packs": {k: list(v) for k, v in MODEL_PACKS.items()},
+    }
+
+
+# Small GM soundfont for Prefs one-click install (~5–6 MB).
+_SOUNDFONT_URL = "https://github.com/cmaj-org/cmaj/raw/main/examples/patches/TimGM6mb.sf2"
+_SOUNDFONT_NAME = "TimGM6mb.sf2"
+
+
+def install_soundfont() -> dict:
+    """Download a GM SF2 into ``NEIRO_HOME/soundfonts``."""
+    from urllib.request import urlopen
+
+    from neiro.engine.downloader import default_neiro_home
+
+    sf_dir = default_neiro_home() / "soundfonts"
+    sf_dir.mkdir(parents=True, exist_ok=True)
+    dest = sf_dir / _SOUNDFONT_NAME
+    if dest.is_file() and dest.stat().st_size > 100_000:
+        return {"ok": True, "path": str(dest), "status": tools_status()}
+    try:
+        with urlopen(_SOUNDFONT_URL, timeout=180) as resp:  # noqa: S310 — pinned URL
+            data = resp.read()
+        if len(data) < 1000:
+            return {"ok": False, "error": "download too small / failed", "status": tools_status()}
+        dest.write_bytes(data)
+        return {"ok": True, "path": str(dest), "status": tools_status()}
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "error": str(exc), "status": tools_status()}
+
+
+def install_verovio() -> dict:
+    """Best-effort ``pip install verovio`` for Prefs Tools."""
+    import sys
+
+    from neiro.util import subprocess_win
+
+    try:
+        proc = subprocess_win.run(
+            [sys.executable, "-m", "pip", "install", "verovio"],
+            capture_output=True,
+            text=True,
+            timeout=300,
+            check=False,
+        )
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
+    ok = proc.returncode == 0
+    return {
+        "ok": ok,
+        "returncode": proc.returncode,
+        "stdout": (proc.stdout or "")[-2000:],
+        "stderr": (proc.stderr or "")[-2000:],
+        "status": tools_status(),
+    }
+
+
+def set_musescore_path(path: str | None) -> dict:
+    """Persist a MuseScore CLI path for Prefs browse / custom install."""
+    from neiro.symbolic.score import clear_musescore_override, write_musescore_override
+
+    cleaned = (path or "").strip().strip('"')
+    if not cleaned:
+        clear_musescore_override()
+        return {"ok": True, "path": None, "status": tools_status()}
+    from pathlib import Path
+
+    p = Path(cleaned)
+    if not p.is_file():
+        return {"ok": False, "error": f"not a file: {cleaned}", "status": tools_status()}
+    write_musescore_override(str(p.resolve()))
+    return {"ok": True, "path": str(p.resolve()), "status": tools_status()}
 
 
 def _spa_index() -> Path | None:
@@ -673,6 +922,23 @@ def _make_handler(state: _State):
                     }
                 )
                 return
+            if path == "/api/tools":
+                self._json(tools_status())
+                return
+            if path.startswith("/api/soundfonts/"):
+                from neiro.engine.downloader import default_neiro_home
+
+                name = Path(unquote(path[len("/api/soundfonts/") :])).name
+                if not name.lower().endswith(".sf2") or ".." in name:
+                    self._error(400, "invalid soundfont name")
+                    return
+                target = (default_neiro_home() / "soundfonts" / name).resolve()
+                sf_root = (default_neiro_home() / "soundfonts").resolve()
+                if not str(target).startswith(str(sf_root)) or not target.is_file():
+                    self._error(404, "soundfont not found")
+                    return
+                self._send(200, target.read_bytes(), "application/octet-stream")
+                return
             if path.startswith("/api/models"):
                 self._handle_models()
                 return
@@ -725,6 +991,9 @@ def _make_handler(state: _State):
                 return
             if path.startswith("/api/export"):
                 self._handle_export()
+                return
+            if path.startswith("/api/analyze"):
+                self._handle_analyze_get()
                 return
             if path == "/api/daw/status":
                 from neiro.ui.daw_bridge import default_bridge
@@ -791,6 +1060,12 @@ def _make_handler(state: _State):
                     self._handle_session_open()
                 elif self.path.startswith("/api/notes/"):
                     self._handle_notes_post(self.path)
+                elif self.path == "/api/models/download":
+                    self._handle_models_download()
+                elif self.path == "/api/tools/install":
+                    self._handle_tools_install()
+                elif self.path == "/api/tools/musescore":
+                    self._handle_musescore_path()
                 elif self.path.startswith("/api/job/") and self.path.endswith("/cancel"):
                     job_id = self.path.rstrip("/").rsplit("/", 2)[-2]
                     self._handle_cancel(job_id)
@@ -1002,7 +1277,18 @@ def _make_handler(state: _State):
                 return
             bleed_raw = q.get("bleed_suppress", "true")
             bleed = bleed_raw.lower() not in {"off", "false", "0", "no"}
+            corrections = None
+            raw_corr = q.get("corrections")
+            if raw_corr:
+                try:
+                    parsed = json.loads(raw_corr)
+                except json.JSONDecodeError:
+                    self._error(400, "corrections must be JSON")
+                    return
+                corrections = _normalize_corrections(parsed)
             try:
+                members_raw = q.get("members", "")
+                members = [m.strip() for m in members_raw.split(",") if m.strip()] or None
                 payload = plan_payload(
                     kind=kind,
                     file_path=state.files[file_id],
@@ -1010,10 +1296,12 @@ def _make_handler(state: _State):
                     vram=state.vram,
                     preset=q.get("preset", "vocals"),
                     mode=q.get("mode", "auto"),
-                    model=q.get("model"),
+                    model=q.get("model") or None,
+                    members=members,
                     chain=_parse_enhance_chain(q.get("chain")),
                     quality=q.get("quality"),
                     bleed_suppress=bleed,
+                    corrections=corrections,
                 )
             except Exception as exc:
                 self._error(400, str(exc))
@@ -1102,6 +1390,12 @@ def _make_handler(state: _State):
                     if "offset" in changes:
                         changes["offset"] = float(changes["offset"])
                     sess.update_note(track, int(body["index"]), **changes)
+                elif op == "quantize":
+                    sess.quantize(
+                        division=int(body.get("division", 4)),
+                        strength=float(body.get("strength", 1.0)),
+                        track=str(body["track"]) if body.get("track") else None,
+                    )
                 else:
                     self._error(400, f"unknown op {op!r}")
                     return
@@ -1156,9 +1450,56 @@ def _make_handler(state: _State):
                         "status": status,
                         "requires": list(entry.manifest.get("requires", [])),
                         "license_spdx": entry.license_spdx,
+                        "size_hint": _model_size_hint(entry),
                     }
                 )
-            self._json({"models": models})
+            self._json({"models": models, "packs": {k: list(v) for k, v in MODEL_PACKS.items()}})
+
+        def _handle_models_download(self) -> None:
+            body = json.loads(self._read_body() or b"{}")
+            ids: list[str] = []
+            pack = body.get("pack")
+            if pack:
+                if pack not in MODEL_PACKS:
+                    self._error(400, f"unknown pack {pack!r}; known: {', '.join(MODEL_PACKS)}")
+                    return
+                ids.extend(MODEL_PACKS[pack])
+            raw_ids = body.get("model_ids") or body.get("models")
+            if isinstance(raw_ids, list):
+                ids.extend(str(x) for x in raw_ids)
+            mid = body.get("model_id")
+            if mid:
+                ids.append(str(mid))
+            # Dedupe preserve order
+            seen: set[str] = set()
+            uniq = []
+            for m in ids:
+                if m not in seen:
+                    seen.add(m)
+                    uniq.append(m)
+            if not uniq:
+                self._error(400, "provide model_id, model_ids, or pack")
+                return
+            job_id = start_model_download(state, model_ids=uniq)
+            self._json({"job_id": job_id, "model_ids": uniq})
+
+        def _handle_tools_install(self) -> None:
+            body = json.loads(self._read_body() or b"{}")
+            tool = str(body.get("tool") or "").lower()
+            if tool == "verovio":
+                self._json(install_verovio())
+                return
+            if tool == "soundfont":
+                self._json(install_soundfont())
+                return
+            self._error(
+                400, "supported tools: verovio, soundfont (MuseScore uses /api/tools/musescore)"
+            )
+
+        def _handle_musescore_path(self) -> None:
+            body = json.loads(self._read_body() or b"{}")
+            path = body.get("path")
+            self._json(set_musescore_path(None if path is None else str(path)))
 
         def _handle_waveform(self) -> None:
             from neiro.dsp import waveform_peaks
@@ -1203,6 +1544,26 @@ def _make_handler(state: _State):
             out = state.workspace / "exports" / file_id / f"export.{ext}"
             write_audio(audio, out, fmt=fmt, bit_depth=bit_depth)
             self._send(200, out.read_bytes(), ctype)
+
+        def _handle_analyze_get(self) -> None:
+            """Re-estimate BPM/key (and related analysis) for an existing file_id."""
+            from neiro.analysis import analyze
+
+            q = self._query()
+            file_id = q.get("file_id", "")
+            if file_id not in state.files:
+                self._error(400, "unknown file_id")
+                return
+            audio = state.load(file_id)
+            report = analyze(audio, registry=state.registry)
+            self._json(
+                {
+                    "file_id": file_id,
+                    "estimated_bpm": report.estimated_bpm,
+                    "estimated_key": report.estimated_key,
+                    "report": report.as_dict(),
+                }
+            )
 
         def _handle_edit(self) -> None:
             from neiro.dsp import edit as ed
@@ -1295,6 +1656,86 @@ def _make_handler(state: _State):
                             "audio_url": f"/files/edits/{right_id}/{right_name}",
                             "duration": right.duration_seconds,
                         },
+                    }
+                )
+                return
+
+            if op == "time_stretch":
+                rate = body.get("rate", body.get("stretch"))
+                if rate is None:
+                    self._error(400, "time_stretch requires rate (duration scale; >1 = longer)")
+                    return
+                try:
+                    result = ed.time_stretch(audio, float(rate))
+                except ValueError as exc:
+                    self._error(400, str(exc))
+                    return
+                name = _safe_name(Path(state.files[file_id]).stem + ".stretch.wav")
+                new_id = state.register(name, result)
+                state.parents[new_id] = file_id
+                self._json(
+                    {
+                        "file_id": new_id,
+                        "parent": file_id,
+                        "op": "time_stretch",
+                        "audio_url": f"/files/edits/{new_id}/{name}",
+                        "duration": result.duration_seconds,
+                        "waveform": waveform_peaks(result, width=1200),
+                        "provenance": getattr(result, "provenance", None),
+                    }
+                )
+                return
+
+            if op == "pitch_shift":
+                semis = body.get("semitones", body.get("semitone"))
+                if semis is None:
+                    self._error(400, "pitch_shift requires semitones")
+                    return
+                try:
+                    result = ed.pitch_shift(audio, float(semis))
+                except ValueError as exc:
+                    self._error(400, str(exc))
+                    return
+                name = _safe_name(Path(state.files[file_id]).stem + ".pitch.wav")
+                new_id = state.register(name, result)
+                state.parents[new_id] = file_id
+                self._json(
+                    {
+                        "file_id": new_id,
+                        "parent": file_id,
+                        "op": "pitch_shift",
+                        "audio_url": f"/files/edits/{new_id}/{name}",
+                        "duration": result.duration_seconds,
+                        "waveform": waveform_peaks(result, width=1200),
+                        "provenance": getattr(result, "provenance", None),
+                    }
+                )
+                return
+
+            if op == "pitch_correct":
+                key = body.get("key")
+                strength = body.get("strength", 1.0)
+                try:
+                    result = ed.pitch_correct(
+                        audio,
+                        key=str(key) if key else None,
+                        strength=float(strength),
+                    )
+                except ValueError as exc:
+                    self._error(400, str(exc))
+                    return
+                name = _safe_name(Path(state.files[file_id]).stem + ".pitch-correct.wav")
+                new_id = state.register(name, result)
+                state.parents[new_id] = file_id
+                self._json(
+                    {
+                        "file_id": new_id,
+                        "parent": file_id,
+                        "op": "pitch_correct",
+                        "audio_url": f"/files/edits/{new_id}/{name}",
+                        "duration": result.duration_seconds,
+                        "waveform": waveform_peaks(result, width=1200),
+                        "provenance": getattr(result, "provenance", None),
                     }
                 )
                 return

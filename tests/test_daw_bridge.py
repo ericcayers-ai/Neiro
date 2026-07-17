@@ -14,7 +14,8 @@ def test_register_show_ui_and_midi_roundtrip():
 
     status = bridge.request_show_ui(inst.instance_id, module="learn")
     assert status["focus_instance"] == inst.instance_id
-    assert status["focus_module"] == "learn"
+    # Legacy learn/transcribe normalize to midi (MIDI Studio).
+    assert status["focus_module"] == "midi"
     assert status["focus_seq"] == 1
     assert status["shared_window"] is True
 
@@ -66,5 +67,6 @@ def test_publish_capture_allows_any_module_and_bumps_seq():
     status = bridge.publish_capture(inst.instance_id, file_payload=payload, module="transcribe")
     assert status["capture_seq"] == before + 1
     assert status["last_capture"]["file_id"] == "deadbeefcafe"
-    assert status["focus_module"] == "transcribe"
-    assert "transcribe" in status["allowed_modules"]
+    assert status["focus_module"] == "midi"
+    assert "midi" in status["allowed_modules"]
+    assert "transcribe" in status["allowed_modules"]  # legacy alias still listed

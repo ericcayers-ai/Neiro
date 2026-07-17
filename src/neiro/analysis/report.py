@@ -181,36 +181,58 @@ def _hum_detect(samples: np.ndarray, sample_rate: int) -> tuple[float | None, fl
     return None, best[1]
 
 
-def _echo_detect(samples: np.ndarray, sample_rate: int) -> tuple[float, float] | None:
-    """Detect a discrete delay/echo via autocorrelation of the RMS envelope.
+def _echo_candidates(
+    samples: np.ndarray, sample_rate: int, *, min_peak: float = 0.35
+) -> list[tuple[float, float]]:
+    """List discrete delay/echo peaks via envelope autocorrelation.
 
-    Returns ``(delay_seconds, confidence)`` or None. Confidence is the
-    normalized autocorrelation peak in ``[0, 1]``. Requires a fluctuating
-    envelope — steady material can't carry echo evidence.
+    Searches ``60–1000 ms``. Returns ``[(delay_seconds, confidence), ...]``
+    sorted by confidence descending. Requires a fluctuating envelope.
     """
     mono = samples.mean(axis=0)
     frame = max(1, sample_rate // 100)  # ~10 ms envelope resolution
     n_frames = mono.size // frame
     if n_frames < 60:
-        return None
+        return []
     env = np.sqrt(np.mean(mono[: n_frames * frame].reshape(n_frames, frame) ** 2, axis=1))
     env = env - env.mean()
     var = float(np.mean(env**2))
     if var < 1e-8:  # steady envelope: no evidence either way
-        return None
+        return []
     corr = np.correlate(env, env, mode="full")[env.size - 1 :]
     corr /= corr[0] + 1e-12
     fps = sample_rate / frame
     lo, hi = int(0.06 * fps), min(int(1.0 * fps), corr.size - 1)
     if lo >= hi:
-        return None
-    # Earliest strong local maximum wins: an echo's delay is shorter than the
-    # phrase/beat periodicity that also shows up in envelope autocorrelation.
+        return []
+    peaks: list[tuple[float, float]] = []
     for k in range(lo + 1, hi - 1):
         peak = float(corr[k])
-        if peak > 0.35 and corr[k] >= corr[k - 1] and corr[k] >= corr[k + 1]:
-            return float(k / fps), float(min(1.0, peak))
-    return None
+        if peak > min_peak and corr[k] >= corr[k - 1] and corr[k] >= corr[k + 1]:
+            # Skip near-duplicates of a stronger neighbour (±30 ms).
+            delay_s = float(k / fps)
+            if any(abs(delay_s - d) < 0.03 for d, _ in peaks):
+                continue
+            peaks.append((delay_s, float(min(1.0, peak))))
+    peaks.sort(key=lambda p: p[1], reverse=True)
+    return peaks[:6]
+
+
+def _echo_detect(samples: np.ndarray, sample_rate: int) -> tuple[float, float] | None:
+    """Best discrete delay/echo via autocorrelation of the RMS envelope.
+
+    Returns ``(delay_seconds, confidence)`` or None. Prefer the earliest strong
+    peak among high-confidence candidates (echo delay is shorter than phrase/
+    beat periodicity that also appears in envelope autocorrelation).
+    """
+    candidates = _echo_candidates(samples, sample_rate)
+    if not candidates:
+        return None
+    # Prefer earliest among peaks within 85% of the strongest confidence.
+    top_conf = candidates[0][1]
+    strong = [c for c in candidates if c[1] >= top_conf * 0.85]
+    strong.sort(key=lambda c: c[0])
+    return strong[0]
 
 
 def _draft_preview_stems(samples: np.ndarray, sample_rate: int) -> dict[str, np.ndarray] | None:
@@ -237,15 +259,23 @@ def _stem_echo_conditions(samples: np.ndarray, sample_rate: int) -> dict[str, An
     """Run echo/delay detection on the mix and optional draft vocal/drum stems.
 
     Prefers stem-conditioned delays when the preview split succeeds. Always
-    includes mix-level detection as a fallback.
+    includes mix-level detection as a fallback. Surfaces multi-peak candidates
+    in ms for the Analysis UI.
     """
     out: dict[str, Any] = {}
-    mix_hit = _echo_detect(samples, sample_rate)
-    if mix_hit is not None:
-        delay_s, conf = mix_hit
+    mix_cands = _echo_candidates(samples, sample_rate)
+    if mix_cands:
+        delay_s, conf = mix_cands[0]
+        # Prefer earliest among near-top peaks (same rule as `_echo_detect`).
+        top = mix_cands[0][1]
+        strong = sorted([c for c in mix_cands if c[1] >= top * 0.85], key=lambda c: c[0])
+        delay_s, conf = strong[0]
         out["echo_delay_s"] = round(delay_s, 3)
         out["echo_confidence"] = round(conf, 3)
         out["echo_source"] = "mix"
+        out["echo_candidates_ms"] = [
+            {"ms": int(round(d * 1000)), "confidence": round(c, 3)} for d, c in mix_cands
+        ]
 
     stems = _draft_preview_stems(samples, sample_rate)
     if stems is None:
@@ -253,15 +283,22 @@ def _stem_echo_conditions(samples: np.ndarray, sample_rate: int) -> dict[str, An
 
     stem_echo: dict[str, Any] = {}
     best_stem: tuple[str, float, float] | None = None  # name, delay, conf
+    merged_cands: list[tuple[float, float]] = list(mix_cands)
     for name, stem in stems.items():
-        hit = _echo_detect(stem, sample_rate)
-        if hit is None:
+        cands = _echo_candidates(stem, sample_rate)
+        if not cands:
             continue
-        delay_s, conf = hit
+        top = cands[0][1]
+        strong = sorted([c for c in cands if c[1] >= top * 0.85], key=lambda c: c[0])
+        delay_s, conf = strong[0]
         stem_echo[name] = {
             "delay_s": round(delay_s, 3),
             "confidence": round(conf, 3),
+            "candidates_ms": [
+                {"ms": int(round(d * 1000)), "confidence": round(c, 3)} for d, c in cands
+            ],
         }
+        merged_cands.extend(cands)
         if best_stem is None or conf > best_stem[2]:
             best_stem = (name, delay_s, conf)
 
@@ -276,6 +313,17 @@ def _stem_echo_conditions(samples: np.ndarray, sample_rate: int) -> dict[str, An
         out["echo_delay_s"] = round(delay_s, 3)
         out["echo_confidence"] = round(conf, 3)
         out["echo_source"] = f"preview_split_{name}"
+    # Deduplicate merged candidates (±30 ms) keeping highest confidence.
+    if merged_cands:
+        merged_cands.sort(key=lambda c: c[1], reverse=True)
+        uniq: list[tuple[float, float]] = []
+        for d, c in merged_cands:
+            if any(abs(d - ud) < 0.03 for ud, _ in uniq):
+                continue
+            uniq.append((d, c))
+        out["echo_candidates_ms"] = [
+            {"ms": int(round(d * 1000)), "confidence": round(c, 3)} for d, c in uniq[:8]
+        ]
     return out
 
 
@@ -307,11 +355,40 @@ def _onset_density(samples: np.ndarray, sample_rate: int) -> float:
     return onsets / max(seconds, 0.1)
 
 
+def _canonical_instrument(name: str) -> str:
+    """Collapse near-synonyms for voting (display name kept from strongest vote)."""
+    n = name.strip().lower()
+    aliases = {
+        "electric guitar": "guitar",
+        "acoustic guitar": "guitar",
+        "guitar": "guitar",
+        "piano": "piano",
+        "keys": "keys",
+        "keyboard": "keys",
+        "synthesizer": "synth",
+        "synth": "synth",
+        "drums": "drums",
+        "percussion": "drums",
+        "bass": "bass",
+        "vocals": "vocals",
+        "choir": "vocals",
+        "spoken voice": "vocals",
+        "strings": "strings",
+        "orchestra": "strings",
+        "brass": "brass",
+        "woodwinds": "woodwinds",
+    }
+    return aliases.get(n, n)
+
+
 def _detect_instruments(samples: np.ndarray, sample_rate: int) -> tuple[dict[str, Any], ...]:
     """Heuristic instrument hints (roadmap §4.1 floor — no neural tagger).
 
     Returns ``{instrument, confidence, status}`` entries. ``status`` is
     ``asserted`` (high confidence) or ``tentative`` (possible).
+
+    Bass is gated on *relative* low-band dominance so broadband mixes no longer
+    falsely assert bass from kick/sub energy alone.
     """
     sub = _band_energy(samples, sample_rate, 20, 80)
     bass = _band_energy(samples, sample_rate, 80, 250)
@@ -320,44 +397,155 @@ def _detect_instruments(samples: np.ndarray, sample_rate: int) -> tuple[dict[str
     upper = _band_energy(samples, sample_rate, 3000, 8000)
     air = _band_energy(samples, sample_rate, 8000, 16000)
     total = sub + bass + low_mid + mid + upper + air + 1e-12
+    sub_f, bass_f = sub / total, bass / total
+    low_mid_f, mid_f = low_mid / total, mid / total
+    upper_f, air_f = upper / total, air / total
+    low_f = sub_f + bass_f
     onset = _onset_density(samples, sample_rate)
 
     hints: list[dict[str, Any]] = []
 
-    def add(name: str, score: float, *, asserted_at: float = 0.55, tentative_at: float = 0.35):
+    def add(
+        name: str,
+        score: float,
+        *,
+        asserted_at: float = 0.55,
+        tentative_at: float = 0.35,
+        source: str = "dsp",
+    ):
+        score = float(np.clip(score, 0.0, 1.0))
         if score >= asserted_at:
-            hints.append({"instrument": name, "confidence": round(score, 2), "status": "asserted"})
+            hints.append(
+                {
+                    "instrument": name,
+                    "confidence": round(score, 2),
+                    "status": "asserted",
+                    "source": source,
+                }
+            )
         elif score >= tentative_at:
-            hints.append({"instrument": name, "confidence": round(score, 2), "status": "tentative"})
+            hints.append(
+                {
+                    "instrument": name,
+                    "confidence": round(score, 2),
+                    "status": "tentative",
+                    "source": source,
+                }
+            )
 
-    drum_score = min(1.0, onset / 6.0) * (0.4 + 0.6 * (upper + mid) / total)
+    # Drums: onset density + mid/high energy (cymbals/snare), not just bass thump.
+    drum_score = min(1.0, onset / 4.5) * (0.35 + 0.65 * (upper_f + mid_f))
+    if onset >= 3.0:
+        drum_score = min(1.0, drum_score * 1.15)
     add("drums", drum_score)
 
-    bass_score = min(1.0, (sub + bass * 1.5) / total * 2.5)
-    add("bass", bass_score)
+    # Bass: require low-band share AND dominance vs mid — old formula asserted
+    # bass on nearly every mix because (sub+bass)/total * 2.5 easily cleared 0.55.
+    bass_score = 0.0
+    if low_f > 0.18 and low_f > (low_mid_f + mid_f) * 0.45:
+        bass_score = min(1.0, (low_f - 0.12) * 2.8)
+        if drum_score > 0.55:
+            bass_score *= 0.5  # kick bleed looks like bass
+        if mid_f > 0.28:
+            bass_score *= 0.75
+    add("bass", bass_score, asserted_at=0.58, tentative_at=0.4)
 
-    vocal_score = min(1.0, mid / total * 2.2 + low_mid / total * 0.5)
+    # Vocals: mid-band presence + centre image (when stereo).
+    vocal_score = min(1.0, mid_f * 2.8 + low_mid_f * 0.7 + air_f * 0.4)
     if samples.shape[0] > 1:
         L, R = samples[0], samples[1]
         center = (L + R) * 0.5
         side = (L - R) * 0.5
         center_e = float(np.sqrt(np.mean(center**2) + 1e-12))
         side_e = float(np.sqrt(np.mean(side**2) + 1e-12))
-        vocal_score *= min(1.2, 0.7 + center_e / (side_e + center_e + 1e-12))
+        vocal_score *= min(1.25, 0.65 + center_e / (side_e + center_e + 1e-12))
+    if onset > 5.0 and drum_score > 0.6:
+        vocal_score *= 0.85  # dense percussion can inflate mid energy
     add("vocals", vocal_score)
 
-    keys_score = min(1.0, (mid + upper * 0.6) / total * 1.8) * (1.0 - drum_score * 0.3)
-    add("piano", keys_score * 0.85)
-    add("keys", keys_score * 0.7, asserted_at=0.6)
+    # Keys / piano: sustained harmonic mid+upper, lower onset than drums.
+    keys_score = min(1.0, (mid_f + upper_f * 0.75) * 1.9) * (1.0 - drum_score * 0.35)
+    if onset < 3.5:
+        keys_score = min(1.0, keys_score * 1.2)
+    add("piano", keys_score * 0.95, asserted_at=0.52)
+    add("keys", keys_score * 0.8, asserted_at=0.58, tentative_at=0.38)
 
-    guitar_score = min(1.0, (mid + upper) / total * 1.6) * (1.0 - keys_score * 0.2)
-    add("electric guitar", guitar_score * 0.75)
+    # Guitar: mid+upper with some attack; damp when keys dominate.
+    guitar_score = min(1.0, (mid_f + upper_f) * 1.7) * (0.65 + 0.35 * min(1.0, onset / 3.0))
+    guitar_score *= 1.0 - keys_score * 0.25
+    add("electric guitar", guitar_score * 0.85, asserted_at=0.55, tentative_at=0.36)
 
-    strings_score = min(1.0, (upper + air * 0.5) / total * 2.0)
-    add("strings", strings_score * 0.6, asserted_at=0.5)
+    strings_score = min(1.0, (upper_f + air_f * 0.6) * 2.1) * (1.0 - drum_score * 0.2)
+    add("strings", strings_score * 0.65, asserted_at=0.52, tentative_at=0.36)
 
     hints.sort(key=lambda h: h["confidence"], reverse=True)
     return tuple(hints[:8])
+
+
+def _vote_instrument_tags(
+    dsp: tuple[dict[str, Any], ...],
+    neural: tuple[dict[str, Any], ...],
+    *,
+    neural_weight: float = 0.55,
+) -> tuple[dict[str, Any], ...]:
+    """Merge DSP heuristics with neural (CLAP) tags into a single ranked list."""
+    dsp_w = 1.0 - neural_weight
+    buckets: dict[str, dict[str, Any]] = {}
+
+    def ingest(tags: tuple[dict[str, Any], ...], weight: float, source: str) -> None:
+        for tag in tags:
+            name = str(tag.get("instrument") or "").strip()
+            if not name:
+                continue
+            key = _canonical_instrument(name)
+            conf = float(tag.get("confidence") or 0.0) * weight
+            slot = buckets.get(key)
+            if slot is None:
+                buckets[key] = {
+                    "instrument": name,
+                    "confidence": conf,
+                    "sources": {source},
+                    "display_conf": conf,
+                }
+            else:
+                slot["confidence"] += conf
+                slot["sources"].add(source)
+                # Prefer the higher-confidence display name.
+                if conf > slot["display_conf"]:
+                    slot["instrument"] = name
+                    slot["display_conf"] = conf
+
+    ingest(dsp, dsp_w, "dsp")
+    ingest(neural, neural_weight, "neural")
+
+    out: list[dict[str, Any]] = []
+    for slot in buckets.values():
+        score = float(np.clip(slot["confidence"], 0.0, 1.0))
+        sources = slot["sources"]
+        if "dsp" in sources and "neural" in sources:
+            source = "vote"
+            # Agreement boost
+            score = float(np.clip(score * 1.08, 0.0, 1.0))
+        elif "neural" in sources:
+            source = "neural"
+        else:
+            source = "dsp"
+        if score >= 0.52:
+            status = "asserted"
+        elif score >= 0.32:
+            status = "tentative"
+        else:
+            continue
+        out.append(
+            {
+                "instrument": slot["instrument"],
+                "confidence": round(score, 2),
+                "status": status,
+                "source": source,
+            }
+        )
+    out.sort(key=lambda h: h["confidence"], reverse=True)
+    return tuple(out[:8])
 
 
 def _neural_instrument_tags(
@@ -573,9 +761,9 @@ def analyze(audio: AudioTensor, *, registry: Any | None = None) -> AnalysisRepor
     tagger_capability = "dsp-instrument-hints"
     neural_tags = _neural_instrument_tags(audio, registry)
     if neural_tags is not None:
-        instruments = neural_tags
-        tagger_capability = "neural-instrument-tagger"
-        notes.append("instrument tagging: neural tagger via registry 'analyze' task")
+        instruments = _vote_instrument_tags(instruments, neural_tags)
+        tagger_capability = "dsp+neural-instrument-vote"
+        notes.append("instrument tagging: DSP + neural (an-clap) vote")
     if instruments:
         asserted = [h["instrument"] for h in instruments if h["status"] == "asserted"]
         if asserted:
