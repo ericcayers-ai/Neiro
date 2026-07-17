@@ -44,6 +44,7 @@ Thumbs.db
 
 # Local Claude Code settings
 .claude/
+.agents/
 
 # Local test artifacts / session transcripts (never commit)
 input_*.wav

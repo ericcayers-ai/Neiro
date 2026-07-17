@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react'
 import { ingestUrl, uploadFile } from '../api/client'
 import { JobProgress } from '../components/JobProgress'
 import { IntentField } from '../components/IntentField'
+import { ModuleHeader } from '../components/ModuleHeader'
 import { useSession } from '../state/session'
 import './modules.css'
 
@@ -83,12 +84,22 @@ export function ImportModule() {
   }
 
   return (
-    <div className="module-panel">
-      <h2>Import</h2>
-      <p className="lede">
-        Open a local file or fetch audio from a URL. All three paths are equal — drag-and-drop is
-        never required.
-      </p>
+    <div className="module-panel module-enter">
+      <ModuleHeader
+        title="Import"
+        lede="Open a local file or fetch a URL. Drop, Browse, and Fetch all do the same job."
+        actions={
+          <button
+            type="button"
+            className="primary"
+            disabled={busy}
+            onClick={() => inputRef.current?.click()}
+            title="Open a file from disk"
+          >
+            Browse
+          </button>
+        }
+      />
 
       <div
         className={`dropzone${over ? ' over' : ''}`}
@@ -130,25 +141,10 @@ export function ImportModule() {
         />
       </div>
 
-      <div className="row" style={{ marginTop: '1rem' }}>
-        <button
-          type="button"
-          className="primary"
-          disabled={busy}
-          onClick={() => inputRef.current?.click()}
-          title="Open a file from disk"
-        >
-          Browse
-        </button>
-        <span className="intent" style={{ alignSelf: 'center', margin: 0 }}>
-          Same result as dropping a file — available without a pointing device that supports drag.
-        </span>
-      </div>
-
       <div className="row" style={{ marginTop: '1.25rem' }}>
         <IntentField
           label="URL"
-          intent="Fetch with yt-dlp when installed. Cached under the local Neiro home directory."
+          intent="Needs yt-dlp. Cached under the local Neiro home directory."
           htmlFor="import-url"
         >
           <div className="row">

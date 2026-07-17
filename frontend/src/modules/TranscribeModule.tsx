@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { editNotes, fetchModels, startTranscribe, type ModelStatus } from '../api/client'
 import { useLocalJsonPref, useLocalPref } from '../api/hooks'
 import type { TranscribeResult } from '../api/types'
+import { EmptyGate } from '../components/EmptyGate'
 import { IntentField } from '../components/IntentField'
 import { JobProgress } from '../components/JobProgress'
+import { ModuleHeader } from '../components/ModuleHeader'
 import { PlanStrip } from '../components/PlanStrip'
 import { TRANSCRIBE_MODES, TRANSCRIBE_MODELS, stemColor } from '../constants/options'
 import { useSession } from '../state/session'
@@ -573,22 +575,36 @@ export function TranscribeModule() {
 
   if (!file) {
     return (
-      <div className="module-panel">
-        <h2>Transcribe</h2>
-        <div className="gate muted">Import a file first.</div>
-      </div>
+      <EmptyGate title="Transcribe">
+        Import a file first, then choose a decoder mode for MIDI and piano-roll output.
+      </EmptyGate>
     )
   }
 
   const memberChoices = TRANSCRIBE_MODELS.filter((m) => m.ensembleMember)
 
   return (
-    <div className="module-panel">
-      <h2>Transcribe</h2>
-      <p className="lede">
-        Produce MIDI and a piano-roll preview for <strong>{file.name}</strong>. Multi-select
-        decoders and ensemble mode fuse with hybrid vote when ≥2 members are installed.
-      </p>
+    <div className="module-panel module-enter">
+      <ModuleHeader
+        title="Transcribe"
+        lede={
+          <>
+            MIDI and piano-roll for <strong>{file.name}</strong>. Ensemble mode fuses selected
+            decoders when ≥2 members are installed.
+          </>
+        }
+        actions={
+          <button
+            type="button"
+            className="primary"
+            disabled={running}
+            onClick={() => void run()}
+            title="Start transcription"
+          >
+            Transcribe
+          </button>
+        }
+      />
 
       <div className="row">
         <IntentField label="Mode" intent={selected.intent} htmlFor="tr-mode">
@@ -630,44 +646,38 @@ export function TranscribeModule() {
             })}
           </select>
         </IntentField>
-        <button
-          type="button"
-          className="primary"
-          disabled={running}
-          onClick={() => void run()}
-          title="Start transcription"
-        >
-          Transcribe
-        </button>
       </div>
 
-      <div className="ensemble-members" style={{ marginTop: '0.85rem' }}>
-        <IntentField
-          label="Ensemble members"
-          intent="Select two or more installed decoders for hybrid vote. Empty + ensemble mode uses tr-ensemble-default."
-        >
-          <div className="row" style={{ flexWrap: 'wrap', gap: '0.5rem 1rem' }}>
-            {memberChoices.map((m) => {
-              const st = modelStatus[m.value]?.status
-              const ready = !st || st === 'ready' || st === 'needs-download'
-              return (
-                <label key={m.value} className="field" style={{ flexDirection: 'row', gap: 6 }}>
-                  <input
-                    type="checkbox"
-                    checked={members.includes(m.value)}
-                    disabled={running || st === 'needs-install'}
-                    onChange={() => toggleMember(m.value)}
-                  />
-                  <span>
-                    {m.label}
-                    {!ready ? statusLabel(st) : st === 'needs-download' ? ' (needs download)' : ''}
-                  </span>
-                </label>
-              )
-            })}
-          </div>
-        </IntentField>
-      </div>
+      <details className="advanced-block">
+        <summary>Ensemble members</summary>
+        <div className="advanced-block-body">
+          <IntentField
+            label="Decoders"
+            intent="Select two or more installed decoders for hybrid vote. Empty + ensemble mode uses tr-ensemble-default."
+          >
+            <div className="row" style={{ flexWrap: 'wrap', gap: '0.5rem 1rem' }}>
+              {memberChoices.map((m) => {
+                const st = modelStatus[m.value]?.status
+                const ready = !st || st === 'ready' || st === 'needs-download'
+                return (
+                  <label key={m.value} className="field" style={{ flexDirection: 'row', gap: 6 }}>
+                    <input
+                      type="checkbox"
+                      checked={members.includes(m.value)}
+                      disabled={running || st === 'needs-install'}
+                      onChange={() => toggleMember(m.value)}
+                    />
+                    <span>
+                      {m.label}
+                      {!ready ? statusLabel(st) : st === 'needs-download' ? ' (needs download)' : ''}
+                    </span>
+                  </label>
+                )
+              })}
+            </div>
+          </IntentField>
+        </div>
+      </details>
 
       <PlanStrip kind="transcribe" fileId={file.fileId} mode={mode} />
 

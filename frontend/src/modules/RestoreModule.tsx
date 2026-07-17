@@ -1,8 +1,10 @@
 import { startEnhance } from '../api/client'
 import { useLocalPref } from '../api/hooks'
 import type { EnhanceResult } from '../api/types'
+import { EmptyGate } from '../components/EmptyGate'
 import { IntentField } from '../components/IntentField'
 import { JobProgress } from '../components/JobProgress'
+import { ModuleHeader } from '../components/ModuleHeader'
 import { PlanStrip } from '../components/PlanStrip'
 import { RESTORE_CHAINS } from '../constants/options'
 import { useSession } from '../state/session'
@@ -42,25 +44,37 @@ export function RestoreModule() {
 
   if (!file) {
     return (
-      <div className="module-panel">
-        <h2>Restore</h2>
-        <div className="gate muted">Import a file first.</div>
-      </div>
+      <EmptyGate title="Restore">
+        Import a track first, then pick an enhancement chain (or Auto from analysis hints).
+      </EmptyGate>
     )
   }
 
   const result = enhanceResult
 
   return (
-    <div className="module-panel">
-      <h2>Restore</h2>
-      <p className="lede">
-        Enhancement chain for <strong>{file.name}</strong>. Edits write a new artifact; the source
-        upload is untouched.
-        {hasCorrections
-          ? ' Applied Analysis corrections feed the auto conditioning chain.'
-          : ''}
-      </p>
+    <div className="module-panel module-enter">
+      <ModuleHeader
+        title="Restore"
+        lede={
+          <>
+            Enhancement for <strong>{file.name}</strong> — writes a new artifact; source stays
+            untouched.
+            {hasCorrections ? ' Analysis corrections feed the auto chain.' : ''}
+          </>
+        }
+        actions={
+          <button
+            type="button"
+            className="primary"
+            disabled={running}
+            onClick={() => void run()}
+            title="Start restoration"
+          >
+            Restore
+          </button>
+        }
+      />
 
       <div className="row">
         <IntentField label="Chain" intent={selected.intent} htmlFor="restore-chain">
@@ -77,15 +91,6 @@ export function RestoreModule() {
             ))}
           </select>
         </IntentField>
-        <button
-          type="button"
-          className="primary"
-          disabled={running}
-          onClick={() => void run()}
-          title="Start restoration"
-        >
-          Restore
-        </button>
       </div>
 
       <div className="option-detail" aria-live="polite">
@@ -112,16 +117,7 @@ export function RestoreModule() {
                 {(result.notes || []).join(' · ')}
               </div>
               <div className="row" style={{ marginTop: '0.75rem' }}>
-                <a
-                  className="primary"
-                  href={result.file_url}
-                  download
-                  style={{
-                    padding: '0.5rem 0.85rem',
-                    border: '1px solid var(--line)',
-                    borderRadius: 'var(--radius)',
-                  }}
-                >
+                <a className="btn-link primary" href={result.file_url} download>
                   Download
                 </a>
                 {result.file_id && (
@@ -135,9 +131,6 @@ export function RestoreModule() {
                     Open in Studio
                   </button>
                 )}
-                <span className="intent" style={{ margin: 0, alignSelf: 'center' }}>
-                  Opens the restored artifact in Studio without changing the original upload.
-                </span>
               </div>
             </>
           ) : (

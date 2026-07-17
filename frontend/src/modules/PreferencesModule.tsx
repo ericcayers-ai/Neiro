@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { fetchPrefs, flushPrefs, updatePrefs } from '../api/client'
 import { useLocalPref } from '../api/hooks'
 import { IntentField } from '../components/IntentField'
+import { ModuleHeader } from '../components/ModuleHeader'
 import './modules.css'
 
 export function PreferencesModule() {
@@ -83,12 +84,11 @@ export function PreferencesModule() {
   }
 
   return (
-    <div className="module-panel">
-      <h2>Preferences</h2>
-      <p className="lede">
-        Compute, storage, audio defaults, themes, and accessibility. Interface choices persist in
-        this browser profile; cache and warm-pool settings sync to the local engine.
-      </p>
+    <div className="module-panel module-enter">
+      <ModuleHeader
+        title="Preferences"
+        lede="Theme and density stay in this browser profile; cache and warm-pool sync to the local engine."
+      />
 
       <h3>Interface</h3>
       <div className="row">

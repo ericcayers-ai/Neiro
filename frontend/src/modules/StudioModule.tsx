@@ -8,6 +8,7 @@ import {
   type EditOp,
 } from '../api/client'
 import type { WaveformData } from '../api/types'
+import { EmptyGate } from '../components/EmptyGate'
 import { EXPORT_FORMATS, fmtTimecode, stemColor } from '../constants/options'
 import { useSession } from '../state/session'
 import './modules.css'
@@ -787,10 +788,9 @@ export function StudioModule() {
 
   if (!tracks.length && !file) {
     return (
-      <div className="module-panel">
-        <h2>Studio</h2>
-        <div className="gate muted">Import a file (or run Separate) to edit.</div>
-      </div>
+      <EmptyGate title="Studio">
+        Import a file or run Separate to load tracks into the timeline.
+      </EmptyGate>
     )
   }
 
@@ -798,7 +798,7 @@ export function StudioModule() {
   const exportTarget = selectedTrack?.fileId || tracks[0]?.fileId
 
   return (
-    <div className="module-panel bleed studio-layout">
+    <div className="module-panel bleed studio-layout module-enter">
       <div className="studio-header">
         <h2>Studio</h2>
         <button

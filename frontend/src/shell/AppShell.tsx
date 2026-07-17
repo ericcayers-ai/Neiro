@@ -1,6 +1,7 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { listSessions, openSession, saveSession } from '../api/client'
 import type { ModuleId } from '../api/types'
+import { CommandPalette } from '../components/CommandPalette'
 import { JobTray } from '../components/JobTray'
 import { useSession } from '../state/session'
 import { useDawBridge } from '../hooks/useDawBridge'
@@ -9,15 +10,26 @@ import './shell.css'
 
 const MODULES: { id: ModuleId; label: string; hint: string; key?: string }[] = [
   { id: 'import', label: 'Import', hint: 'Open a file or fetch a URL', key: '1' },
-  { id: 'analysis', label: 'Analysis', hint: 'Read-only report for the current file', key: '2' },
-  { id: 'studio', label: 'Studio', hint: 'Multi-track timeline, edits, and mix/export', key: '3' },
+  { id: 'analysis', label: 'Analysis', hint: 'Report for the current file', key: '2' },
+  { id: 'studio', label: 'Studio', hint: 'Timeline, edits, and mix/export', key: '3' },
   { id: 'separate', label: 'Separate', hint: 'Stem separation jobs', key: '4' },
   { id: 'restore', label: 'Restore', hint: 'Enhancement and repair chains', key: '5' },
   { id: 'transcribe', label: 'Transcribe', hint: 'MIDI / piano roll / Practice', key: '6' },
   { id: 'learn', label: 'Learn', hint: 'Practice with loop, wait mode, DAW MIDI', key: '8' },
-  { id: 'preferences', label: 'Prefs', hint: 'Models, compute, themes, shortcuts', key: '9' },
+  { id: 'preferences', label: 'Prefs', hint: 'Theme, density, models, compute', key: '9' },
   { id: 'about', label: 'About', hint: 'Version, privacy, Studio shortcuts' },
 ]
+
+const RAIL_KEY = 'neiro.shell.railCollapsed'
+const MENU_KEY = 'neiro.shell.sessionMenu'
+
+function readRailCollapsed(): boolean {
+  try {
+    return localStorage.getItem(RAIL_KEY) === '1'
+  } catch {
+    return false
+  }
+}
 
 export function AppShell({ children }: { children: ReactNode }) {
   const {
@@ -33,55 +45,168 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const { dawConnected, status: dawStatus } = useDawBridge()
   const [sessionMsg, setSessionMsg] = useState('')
+  const [paletteOpen, setPaletteOpen] = useState(false)
+  const [railCollapsed, setRailCollapsed] = useState(readRailCollapsed)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [sessionDialog, setSessionDialog] = useState<null | 'save' | 'open'>(null)
+  const [sessionName, setSessionName] = useState('')
+  const [sessionList, setSessionList] = useState<{ name: string }[]>([])
+  const [sessionBusy, setSessionBusy] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const dialogInputRef = useRef<HTMLInputElement>(null)
 
   const recording = Boolean(dawStatus?.instances?.some((i) => i.recording))
 
-  const onSave = async () => {
-    const name = window.prompt('Session name', file?.name?.replace(/\.[^.]+$/, '') || 'untitled')
+  useEffect(() => {
+    const root = document.documentElement
+    root.dataset.rail = railCollapsed ? 'collapsed' : 'expanded'
+    try {
+      localStorage.setItem(RAIL_KEY, railCollapsed ? '1' : '0')
+    } catch {
+      /* ignore */
+    }
+  }, [railCollapsed])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const meta = e.metaKey || e.ctrlKey
+      if (meta && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setPaletteOpen((v) => !v)
+        return
+      }
+      if (meta && e.key.toLowerCase() === 'b') {
+        e.preventDefault()
+        setRailCollapsed((v) => !v)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const onDoc = (e: MouseEvent) => {
+      if (!menuRef.current?.contains(e.target as Node)) setMenuOpen(false)
+    }
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onDoc)
+    document.addEventListener('keydown', onEsc)
+    return () => {
+      document.removeEventListener('mousedown', onDoc)
+      document.removeEventListener('keydown', onEsc)
+    }
+  }, [menuOpen])
+
+  useEffect(() => {
+    if (!sessionDialog) return
+    const t = window.setTimeout(() => dialogInputRef.current?.focus(), 0)
+    return () => window.clearTimeout(t)
+  }, [sessionDialog])
+
+  const flash = (msg: string) => {
+    setSessionMsg(msg)
+    window.setTimeout(() => setSessionMsg(''), 4500)
+  }
+
+  const openSaveDialog = () => {
+    setMenuOpen(false)
+    setSessionName(file?.name?.replace(/\.[^.]+$/, '') || 'untitled')
+    setSessionDialog('save')
+  }
+
+  const openOpenDialog = async () => {
+    setMenuOpen(false)
+    setSessionBusy(true)
+    try {
+      const { sessions } = await listSessions()
+      if (!sessions.length) {
+        flash('No saved sessions on this machine yet.')
+        return
+      }
+      setSessionList(sessions)
+      setSessionName(sessions[0]?.name || '')
+      setSessionDialog('open')
+    } catch (err) {
+      flash(err instanceof Error ? err.message : String(err))
+    } finally {
+      setSessionBusy(false)
+    }
+  }
+
+  const confirmSave = async () => {
+    const name = sessionName.trim()
     if (!name) return
+    setSessionBusy(true)
     try {
       const res = await saveSession({
         name,
         file_id: file?.fileId,
         graph_config: { module },
       })
-      setSessionMsg(`Saved session “${res.name}”`)
+      setSessionDialog(null)
+      flash(`Saved session “${res.name}”`)
     } catch (err) {
-      setSessionMsg(err instanceof Error ? err.message : String(err))
+      flash(err instanceof Error ? err.message : String(err))
+    } finally {
+      setSessionBusy(false)
     }
   }
 
-  const onOpen = async () => {
+  const confirmOpen = async () => {
+    const name = sessionName.trim()
+    if (!name) return
+    setSessionBusy(true)
     try {
-      const { sessions } = await listSessions()
-      if (!sessions.length) {
-        setSessionMsg('No saved sessions on this machine yet.')
-        return
-      }
-      const name = window.prompt(
-        `Open session:\n${sessions.map((s) => s.name).join('\n')}`,
-        sessions[0]?.name,
-      )
-      if (!name) return
       const res = await openSession(name)
       const cfg = (res.session?.graph_config || {}) as { module?: ModuleId }
       if (cfg.module) setModule(cfg.module)
-      setSessionMsg(`Opened session “${name}” (metadata restored; re-import source if needed).`)
+      setSessionDialog(null)
+      flash(`Opened “${name}” — re-import source if needed.`)
     } catch (err) {
-      setSessionMsg(err instanceof Error ? err.message : String(err))
+      flash(err instanceof Error ? err.message : String(err))
+    } finally {
+      setSessionBusy(false)
     }
   }
 
   return (
-    <div className="shell">
+    <div className={`shell${railCollapsed ? ' rail-collapsed' : ''}`}>
       <a className="skip-link" href="#module-content">
         Skip to content
       </a>
       <aside className="rail" aria-label="Modules">
         <div className="rail-brand">
-          <div className="rail-logo">Neiro</div>
-          <div className="rail-tagline">local audio worksuite</div>
+          <div className="rail-brand-row">
+            <div className="rail-logo" title="Neiro">
+              {railCollapsed ? 'N' : 'Neiro'}
+            </div>
+            <button
+              type="button"
+              className="icon-btn ghost rail-toggle"
+              aria-pressed={railCollapsed}
+              aria-label={railCollapsed ? 'Expand navigation' : 'Collapse navigation'}
+              title="Collapse rail (Ctrl/⌘B)"
+              onClick={() => setRailCollapsed((v) => !v)}
+            >
+              {railCollapsed ? '»' : '«'}
+            </button>
+          </div>
+          {!railCollapsed && <div className="rail-tagline">local audio worksuite</div>}
         </div>
+
+        <button
+          type="button"
+          className="rail-search"
+          onClick={() => setPaletteOpen(true)}
+          title="Command palette (Ctrl/⌘K)"
+        >
+          <span>{railCollapsed ? '⌕' : 'Jump…'}</span>
+          {!railCollapsed && <kbd className="rail-kbd">⌘K</kbd>}
+        </button>
+
         <nav className="rail-nav">
           {MODULES.map((m) => (
             <button
@@ -90,16 +215,21 @@ export function AppShell({ children }: { children: ReactNode }) {
               className={`rail-item${module === m.id ? ' active' : ''}`}
               onClick={() => setModule(m.id)}
               aria-current={module === m.id ? 'page' : undefined}
-              title={m.hint}
+              title={m.key ? `${m.hint} (${m.key})` : m.hint}
             >
-              <span className="rail-label">{m.label}</span>
-              <span className="intent">{m.hint}</span>
+              <span className="rail-item-row">
+                <span className="rail-label">{railCollapsed ? m.label.slice(0, 1) : m.label}</span>
+                {!railCollapsed && m.key && <span className="rail-key mono faint">{m.key}</span>}
+              </span>
+              {!railCollapsed && module === m.id && <span className="rail-hint">{m.hint}</span>}
             </button>
           ))}
         </nav>
-        <footer className="rail-foot">
-          Processing stays on this machine. Audio never leaves it.
-        </footer>
+        {!railCollapsed && (
+          <footer className="rail-foot">
+            Processing stays on this machine. Audio never leaves it.
+          </footer>
+        )}
       </aside>
 
       <div className="shell-main">
@@ -107,17 +237,23 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="session-file">
             {file ? (
               <>
-                <strong>{file.name}</strong>
-                <span className="mono muted">
+                <strong title={file.name}>{file.name}</strong>
+                <span className="mono muted session-meta">
                   {fmtTime(file.report.duration_seconds)} · {file.report.sample_rate} Hz
                   {file.report.channels === 1 ? ' · mono' : ' · stereo'}
                 </span>
               </>
             ) : (
-              <span className="muted">No file loaded — Import a track or capture from DAW</span>
+              <button
+                type="button"
+                className="ghost session-empty-cta"
+                onClick={() => setModule('import')}
+              >
+                No file — Import a track
+              </button>
             )}
             {sessionMsg && (
-              <span className="muted" role="status" aria-live="polite">
+              <span className="session-toast muted" role="status" aria-live="polite">
                 {sessionMsg}
               </span>
             )}
@@ -130,14 +266,13 @@ export function AppShell({ children }: { children: ReactNode }) {
                 aria-live="polite"
                 title={dawStatus?.contract}
               >
-                DAW · {dawStatus?.instance_count || 0} injector
-                {(dawStatus?.instance_count || 0) === 1 ? '' : 's'}
-                {recording ? ' · recording' : ''}
+                DAW · {dawStatus?.instance_count || 0}
+                {recording ? ' · rec' : ''}
               </span>
             )}
             {engineStatus === 'down' && (
               <span className="job-pill danger" role="status" aria-live="assertive">
-                Engine unreachable
+                Engine down
               </span>
             )}
             {jobRunning && (
@@ -150,20 +285,41 @@ export function AppShell({ children }: { children: ReactNode }) {
                 Cancel
               </button>
             )}
-            <button type="button" onClick={() => void onSave()} disabled={jobRunning} title="Save portable session">
-              Save
-            </button>
-            <button type="button" onClick={() => void onOpen()} disabled={jobRunning} title="Open portable session">
-              Open
-            </button>
-            <button
-              type="button"
-              onClick={() => clearSession()}
-              title="Clear file and all job results; start a new session"
-              disabled={jobRunning}
-            >
-              New session
-            </button>
+            <div className="session-menu" ref={menuRef}>
+              <button
+                type="button"
+                className="ghost"
+                aria-expanded={menuOpen}
+                aria-haspopup="menu"
+                aria-controls={MENU_KEY}
+                disabled={jobRunning || sessionBusy}
+                onClick={() => setMenuOpen((v) => !v)}
+                title="Session actions"
+              >
+                Session ▾
+              </button>
+              {menuOpen && (
+                <div className="session-menu-pop" id={MENU_KEY} role="menu">
+                  <button type="button" role="menuitem" onClick={() => void openSaveDialog()}>
+                    Save session…
+                  </button>
+                  <button type="button" role="menuitem" onClick={() => void openOpenDialog()}>
+                    Open session…
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false)
+                      clearSession()
+                      flash('Session cleared')
+                    }}
+                  >
+                    New session
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
         <main className="content" id="module-content">
@@ -171,6 +327,82 @@ export function AppShell({ children }: { children: ReactNode }) {
         </main>
       </div>
       <JobTray />
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+
+      {sessionDialog && (
+        <div
+          className="palette-backdrop"
+          role="presentation"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget && !sessionBusy) setSessionDialog(null)
+          }}
+        >
+          <div
+            className="session-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="session-dialog-title"
+            onKeyDown={(e) => {
+              if (e.key === 'Escape' && !sessionBusy) setSessionDialog(null)
+            }}
+          >
+            <h2 id="session-dialog-title">
+              {sessionDialog === 'save' ? 'Save session' : 'Open session'}
+            </h2>
+            <p className="lede">
+              {sessionDialog === 'save'
+                ? 'Portable session metadata on this machine.'
+                : 'Restore graph config; re-import the source audio if needed.'}
+            </p>
+            {sessionDialog === 'open' ? (
+              <label className="field">
+                <span>Session</span>
+                <select
+                  value={sessionName}
+                  onChange={(e) => setSessionName(e.target.value)}
+                  disabled={sessionBusy}
+                >
+                  {sessionList.map((s) => (
+                    <option key={s.name} value={s.name}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <label className="field">
+                <span>Name</span>
+                <input
+                  ref={dialogInputRef}
+                  type="text"
+                  value={sessionName}
+                  disabled={sessionBusy}
+                  onChange={(e) => setSessionName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      void confirmSave()
+                    }
+                  }}
+                />
+              </label>
+            )}
+            <div className="row" style={{ marginTop: '1rem' }}>
+              <button
+                type="button"
+                className="primary"
+                disabled={sessionBusy || !sessionName.trim()}
+                onClick={() => void (sessionDialog === 'save' ? confirmSave() : confirmOpen())}
+              >
+                {sessionDialog === 'save' ? 'Save' : 'Open'}
+              </button>
+              <button type="button" disabled={sessionBusy} onClick={() => setSessionDialog(null)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
