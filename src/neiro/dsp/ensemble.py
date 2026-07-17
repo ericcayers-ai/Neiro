@@ -101,7 +101,6 @@ def fuse_stems(
     return fused
 
 
-
 def tta_separate(separator, audio: AudioTensor) -> dict[str, AudioTensor]:
     """Run a separator with test-time augmentation and average the results.
 

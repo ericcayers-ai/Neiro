@@ -130,9 +130,7 @@ class _AudioSeparatorBase:
         samples = audio.samples
         min_frames = int(_MIN_INFER_SECONDS * audio.sample_rate)
         if target_frames < min_frames:
-            pad = np.zeros(
-                (samples.shape[0], min_frames - target_frames), dtype=samples.dtype
-            )
+            pad = np.zeros((samples.shape[0], min_frames - target_frames), dtype=samples.dtype)
             samples = np.concatenate([samples, pad], axis=1)
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -157,7 +155,6 @@ class _AudioSeparatorBase:
                     f"audio-separator:{self.model_filename}"
                 )
         return results
-
 
 
 class AudioSeparatorModel(_AudioSeparatorBase):

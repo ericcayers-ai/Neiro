@@ -1,4 +1,4 @@
-﻿[package]
+[package]
 name = "neiro"
 version = "1.2.1"
 description = "Neiro local audio worksuite shell"

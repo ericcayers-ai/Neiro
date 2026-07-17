@@ -17,6 +17,7 @@ Writes ``scratch_matrix/report.json`` and ``scratch_matrix/report.md``.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import shutil
 import sys
@@ -279,10 +280,8 @@ def _run_transcribe_cell(
         # Lyrics-only is not a MIDI transcription path
         if model == "whisper-lyrics":
             entry = None
-            try:
+            with contextlib.suppress(KeyError):
                 entry = registry.get("whisper-lyrics")
-            except KeyError:
-                pass
             if entry is None or not entry.available():
                 return CellResult(
                     cell=cell,
@@ -304,7 +303,11 @@ def _run_transcribe_cell(
         notes = list(plan.notes)
         for n in notes:
             low = n.lower()
-            if "needs install" in low or "needs-install" in low or ("no members available" in low and mode == "ensemble"):
+            if (
+                "needs install" in low
+                or "needs-install" in low
+                or ("no members available" in low and mode == "ensemble")
+            ):
                 return CellResult(
                     cell=cell,
                     kind="transcribe",
@@ -522,9 +525,9 @@ def run_matrix_http(base: str, url: str, *, quick: bool = False) -> list[CellRes
         print(f"  {cell} ...", flush=True)
         t0 = time.perf_counter()
         try:
-            jid = _http_json(
-                base, "POST", "/api/enhance", {"file_id": file_id, "chain": name}
-            )["job_id"]
+            jid = _http_json(base, "POST", "/api/enhance", {"file_id": file_id, "chain": name})[
+                "job_id"
+            ]
             job = _http_poll(base, jid)
             notes = list((job.get("result") or {}).get("notes") or [])
             if job["status"] == "done":
@@ -555,7 +558,11 @@ def run_matrix_http(base: str, url: str, *, quick: bool = False) -> list[CellRes
             status, msg = _classify_error(exc)
             results.append(
                 CellResult(
-                    cell=cell, kind="enhance", status=status, error=msg, duration_s=time.perf_counter() - t0
+                    cell=cell,
+                    kind="enhance",
+                    status=status,
+                    error=msg,
+                    duration_s=time.perf_counter() - t0,
                 )
             )
         print(f"    -> {results[-1].status}")
@@ -591,7 +598,9 @@ def write_report(out: Path, results: list[CellResult], meta: dict) -> None:
         "| --- | --- | --- | ---: | --- |",
     ]
     for r in results:
-        note = r.error or ("; ".join(r.download_notes[:2] + r.notes[:1]) if (r.download_notes or r.notes) else "")
+        note = r.error or (
+            "; ".join(r.download_notes[:2] + r.notes[:1]) if (r.download_notes or r.notes) else ""
+        )
         note = note.replace("|", "/").replace("\n", " ")[:120]
         lines.append(
             f"| `{r.cell}` | {r.status} | {r.model or '—'} | {r.duration_s:.1f}s | {note} |"
@@ -640,9 +649,7 @@ def main() -> int:
         print(f"Ingesting fixture -> {work / 'fixture.wav'} ...")
         wav = ingest_fixture(args.url, args.audio, work)
         print(f"  ok: {wav} ({wav.stat().st_size / 1e6:.1f} MB)")
-        results = run_matrix_direct(
-            wav, quick=args.quick, skip_transcribe=args.skip_transcribe
-        )
+        results = run_matrix_direct(wav, quick=args.quick, skip_transcribe=args.skip_transcribe)
         meta = {
             "fixture": str(args.audio or args.url),
             "mode": "direct",
