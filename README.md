@@ -39,17 +39,17 @@ One engine, two doors: **Tauri desktop** or **`neiro ui` in the browser**. Same 
 
 <p align="center">
   <img src="docs/media/shell-separate.jpg" alt="Neiro Separate module — presets, quality tier, and plan strip" width="100%"/>
-  <br/><sub>Separate — labeled presets, quality tiers, honest stage progress</sub>
+  <br/><sub>Separate — presets, quality tiers, honest stage progress <em>(illustrative mock in the shipping design language)</em></sub>
 </p>
 
 <p align="center">
   <img src="docs/media/shell-studio.jpg" alt="Neiro Studio multi-track timeline with Mix drawer" width="100%"/>
-  <br/><sub>Studio — multi-track timeline, Mix drawer, non-destructive edits</sub>
+  <br/><sub>Studio — multi-track timeline + Mix drawer <em>(illustrative mock)</em></sub>
 </p>
 
 <p align="center">
   <img src="docs/media/shell-transcribe.jpg" alt="Neiro Transcribe piano-roll and MIDI export" width="100%"/>
-  <br/><sub>Transcribe — piano roll, MIDI / MusicXML, Practice panel</sub>
+  <br/><sub>Transcribe — piano roll + MIDI export <em>(illustrative mock)</em></sub>
 </p>
 
 **Keyboard** — modules `1`–`6` / `8`–`9`, Mix `7`, command palette `Ctrl/⌘K`, collapse rail `Ctrl/⌘B`.
