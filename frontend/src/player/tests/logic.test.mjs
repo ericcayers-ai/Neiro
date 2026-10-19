@@ -25,6 +25,7 @@ import { ShortcutMap, bindingLabel, eventToBinding, conflictFor } from '../short
 import { focusGain, isTargetStem } from '../mix.ts'
 import { detectPitchHz, nearestNote, pitchAt } from '../pitch.ts'
 import { EN, missingKeys, translate } from '../../i18n/translate.ts'
+import { chordLane } from '../timeline.ts'
 
 test('transport plays, pauses and ends', () => {
   const transport = new Transport({ duration: 10 })
@@ -361,4 +362,21 @@ test('global catalogue translates and interpolates with fallback', () => {
   assert.equal(translate({}, 'nav.import'), 'Import', 'EN fallback')
   assert.deepEqual(missingKeys(EN, ['nav.import', 'nope']), ['nope'])
   assert.equal(missingKeys(EN, Object.keys(EN)).length, 0)
+})
+
+test('chord lane clamps to the visible window', () => {
+  const chords = [
+    { chord: 'Am', start: 0, end: 8, confidence: 0.7 },
+    { chord: 'F', start: 8, end: 16 },
+    { chord: 'C', start: 30, end: 40 },
+  ]
+  const visible = chordLane(chords, 4, 8)
+  assert.equal(visible.length, 2)
+  assert.equal(visible[0].chord, 'Am')
+  assert.equal(visible[0].left, 0)
+  assert.equal(visible[0].width, 50)
+  assert.equal(visible[1].chord, 'F')
+  assert.equal(visible[1].left, 50)
+  assert.equal(visible[1].width, 50)
+  assert.deepEqual(chordLane(chords, 0, 0), [])
 })

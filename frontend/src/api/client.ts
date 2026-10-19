@@ -492,6 +492,13 @@ export async function pitchCorrectFileSync(
   })
 }
 
+export async function fetchAnalysis(
+  fileId: string,
+): Promise<{ report: import('./types').AnalysisReport }> {
+  const res = await fetch(`/api/analyze?file_id=${encodeURIComponent(fileId)}`, { cache: 'no-store' })
+  return readJson(res)
+}
+
 export async function reanalyzeFile(
   fileId: string,
 ): Promise<{ file_id: string; estimated_bpm: number | null; estimated_key: string | null }> {

@@ -206,3 +206,9 @@ duration scale) and pitch (semitones + cents) in one queued job, with combined
 provenance. The player exposes "Render with Neiro", polls the job, and offers the
 rendered WAV for download. Contract test checks duration and provenance; SSR test
 checks the control is present.
+
+## Eighteenth batch: Studio chord lane
+
+Studio adds a "Chords" action that fetches the heuristic analysis for the first
+track and draws the chord segments inside the visible timeline window; `chordLane`
+is a pure helper with clamping/visibility tests. Player tests 38.

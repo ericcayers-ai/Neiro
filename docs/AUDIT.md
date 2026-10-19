@@ -1740,7 +1740,7 @@ The matrix above is the audit-time baseline. Post-pass status:
 | T-20 | M | **partial** | Player scenes (params/loop/markers/clips) + library scenes API; no Studio widget-layout scenes |
 | T-21 | P | **partial** | Studio Mix adds a target/backing focus cross-fade; no stem WebGPU/target model |
 | T-29, T-30 | P | **P (honest)** | Real timestamped heuristic + confidence, not transformer |
-| T-31, T-32, T-33 | P | **partial/N** | Sections labelled heuristic; lanes shown in Analysis and the player; model install states unchanged |
+| T-31, T-32, T-33 | P | **partial/N** | Sections labelled heuristic; lanes in Analysis, the player and Studio; model install states unchanged |
 | T-40–T-47 | P/M | **N/partial** | Library, notes, markers, clips, resume/reset, versions (save + list) |
 | T-49 | P | **N** | Local JSON export + per-session `.neiro.json` download |
 | T-53–T-57, T-59 | M | **Addon source** | Adapters + capture + panel; live e2e owner-run |

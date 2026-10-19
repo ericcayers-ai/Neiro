@@ -1135,3 +1135,35 @@
   width: 2px;
   background: #ffd08f;
 }
+
+
+/* Studio chord lane (heuristic analysis) */
+.studio-chords {
+  position: relative;
+  height: 18px;
+  margin: 0.25rem 0;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  overflow: hidden;
+}
+.studio-chords span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: #0b0d12;
+  background: #8fd3ff;
+  border-right: 1px solid rgba(0, 0, 0, 0.25);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.studio-chords span:nth-child(3n + 2) {
+  background: #ffd08f;
+}
+.studio-chords span:nth-child(3n + 3) {
+  background: #b6f0b6;
+}

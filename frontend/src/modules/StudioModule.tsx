@@ -3,6 +3,7 @@ import {
   applyEdit,
   bounceTracks,
   exportUrl,
+  fetchAnalysis,
   fetchSpectrogram,
   fetchWaveform,
   pitchCorrectFile,
@@ -12,7 +13,13 @@ import {
   uploadFile,
   type EditOp,
 } from '../api/client'
-import type { PitchCorrectResult, SpectrogramData, StemPack, WaveformData } from '../api/types'
+import type {
+  AnalysisReport,
+  PitchCorrectResult,
+  SpectrogramData,
+  StemPack,
+  WaveformData,
+} from '../api/types'
 import {
   EXPORT_FORMATS,
   STEM_COLORS,
@@ -24,6 +31,7 @@ import {
   transposeSuggestion,
 } from '../constants/options'
 import { focusGain, isTargetStem } from '../player/mix'
+import { chordLane } from '../player/timeline'
 import {
   IconLoop,
   IconMute,
@@ -317,6 +325,8 @@ export function StudioModule() {
   const [mixOpen, setMixOpen] = useState(false)
   // 0.5 = neutral; >0.5 boosts vocals/singers and ducks backing, <0.5 the reverse.
   const [targetFocus, setTargetFocus] = useState(0.5)
+  const [studioReport, setStudioReport] = useState<AnalysisReport | null>(null)
+  const [analysisBusy, setAnalysisBusy] = useState(false)
   const [beatSnap, setBeatSnap] = useState(false)
   const [keyConflict, setKeyConflict] = useState<string | null>(null)
   const [pendingTranspose, setPendingTranspose] = useState<{
@@ -540,6 +550,20 @@ export function StudioModule() {
     },
     [ensureAudioCtx],
   )
+
+  const loadStudioAnalysis = useCallback(async () => {
+    const track = tracks[0]
+    if (!track) return
+    setAnalysisBusy(true)
+    try {
+      const data = await fetchAnalysis(track.fileId)
+      setStudioReport(data.report)
+    } catch {
+      setStudioReport(null)
+    } finally {
+      setAnalysisBusy(false)
+    }
+  }, [tracks])
 
   const applyVolumes = useCallback(() => {
     for (const t of tracks) {
@@ -2030,7 +2054,29 @@ export function StudioModule() {
             >
               Del
             </button>
+            <button
+              type="button"
+              title="Chord lane for the first track (heuristic analysis)"
+              onClick={() => void loadStudioAnalysis()}
+              disabled={!tracks.length || analysisBusy}
+            >
+              {analysisBusy ? 'Chords…' : 'Chords'}
+            </button>
           </div>
+
+          {studioReport?.chords && studioReport.chords.length > 0 && (
+            <div className="studio-chords" aria-label="Chord timeline (heuristic)">
+              {chordLane(studioReport.chords, viewStart, viewDur).map((block, index) => (
+                <span
+                  key={`${block.chord}-${index}`}
+                  style={{ left: `${block.left}%`, width: `${block.width}%` }}
+                  title={`${block.chord}${block.confidence != null ? ` · ${Math.round(block.confidence * 100)}%` : ''}`}
+                >
+                  {block.chord}
+                </span>
+              ))}
+            </div>
+          )}
 
           {tracks.map((t) => {
             const selOn =
