@@ -346,6 +346,9 @@ def test_prefs_get_update_and_flush(server):
     base, state = server
     prefs = json.loads(_get(base + "/api/prefs")[1])
     assert prefs["cache_budget_gb"] == 20.0
+    assert prefs["cache_budget_effective_gb"] <= 20.0
+    assert prefs["cache_budget_effective_gb"] >= 0.1
+    assert prefs["disk_free_gb"] > 0
     assert prefs["warm_pool_ttl_s"] == 300.0
     assert "resident_models" in prefs
 
@@ -356,7 +359,9 @@ def test_prefs_get_update_and_flush(server):
     )
     assert updated["cache_budget_gb"] == 8.0
     assert updated["warm_pool_ttl_s"] == 60.0
-    assert state.cache.disk_budget_bytes == 8_000_000_000
+    assert state.cache.disk_budget_bytes == int(
+        updated["cache_budget_effective_gb"] * 1_000_000_000
+    )
     assert state.vram.warm_pool_ttl_s == 60.0
 
     # Seed a fake resident so flush has something to report.

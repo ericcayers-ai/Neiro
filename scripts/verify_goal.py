@@ -29,7 +29,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PY = sys.executable
 BASETEMP = Path(os.environ.get("NEIRO_GATE_BASETEMP", r"C:\np"))
 
-CRITERIA = [f"C{i}" for i in range(1, 19)]
+CRITERIA = [f"C{i}" for i in range(1, 20)]
 
 
 def _run(
@@ -308,6 +308,16 @@ def c17_queued(fast: bool) -> tuple[str, str] | tuple[bool, str]:
     return _pytest(["tests/test_contract_truth.py", "-k", "queued"], fast=True)
 
 
+def c19_disk(fast: bool) -> tuple[bool, str]:
+    source = _read("src/neiro/ui/server.py")
+    if "cache_budget_effective_gb" not in source or "disk_free_gb" not in source:
+        return False, "server does not expose the effective cache budget / free disk"
+    ok, reason = _pytest(["tests/test_disk_preflight.py"], fast=True)
+    if not ok:
+        return False, reason
+    return True, reason
+
+
 def c18_i18n(fast: bool) -> tuple[bool, str]:
     missing = _exists(
         "frontend/src/player/i18n.ts",
@@ -344,6 +354,7 @@ CHECKS = {
     "C16": c16_licence,
     "C17": c17_queued,
     "C18": c18_i18n,
+    "C19": c19_disk,
 }
 
 

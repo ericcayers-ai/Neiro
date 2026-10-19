@@ -155,7 +155,13 @@ class _State:
     def _apply_prefs(self) -> None:
         budget_gb = float(self.prefs.get("cache_budget_gb", 20.0))
         ttl = float(self.prefs.get("warm_pool_ttl_s", 300.0))
-        self.cache.disk_budget_bytes = int(max(0.1, budget_gb) * 1_000_000_000)
+        # A 20 GB preference must never let the cache fill a 9 GB volume: the live
+        # budget is capped at half the free space at apply time.
+        free_gb = shutil.disk_usage(self.workspace).free / 1_000_000_000
+        self.disk_free_gb = round(free_gb, 2)
+        effective = min(max(0.1, budget_gb), max(0.1, free_gb * 0.5))
+        self.effective_cache_budget_gb = round(effective, 2)
+        self.cache.disk_budget_bytes = int(effective * 1_000_000_000)
         self.vram.warm_pool_ttl_s = max(0.0, ttl)
         self.vram.evict_expired()
 
@@ -168,12 +174,24 @@ class _State:
             "cache_hits": self.cache.hits,
             "cache_misses": self.cache.misses,
             "cache_disk_usage_bytes": self.cache.disk_usage_bytes(),
+            "cache_budget_effective_gb": self.effective_cache_budget_gb,
+            "disk_free_gb": self.disk_free_gb,
+            "disk_tight": self.disk_free_gb < 8.0,
             "resident_models": self.vram.resident_models(),
         }
 
     def update_prefs(self, body: dict) -> dict:
         if "cache_budget_gb" in body:
-            self.prefs["cache_budget_gb"] = float(body["cache_budget_gb"])
+            budget = float(body["cache_budget_gb"])
+            if budget < 0.05:
+                raise ValueError("cache_budget_gb must be at least 0.05")
+            free_gb = shutil.disk_usage(self.workspace).free / 1_000_000_000
+            if budget > max(1.0, free_gb * 0.9):
+                raise ValueError(
+                    f"cache_budget_gb {budget:g} exceeds 90% of free space "
+                    f"({free_gb:.1f} GB); free disk first"
+                )
+            self.prefs["cache_budget_gb"] = budget
         if "warm_pool_ttl_s" in body:
             self.prefs["warm_pool_ttl_s"] = float(body["warm_pool_ttl_s"])
         self._apply_prefs()
@@ -2386,6 +2404,11 @@ def serve(port: int = 8377, open_browser: bool = True, ws_port: int | None = Non
     url = f"http://127.0.0.1:{port}/"
     print(f"Neiro interface at {url} (local only — Ctrl+C to stop)")
     print(f"Workspace: {state.workspace}")
+    if state.disk_free_gb < 8.0:
+        print(
+            f"Disk note: {state.disk_free_gb:.1f} GB free; cache budget capped at "
+            f"{state.effective_cache_budget_gb:.1f} GB."
+        )
     if ws_port is not None:
         _start_ws_control_plane(state, ws_port)
     if open_browser:

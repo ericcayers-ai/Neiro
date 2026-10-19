@@ -53,8 +53,10 @@ Gate: `python scripts/verify_goal.py --full` — **18/18 PASS** on 2026-10-20.
   note/CC learn for 11 actions, any device, clear per action, local persistence;
   26 player tests include parse/learn/match/corrupt-storage cases. Keyboard
   remapping (custom shortcuts) is still not implemented.
-- [~] **P2-6 Byte-bounded cache + disk preflight.** Upload preflight and 507 exist;
-  playlist/library quota and artifact-cache byte enforcement remain.
+- [~] **P2-6 Byte-bounded cache + disk preflight.** Upload preflight/507, a disk-aware
+  effective cache budget (half of free space), update rejection above 90% free, and
+  a startup disk note exist. Remaining: model-size preflight before downloads and a
+  library-side quota.
 - [x] **P2-7 Library resume/reset and per-song last-played.** Resume last, reset with
   confirmation, mark played on open; localStorage player reset lives in Prefs.
 - [ ] **P2-8 Promote player markers/clips into the library automatically.**
@@ -99,3 +101,5 @@ Gate: `python scripts/verify_goal.py --full` — **18/18 PASS** on 2026-10-20.
 - [x] **P6-3 Owner decisions recorded.** Local-first scope, clean-room DSP, hybrid
   addon, sidecar packaging direction, pitch fix committed.
 - [ ] **P6-4 Rust build/clippy and signed installer** (owner/machine capacity).
+- [x] **P6-5 Disk preflight.** `tests/test_disk_preflight.py`; low-disk states cap the
+  live cache budget and reject unsafe preferences.

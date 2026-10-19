@@ -130,6 +130,24 @@ export function AboutModule() {
           <strong>M</strong> toggle Mix drawer
         </li>
       </ul>
+      <h4 style={{ marginTop: 18 }}>Player, MIDI and library</h4>
+      <ul className="muted" style={{ lineHeight: 1.7, paddingLeft: 18 }}>
+        <li>
+          <strong>0</strong> Library · <strong>Space / Enter</strong> play/pause, or resume a wait gate
+        </li>
+        <li>
+          Player controls are native inputs; <strong>Tab</strong> reaches transport, markers, clips and
+          scenes. The method and latency line is a live region.
+        </li>
+        <li>
+          <strong>MIDI learn</strong>: open the player's MIDI panel, click Learn on an action, then move a
+          note or CC on any connected device. Mappings are local.
+        </li>
+        <li>
+          Scenes, markers and clips live with the file locally; the Library module stores songs, notes,
+          markers and clips durably in SQLite on this machine.
+        </li>
+      </ul>
       <p style={{ marginTop: 20 }}>
         <a href="https://github.com/ericcayers-ai/Neiro" target="_blank" rel="noreferrer">
           Source on GitHub

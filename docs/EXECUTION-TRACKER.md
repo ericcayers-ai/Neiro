@@ -17,7 +17,7 @@ the preserved `pitch_correct` fix and its regression test). Receipts:
 |---|---|---|
 | 0. Truth & safety | **done** | gate C1–C9, C15, C17; security receipt |
 | 1. Shared real-time player | **done** (Studio transport partial) | gate C10–C11; latency receipt |
-| 2. Practice & library | **partial** (quota + marker promotion open; MIDI learn, resume/reset done) | gate C12; `docs/library.md` |
+| 2. Practice & library | **partial** (marker promotion, model-size preflight open; MIDI learn, resume/reset, disk-aware cache done) | gate C12; `docs/library.md` |
 | 3. Analysis | **partial** (heuristic only; ONNX adapters absent) | gate C13; `tests/test_analysis_timeline.py` |
 | 4. Optional companion | **source done**, live e2e owner-run | gate C14; `docs/COMPANION.md` |
 | 5. i18n / a11y / packaging | **partial** | gate C18; `docs/accessibility.md` |

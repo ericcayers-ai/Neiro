@@ -99,3 +99,12 @@ Library gains per-song last-played (`POST .../played`), a confirm-gated
 `POST /api/library/reset` that removes songs but never audio files, a Resume-last
 action, and a Prefs "Data and reset" card for player/MIDI local state. Library tests
 grew to 10; the gate remains **18/18 PASS**.
+
+## Fourth batch: disk preflight
+
+The cache preference can no longer fill the volume: the live budget is capped at
+half of free space, `POST /api/prefs` rejects a budget above 90% of free space, the
+server prints a disk note under 8 GB free, and the snapshot exposes
+`cache_budget_effective_gb`, `disk_free_gb` and `disk_tight`. New
+`tests/test_disk_preflight.py` (3 tests) covers the low-disk cap, rejection and the
+HTTP 400. About now documents the player/library shortcuts.

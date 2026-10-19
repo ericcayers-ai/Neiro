@@ -1713,7 +1713,7 @@ below has a receipt in `docs/evidence/` and a criterion in `GOAL.md`.
 
 | Finding | State | Why it remains |
 |---|---|---|
-| F-17 cache budget vs disk | partial | Upload preflight and 507 exist; artifact cache is still entry-bounded and there is no startup disk preflight |
+| F-17 cache budget vs disk | **mostly closed** | Startup disk note, effective cache budget capped at half of free space, preference updates above 90% free rejected, upload preflight/507. Remaining: model-size preflight before downloads |
 | F-23/F-24/F-25/F-27 packaging | open | Tauri still spawns system Python on fixed port 8377; no bundled sidecar, signing or updater; Python matrix still contradictory (CI 3.10–3.12, local 3.13) |
 | F-26 model capacity | open | Still 16/70 ready, CPU-only, no torch/ONNX; no weights downloaded in this pass |
 | F-31 frontend tests | partial | Node tests cover DSP/transport logic; there is still no DOM/React test runner |
