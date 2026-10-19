@@ -321,3 +321,10 @@ current gate and commits. Verified in this sweep: gate 23/23; 276 Python tests;
 38 player Node tests; 7 vitest SSR tests; 47 addon checks; `cargo fmt/clippy/check`;
 installers and bundled-engine launch receipts; no `rb.wasm`; owner worktree changes
 still untouched. Remaining gaps are the owner/toolchain-gated list in the worklist.
+
+## Twenty-eighth batch: Library module catalogue
+
+Library strings (songs, notes, markers, clips, versions, reset/import messages)
+now resolve through the shell catalogue with interpolation; the component imports
+`useT`. A completeness assertion checks representative `library.*` keys. Remaining
+i18n work is Studio/Restore/Separate/MIDI/Prefs bodies plus RTL/plurals.

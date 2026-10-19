@@ -22,11 +22,13 @@ import { libraryWrites, playerStorageKey, readPlayerArtifacts } from '../player/
 import type { PlayerParams } from '../player/params'
 import { useSession } from '../state/session'
 import { ModuleHeader } from '../components/ModuleHeader'
+import { useT } from '../i18n'
 
 const NOTES_LIMIT = 5000
 
 export function LibraryModule() {
   const { file } = useSession()
+  const t = useT()
   const [songs, setSongs] = useState<LibrarySong[]>([])
   const [playlists, setPlaylists] = useState<LibraryPlaylist[]>([])
   const [selected, setSelected] = useState<LibrarySong | null>(null)
@@ -88,7 +90,7 @@ export function LibraryModule() {
     setBusy(true)
     try {
       await saveLibraryNotes(selected.id, notes)
-      setMessage('Notes saved.')
+      setMessage(t('library.notesSaved'))
       await refresh()
     } catch (err) {
       setMessage(err instanceof Error ? err.message : String(err))
@@ -104,7 +106,7 @@ export function LibraryModule() {
       setMarkerLabel('')
       const detail = await getLibrarySong(selected.id)
       setSelected(detail.song)
-      setMessage('Marker added.')
+      setMessage(t('library.markerAdded'))
     } catch (err) {
       setMessage(err instanceof Error ? err.message : String(err))
     }
@@ -120,7 +122,7 @@ export function LibraryModule() {
       })
       const detail = await getLibrarySong(selected.id)
       setSelected(detail.song)
-      setMessage('Clip added.')
+      setMessage(t('library.clipAdded'))
     } catch (err) {
       setMessage(err instanceof Error ? err.message : String(err))
     }
@@ -131,7 +133,7 @@ export function LibraryModule() {
     if (settingsTimer.current) window.clearTimeout(settingsTimer.current)
     settingsTimer.current = window.setTimeout(() => {
       void saveSongSettings(selected.id, { ...(selected.settings ?? {}), player: params })
-        .then(() => setMessage('Player settings saved to the library.'))
+        .then(() => setMessage(t('library.settingsSaved')))
         .catch((err: unknown) =>
           setMessage(err instanceof Error ? err.message : String(err)),
         )
@@ -143,7 +145,7 @@ export function LibraryModule() {
     const artifacts = readPlayerArtifacts(localStorage.getItem(playerStorageKey(selected.id)))
     const writes = libraryWrites(artifacts)
     if (!writes.markers.length && !writes.clips.length) {
-      setMessage('No player markers or clips found for this song.')
+      setMessage(t('library.noPlayerData'))
       return
     }
     setBusy(true)
@@ -157,7 +159,7 @@ export function LibraryModule() {
       const detail = await getLibrarySong(selected.id)
       setSelected(detail.song)
       setMessage(
-        `Imported ${writes.markers.length} marker(s) and ${writes.clips.length} clip(s) from the player.`,
+        t('library.imported', { markers: writes.markers.length, clips: writes.clips.length }),
       )
     } catch (err) {
       setMessage(err instanceof Error ? err.message : String(err))
@@ -168,7 +170,7 @@ export function LibraryModule() {
 
   const remove = async () => {
     if (!selected) return
-    if (!window.confirm(`Remove “${selected.title}” from the library? The audio file stays on disk.`)) {
+    if (!window.confirm(t('library.removeConfirm', { title: selected.title }))) {
       return
     }
     try {
@@ -176,7 +178,7 @@ export function LibraryModule() {
       setSelected(null)
       setNotes('')
       await refresh()
-      setMessage('Removed from library.')
+      setMessage(t('library.removed'))
     } catch (err) {
       setMessage(err instanceof Error ? err.message : String(err))
     }
@@ -187,12 +189,12 @@ export function LibraryModule() {
   return (
     <div className="module">
       <ModuleHeader
-        title="Library"
-        lede="Local songs, per-song notes, markers, clips and playlists. Stored in a SQLite file on this machine — no account, no cloud, no share links."
+        title={t('library.title')}
+        lede={t('library.lede')}
         actions={
           <>
             <button type="button" className="primary" onClick={() => void addCurrent()} disabled={busy || !file}>
-              Add current file
+              {t('library.addCurrent')}
             </button>
             <button
               type="button"
@@ -204,29 +206,29 @@ export function LibraryModule() {
               }}
               disabled={!songs.length}
             >
-              Resume last
+              {t('library.resumeLast')}
             </button>
             <a className="btn-link" href="/api/library/export" download="neiro-library.json">
-              Export JSON
+              {t('library.export')}
             </a>
             <button
               type="button"
               onClick={() => {
-                if (!window.confirm('Remove every song from the library? Audio files stay on disk.')) return
+                if (!window.confirm(t('library.resetConfirm'))) return
                 void (async () => {
                   try {
                     const result = await resetLibrary()
                     setSelected(null)
                     setNotes('')
                     await refresh()
-                    setMessage(`Library reset (${result.removed_songs} songs removed).`)
+                    setMessage(t('library.resetDone', { count: result.removed_songs }))
                   } catch (err) {
                     setMessage(err instanceof Error ? err.message : String(err))
                   }
                 })()
               }}
             >
-              Reset library
+              {t('library.reset')}
             </button>
           </>
         }
@@ -240,9 +242,9 @@ export function LibraryModule() {
 
       <div className="row" style={{ alignItems: 'flex-start', gap: '1rem' }}>
         <div style={{ flex: '1 1 320px', minWidth: 260 }}>
-          <h3>Songs ({songs.length})</h3>
+          <h3>{t('library.songs', { count: songs.length })}</h3>
           {songs.length === 0 ? (
-            <p className="intent">No songs yet. Import audio, then “Add current file”.</p>
+            <p className="intent">{t('library.noSongs')}</p>
           ) : (
             <ul className="player-list" style={{ maxHeight: 420 }}>
               {songs.map((song) => (
@@ -262,61 +264,63 @@ export function LibraryModule() {
           )}
           {favorites && (
             <p className="intent">
-              Playlist: <strong>{favorites.name}</strong> ({favorites.songs.length} songs)
+              {t('library.playlist', { name: favorites.name, count: favorites.songs.length })}
             </p>
           )}
         </div>
 
         <div style={{ flex: '2 1 420px', minWidth: 300 }}>
           {!selected ? (
-            <p className="intent">Select a song to see notes, markers, clips and the player.</p>
+            <p className="intent">{t('library.selectSong')}</p>
           ) : (
-            <section aria-label={`Song ${selected.title}`}>
+            <section aria-label={t('library.songAria', { title: selected.title })}>
               <h3>{selected.title}</h3>
               <p className="intent">
-                {selected.path || 'no local path'} · updated{' '}
-                {new Date(selected.updated * 1000).toLocaleString()}
+                {t('library.updated', {
+                  path: selected.path || t('library.noPath'),
+                  when: new Date(selected.updated * 1000).toLocaleString(),
+                })}
               </p>
 
               <label className="field">
-                <span>Notes ({notes.length}/{NOTES_LIMIT})</span>
+                <span>{t('library.notes', { count: notes.length, limit: NOTES_LIMIT })}</span>
                 <textarea
                   rows={5}
                   maxLength={NOTES_LIMIT}
                   value={notes}
                   onChange={(event) => setNotes(event.target.value)}
-                  placeholder="Practice notes, arrangement decisions, what to try next…"
+                  placeholder={t('library.notesPlaceholder')}
                 />
               </label>
               <div className="row">
                 <button type="button" onClick={() => void saveNotes()} disabled={busy}>
-                  Save notes
+                  {t('library.saveNotes')}
                 </button>
                 <button type="button" onClick={() => void remove()} disabled={busy}>
-                  Remove from library
+                  {t('library.remove')}
                 </button>
                 {favorites && (
                   <button
                     type="button"
                     onClick={() => void addToLibraryPlaylist(favorites.id, selected.id)}
                   >
-                    Add to {favorites.name}
+                    {t('library.addToPlaylist', { name: favorites.name })}
                   </button>
                 )}
                 <button type="button" onClick={() => void importPlayerData()} disabled={busy}>
-                  Import player markers/clips
+                  {t('library.importPlayer')}
                 </button>
                 <button
                   type="button"
                   onClick={() => {
-                    const label = window.prompt('Version label', 'mix')
+                    const label = window.prompt(t('library.versionPrompt'), 'mix')
                     if (!label) return
                     void (async () => {
                       try {
                         await addLibraryVersion(selected.id, label)
                         const detail = await getLibrarySong(selected.id)
                         setSelected(detail.song)
-                        setMessage(`Version “${label}” saved.`)
+                        setMessage(t('library.versionSaved', { label }))
                       } catch (err) {
                         setMessage(err instanceof Error ? err.message : String(err))
                       }
@@ -324,7 +328,7 @@ export function LibraryModule() {
                   }}
                   disabled={busy}
                 >
-                  Save version
+                  {t('library.saveVersion')}
                 </button>
               </div>
 
@@ -341,7 +345,7 @@ export function LibraryModule() {
 
               <div className="row" style={{ marginTop: '0.8rem', alignItems: 'flex-end' }}>
                 <label className="field">
-                  <span>Marker time (s)</span>
+                  <span>{t('library.markerTime')}</span>
                   <input
                     type="number"
                     min={0}
@@ -351,7 +355,7 @@ export function LibraryModule() {
                   />
                 </label>
                 <label className="field">
-                  <span>Marker label</span>
+                  <span>{t('library.markerLabel')}</span>
                   <input
                     type="text"
                     value={markerLabel}
@@ -359,14 +363,14 @@ export function LibraryModule() {
                   />
                 </label>
                 <button type="button" onClick={() => void addMarker()}>
-                  Add marker
+                  {t('library.addMarker')}
                 </button>
               </div>
               <ul className="player-list">
                 {(selected.markers || []).map((marker) => (
                   <li key={marker.id}>
                     <span>
-                      {marker.time.toFixed(2)}s · {marker.label || 'marker'}
+                      {marker.time.toFixed(2)}s · {marker.label || t('library.markerFallback')}
                     </span>
                   </li>
                 ))}
@@ -374,7 +378,7 @@ export function LibraryModule() {
 
               <div className="row" style={{ marginTop: '0.6rem', alignItems: 'flex-end' }}>
                 <label className="field">
-                  <span>Clip start (s)</span>
+                  <span>{t('library.clipStart')}</span>
                   <input
                     type="number"
                     min={0}
@@ -384,7 +388,7 @@ export function LibraryModule() {
                   />
                 </label>
                 <label className="field">
-                  <span>Clip end (s)</span>
+                  <span>{t('library.clipEnd')}</span>
                   <input
                     type="number"
                     min={0}
@@ -394,12 +398,14 @@ export function LibraryModule() {
                   />
                 </label>
                 <button type="button" onClick={() => void addClip()}>
-                  Add clip
+                  {t('library.addClip')}
                 </button>
               </div>
               {(selected.versions || []).length > 0 && (
                 <p className="intent">
-                  Versions: {(selected.versions || []).map((version) => version.label).join(', ')}
+                  {t('library.versions', {
+                    labels: (selected.versions || []).map((version) => version.label).join(', '),
+                  })}
                 </p>
               )}
               <ul className="player-list">

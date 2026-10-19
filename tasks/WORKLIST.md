@@ -104,9 +104,10 @@ Gate: `python scripts/verify_goal.py --full` — **18/18 PASS** on 2026-10-20.
 
 ## Phase 5 — i18n, a11y, packaging
 
-- [~] **P5-1 String catalogue.** Shell/navigation goes through `src/i18n/`
-  (`I18nProvider`, `useT`, en catalogue, fallback, persistence) and player strings
-  through `player/i18n.ts`; module bodies remain English JSX. No copied locales.
+- [~] **P5-1 String catalogue.** Shell/navigation and the Library module go through
+  `src/i18n/` (`I18nProvider`, `useT`, en catalogue, fallback, persistence) and
+  player strings through `player/i18n.ts`; Studio/Restore/Separate/MIDI/Prefs
+  bodies remain English JSX. No copied locales.
 - [~] **P5-2 Accessibility.** Baseline labels/live regions/keyboard + a clean
   static audit (`scripts/a11y_static.py`, gate C21). Axe, screen-reader and
   colour-contrast passes remain owner-run.

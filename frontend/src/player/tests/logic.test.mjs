@@ -362,6 +362,7 @@ test('global catalogue translates and interpolates with fallback', () => {
   assert.equal(translate({}, 'nav.import'), 'Import', 'EN fallback')
   assert.deepEqual(missingKeys(EN, ['nav.import', 'nope']), ['nope'])
   assert.equal(missingKeys(EN, Object.keys(EN)).length, 0)
+  assert.deepEqual(missingKeys(EN, ['library.title', 'library.notes', 'library.resetConfirm']), [])
 })
 
 test('chord lane clamps to the visible window', () => {
