@@ -24,6 +24,7 @@ import { libraryWrites, playerStorageKey, readPlayerArtifacts } from '../library
 import { ShortcutMap, bindingLabel, eventToBinding, conflictFor } from '../shortcuts.ts'
 import { focusGain, isTargetStem } from '../mix.ts'
 import { detectPitchHz, nearestNote, pitchAt } from '../pitch.ts'
+import { EN, missingKeys, translate } from '../../i18n/translate.ts'
 
 test('transport plays, pauses and ends', () => {
   const transport = new Transport({ duration: 10 })
@@ -351,4 +352,13 @@ test('pitchAt reads a window at a source position', () => {
   assert.equal(reading.note, 'E')
   assert.equal(reading.octave, 4)
   assert.equal(pitchAt([], sr, 0), null)
+})
+
+test('global catalogue translates and interpolates with fallback', () => {
+  assert.equal(translate(EN, 'nav.library'), 'Library')
+  assert.equal(translate(EN, 'nav.missing.key'), 'nav.missing.key')
+  assert.equal(translate({ 'x.y': 'hello {name}' }, 'x.y', { name: 'Neiro' }), 'hello Neiro')
+  assert.equal(translate({}, 'nav.import'), 'Import', 'EN fallback')
+  assert.deepEqual(missingKeys(EN, ['nav.import', 'nope']), ['nope'])
+  assert.equal(missingKeys(EN, Object.keys(EN)).length, 0)
 })

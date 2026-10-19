@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { AppShell } from './shell/AppShell'
 import { SessionProvider, useSession } from './state/session'
+import { I18nProvider } from './i18n'
 import { ImportModule } from './modules/ImportModule'
 import { AnalysisModule } from './modules/AnalysisModule'
 import { StudioModule } from './modules/StudioModule'
@@ -75,10 +76,12 @@ function ModuleSwitcher() {
 
 export default function App() {
   return (
-    <SessionProvider>
-      <AppShell>
-        <ModuleSwitcher />
-      </AppShell>
-    </SessionProvider>
+    <I18nProvider>
+      <SessionProvider>
+        <AppShell>
+          <ModuleSwitcher />
+        </AppShell>
+      </SessionProvider>
+    </I18nProvider>
   )
 }

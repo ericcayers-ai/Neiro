@@ -169,3 +169,11 @@ without naming a failing criterion in the captured tail; two subsequent clean ru
 reported **22/22** (`GATE PASS`). No criterion has failed in isolation. Treat the
 single 21/22 as environmental contention from concurrent processes, not a known
 defect; if it recurs, capture the full gate log before changing anything.
+
+## Thirteenth batch: app-wide i18n scaffold
+
+`src/i18n/` adds a pure `translate()` core (EN catalogue, interpolation, missing-key
+fallback) and an `I18nProvider`/`useT()` with persisted locale selection. The shell
+rail, hints and session menu now render through it; player strings remain in their
+own catalogue. `docs/i18n.md` states the remaining extraction work and the absence
+of RTL/plural support. Gate C18 now requires the shell catalogue.

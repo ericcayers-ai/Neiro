@@ -356,11 +356,16 @@ def c19_disk(fast: bool) -> tuple[bool, str]:
 def c18_i18n(fast: bool) -> tuple[bool, str]:
     missing = _exists(
         "frontend/src/player/i18n.ts",
+        "frontend/src/i18n/translate.ts",
+        "frontend/src/i18n/index.tsx",
+        "docs/i18n.md",
         "docs/accessibility.md",
     )
     if missing:
         return False, missing
-    return True, "string catalogue module + accessibility notes present"
+    if "useT" not in _read("frontend/src/shell/AppShell.tsx"):
+        return False, "AppShell does not use the shell catalogue"
+    return True, "shell + player catalogues and accessibility notes present"
 
 
 def criteria_match() -> tuple[bool, str]:

@@ -10,6 +10,7 @@ import {
   MODULE_ICONS,
 } from '../icons'
 import { useSession } from '../state/session'
+import { useT } from '../i18n'
 import {
   buildSessionGraphConfig,
   parseSessionGraphConfig,
@@ -22,16 +23,16 @@ import { useDawBridge } from '../hooks/useDawBridge'
 import { fmtTime } from '../constants/options'
 import './shell.css'
 
-const MODULES: { id: ModuleId; label: string; hint: string; key?: string }[] = [
-  { id: 'import', label: 'Import', hint: 'Open a file or fetch a URL', key: '1' },
-  { id: 'analysis', label: 'Analysis', hint: 'Report for the current file', key: '2' },
-  { id: 'studio', label: 'Studio', hint: 'Timeline, edits, and mix/export', key: '3' },
-  { id: 'separate', label: 'Separate', hint: 'Stem separation jobs', key: '4' },
-  { id: 'restore', label: 'Restore', hint: 'Enhancement and repair chains', key: '5' },
-  { id: 'midi', label: 'MIDI', hint: 'Transcribe, roll, score, edit, practice', key: '6' },
-  { id: 'library', label: 'Library', hint: 'Songs, notes, markers, clips, playlists', key: '0' },
-  { id: 'preferences', label: 'Prefs', hint: 'Theme, density, models, compute', key: '9' },
-  { id: 'about', label: 'About', hint: 'Version, privacy, Studio shortcuts' },
+const MODULES: { id: ModuleId; labelKey: string; hintKey: string; key?: string }[] = [
+  { id: 'import', labelKey: 'nav.import', hintKey: 'nav.import.hint', key: '1' },
+  { id: 'analysis', labelKey: 'nav.analysis', hintKey: 'nav.analysis.hint', key: '2' },
+  { id: 'studio', labelKey: 'nav.studio', hintKey: 'nav.studio.hint', key: '3' },
+  { id: 'separate', labelKey: 'nav.separate', hintKey: 'nav.separate.hint', key: '4' },
+  { id: 'restore', labelKey: 'nav.restore', hintKey: 'nav.restore.hint', key: '5' },
+  { id: 'midi', labelKey: 'nav.midi', hintKey: 'nav.midi.hint', key: '6' },
+  { id: 'library', labelKey: 'nav.library', hintKey: 'nav.library.hint', key: '0' },
+  { id: 'preferences', labelKey: 'nav.preferences', hintKey: 'nav.preferences.hint', key: '9' },
+  { id: 'about', labelKey: 'nav.about', hintKey: 'nav.about.hint' },
 ]
 
 const RAIL_KEY = 'neiro.shell.railCollapsed'
@@ -63,6 +64,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     setTranscribeResult,
     setMidiModeFocus,
   } = useSession()
+  const t = useT()
 
   const { dawConnected, status: dawStatus } = useDawBridge()
   const [sessionMsg, setSessionMsg] = useState('')
@@ -237,7 +239,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </button>
       )}
 
-      <aside className="rail" aria-label="Modules">
+      <aside className="rail" aria-label={t('shell.rail')}>
         <div className="rail-brand">
           <div className="rail-brand-row">
             <div className="rail-logo" title="Neiro">
@@ -274,6 +276,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         <nav className="rail-nav">
           {MODULES.map((m) => {
             const ModIcon = MODULE_ICONS[m.id]
+            const label = t(m.labelKey)
+            const hint = t(m.hintKey)
             return (
               <button
                 key={m.id}
@@ -281,17 +285,17 @@ export function AppShell({ children }: { children: ReactNode }) {
                 className={`rail-item${module === m.id ? ' active' : ''}`}
                 onClick={() => setModule(m.id)}
                 aria-current={module === m.id ? 'page' : undefined}
-                aria-label={m.label}
-                title={m.key ? `${m.hint} (${m.key})` : m.hint}
+                aria-label={label}
+                title={m.key ? `${hint} (${m.key})` : hint}
               >
                 <span className="rail-item-row">
                   <span className="rail-item-main">
                     <ModIcon className="rail-icon" size={20} />
-                    <span className="rail-label">{m.label}</span>
+                    <span className="rail-label">{label}</span>
                   </span>
                   {m.key && <span className="rail-key mono faint">{m.key}</span>}
                 </span>
-                {module === m.id && <span className="rail-hint">{m.hint}</span>}
+                {module === m.id && <span className="rail-hint">{hint}</span>}
               </button>
             )
           })}
@@ -366,15 +370,15 @@ export function AppShell({ children }: { children: ReactNode }) {
                 onClick={() => setMenuOpen((v) => !v)}
                 title="Session actions"
               >
-                Session ▾
+                {t('shell.session')} ▾
               </button>
               {menuOpen && (
                 <div className="session-menu-pop" id={MENU_KEY} role="menu">
                   <button type="button" role="menuitem" onClick={() => void openSaveDialog()}>
-                    Save session…
+                    {t('shell.saveSession')}
                   </button>
                   <button type="button" role="menuitem" onClick={() => void openOpenDialog()}>
-                    Open session…
+                    {t('shell.openSession')}
                   </button>
                   <button
                     type="button"
@@ -385,7 +389,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                       flash('Session cleared')
                     }}
                   >
-                    New session
+                    {t('shell.newSession')}
                   </button>
                 </div>
               )}
