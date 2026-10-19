@@ -222,7 +222,12 @@ export function RestoreModule() {
             </div>
           ) : result.file_url ? (
             <>
-              <audio controls src={result.file_url} style={{ width: '100%' }} />
+              <audio
+                controls
+                src={result.file_url}
+                aria-label="Restored audio preview"
+                style={{ width: '100%' }}
+              />
               <div className="meta-block">
                 Applied: {(result.chain || []).join(' → ') || 'none'}
                 <br />

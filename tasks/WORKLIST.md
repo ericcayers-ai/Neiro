@@ -95,8 +95,9 @@ Gate: `python scripts/verify_goal.py --full` — **18/18 PASS** on 2026-10-20.
 
 - [~] **P5-1 String catalogue.** Player strings go through `player/i18n.ts`; the rest
   of the app is still English JSX. No copied locales.
-- [~] **P5-2 Accessibility.** Baseline labels/live regions/keyboard; no axe or
-  screen-reader audit (`docs/accessibility.md` is a plan).
+- [~] **P5-2 Accessibility.** Baseline labels/live regions/keyboard + a clean
+  static audit (`scripts/a11y_static.py`, gate C21). Axe, screen-reader and
+  colour-contrast passes remain owner-run.
 - [~] **P5-3 Dynamic port + bundled sidecar/signing.** `neiro ui --port 0
   --port-file` is implemented and tested (`tests/test_dynamic_port.py`,
   `docs/packaging.md`); Tauri still spawns system Python and has no sidecar,

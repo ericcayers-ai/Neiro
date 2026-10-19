@@ -29,7 +29,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PY = sys.executable
 BASETEMP = Path(os.environ.get("NEIRO_GATE_BASETEMP", r"C:\np"))
 
-CRITERIA = [f"C{i}" for i in range(1, 20)]
+CRITERIA = [f"C{i}" for i in range(1, 22)]
 
 
 def _run(
@@ -308,6 +308,23 @@ def c17_queued(fast: bool) -> tuple[str, str] | tuple[bool, str]:
     return _pytest(["tests/test_contract_truth.py", "-k", "queued"], fast=True)
 
 
+def c20_download_preflight(fast: bool) -> tuple[bool, str]:
+    source = _read("src/neiro/ui/server.py")
+    if "download_disk_preflight" not in source:
+        return False, "server has no declared-size download preflight"
+    return _pytest(["tests/test_download_preflight.py"], fast=True)
+
+
+def c21_a11y_static(fast: bool) -> tuple[bool, str]:
+    script = ROOT / "scripts" / "a11y_static.py"
+    if not script.is_file():
+        return False, "scripts/a11y_static.py missing"
+    proc = _run([PY, str(script), "--strict"], timeout=300)
+    if proc.returncode != 0:
+        return False, _tail(proc.stdout + proc.stderr, 6)
+    return True, _tail(proc.stdout, 2) or "static a11y clean"
+
+
 def c19_disk(fast: bool) -> tuple[bool, str]:
     source = _read("src/neiro/ui/server.py")
     if "cache_budget_effective_gb" not in source or "disk_free_gb" not in source:
@@ -355,6 +372,8 @@ CHECKS = {
     "C17": c17_queued,
     "C18": c18_i18n,
     "C19": c19_disk,
+    "C20": c20_download_preflight,
+    "C21": c21_a11y_static,
 }
 
 

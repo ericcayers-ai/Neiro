@@ -39,6 +39,18 @@ dialog and command palette do trap focus and close on Escape.
 - RTL layout and pluralisation are not exercised (English-only catalogue today).
 - Colour contrast of the new lane colours should be checked against both themes.
 
+## Static audit (implemented)
+
+`python scripts/a11y_static.py --strict` scans every `.tsx`/`.html` source for
+high-confidence issues: images without `alt`, empty buttons without an accessible
+name, empty `aria-label`, a document without `lang`, and click handlers on
+non-interactive elements without `role`/`tabIndex`. Latest run: **34 files, 0
+findings, 0 warnings** (`docs/evidence/a11y-static-2026-10-20.md`).
+
+This is deliberately narrow. It cannot judge label association, contrast, focus
+order, announcements or screen-reader output; those still need the owner-run pass
+below.
+
 ## How to verify (owner-run)
 
 1. Keyboard-only pass: import → play → transpose → set A/B → loop → add marker →

@@ -57,6 +57,8 @@ receipt, never "intent".
 | C16 | Licence boundary enforced | no `rb.wasm`/Tune73 artefact in the tree; third-party notices list every new dependency; QR check in gate |
 | C17 | Queued processing is managed | time-stretch/pitch-shift run as jobs with progress, cancel and a `(file_id, op, params)` cache; no synchronous whole-file wait in the practice path |
 | C18 | i18n and accessibility baseline | all new player/library strings go through one catalogue module; axe-style checks documented; keyboard-only player path tested |
+| C20 | Model downloads preflight declared sizes | a declared-size download that cannot fit is refused with 507 before a job starts; unsized weights are labelled in job progress |
+| C21 | Static accessibility audit is clean | `python scripts/a11y_static.py --strict` exits 0 over the UI sources (images, empty buttons, empty aria labels, document language, clickable non-interactive elements) |
 | C19 | Disk preflight protects the volume | the live cache budget never exceeds half of free space; unsafe preference updates are rejected; uploads preflight free space (tests) |
 
 ## Status rule

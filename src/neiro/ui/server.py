@@ -883,8 +883,51 @@ def _model_size_hint(entry) -> str | None:
     return "no weights"
 
 
+def _declared_weight_bytes(entry) -> tuple[int, bool]:
+    """Sum declared weight sizes; ``known`` is False when any spec is unsized."""
+    total = 0
+    known = False
+    for spec in getattr(entry, "weights", []) or []:
+        for key in ("size_bytes", "bytes", "size"):
+            value = spec.get(key) if isinstance(spec, dict) else None
+            if isinstance(value, (int, float)) and value > 0:
+                total += int(value)
+                known = True
+                break
+    return total, known
+
+
+def download_disk_preflight(state: _State, model_ids: list[str]) -> tuple[int, int, list[str]]:
+    """Return (declared_bytes, free_bytes, unknown_ids) for a download request."""
+    needed = 0
+    unknown: list[str] = []
+    for model_id in model_ids:
+        try:
+            entry = state.registry.get(model_id)
+        except KeyError:
+            continue
+        size, known = _declared_weight_bytes(entry)
+        if known:
+            needed += size
+        elif getattr(entry, "needs_download", False):
+            unknown.append(model_id)
+    free = shutil.disk_usage(state.workspace).free
+    return needed, free, unknown
+
+
 def start_model_download(state: _State, *, model_ids: list[str]) -> str:
-    """Background job that fetches model weights; cancellable via cancel_job."""
+    """Background job that fetches model weights; cancellable via cancel_job.
+
+    A declared-size preflight refuses a download that cannot fit, instead of
+    filling the volume and failing halfway. Unsized weights are allowed but the job
+    records that the size is unknown.
+    """
+    needed, free, unknown = download_disk_preflight(state, model_ids)
+    if needed > 0 and needed > free * 0.9:
+        raise RequestRejected(
+            507,
+            f"download needs ~{needed / 1e9:.1f} GB but only {free / 1e9:.1f} GB is free",
+        )
     job_id = uuid.uuid4().hex[:12]
     with state.lock:
         state.jobs[job_id] = {
@@ -897,6 +940,10 @@ def start_model_download(state: _State, *, model_ids: list[str]) -> str:
             "eta_s": None,
             "model_ids": list(model_ids),
         }
+        if unknown:
+            state.jobs[job_id]["progress"].append(
+                "size unknown for: " + ", ".join(unknown) + " — watch free disk"
+            )
 
     def _work() -> None:
         from neiro.engine.downloader import DownloadProgress

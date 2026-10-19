@@ -1713,7 +1713,7 @@ below has a receipt in `docs/evidence/` and a criterion in `GOAL.md`.
 
 | Finding | State | Why it remains |
 |---|---|---|
-| F-17 cache budget vs disk | **mostly closed** | Startup disk note, effective cache budget capped at half of free space, preference updates above 90% free rejected, upload preflight/507. Remaining: model-size preflight before downloads |
+| F-17 cache budget vs disk | **closed for declared sizes** | Disk note, half-free cache cap, 90% preference rejection, upload preflight, and a declared-size model-download preflight (507 before a job). Unsized weights are labelled in progress |
 | F-23/F-24/F-25/F-27 packaging | **partial** | Python now supports `--port 0 --port-file` (tested); Tauri still spawns system Python on fixed 8377 with no sidecar/signing/updater; Python matrix still contradictory |
 | F-26 model capacity | open | Still 16/70 ready, CPU-only, no torch/ONNX; no weights downloaded in this pass |
 | F-31 frontend tests | partial | Node tests cover DSP/transport logic; there is still no DOM/React test runner |
@@ -1724,7 +1724,7 @@ below has a receipt in `docs/evidence/` and a criterion in `GOAL.md`.
 | F-43 i18n | partial | New player strings use a catalogue; app-wide i18n/RTL/plurals absent |
 | F-45 CLAP/VST3 | open | Still a stub; VST2 remains the bridge |
 | F-46/F-47 licences and sandbox | open | No legal review; grant map is still not a sandbox |
-| F-48 accessibility audit | partial | Baseline + plan only (`docs/accessibility.md`) |
+| F-48 accessibility audit | **partial** | Clean static audit (34 files, 0 findings, gate C21); axe/screen-reader/contrast still owner-run |
 
 ### 13.3 Parity matrix movement (selected)
 
