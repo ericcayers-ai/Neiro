@@ -140,3 +140,10 @@ tests 32; gate 19/19.
 the real port to the file and prints the actual URL; `tests/test_dynamic_port.py`
 spawns the CLI and checks health on that port. `docs/packaging.md` records the
 Tauri contract (still unimplemented in Rust) and the sidecar/signing gap.
+
+## Tenth batch: Studio target/backing focus
+
+The Mix drawer gains a vocal-focus cross-fade (0–100%, neutral at 50%) applied to
+target stems (vocals/singers) versus backing, via a bounded pure helper in
+`player/mix.ts` with a Node test. It complements gain/pan/solo/mute; no stem model
+or WebGPU path was added. Player tests 33; gate 19/19.

@@ -22,6 +22,7 @@ import { addScene, applyScene, makeScene, removeScene } from '../scenes.ts'
 import { MIDI_ACTIONS, MidiMapper, parseMidiMessage } from '../midi.ts'
 import { libraryWrites, playerStorageKey, readPlayerArtifacts } from '../librarySync.ts'
 import { ShortcutMap, bindingLabel, eventToBinding, conflictFor } from '../shortcuts.ts'
+import { focusGain, isTargetStem } from '../mix.ts'
 
 test('transport plays, pauses and ends', () => {
   const transport = new Transport({ duration: 10 })
@@ -295,4 +296,18 @@ test('shortcut persistence tolerates corrupt and partial data', () => {
   assert.equal(map.match({ key: 'k', ctrlKey: true }), 'play-pause')
   map.load(JSON.stringify([{ action: 'unknown', key: 'x' }]))
   assert.equal(map.match({ key: 'k', ctrlKey: true }), 'play-pause', 'invalid rows ignored')
+})
+
+test('vocal focus cross-fade is neutral at 50% and bounded', () => {
+  assert.equal(isTargetStem('Vocals'), true)
+  assert.equal(isTargetStem('Singer 2'), true)
+  assert.equal(isTargetStem('Drums'), false)
+  assert.equal(focusGain(true, 0.5), 1)
+  assert.equal(focusGain(false, 0.5), 1)
+  assert.ok(focusGain(true, 1) > 1)
+  assert.ok(focusGain(false, 1) < 1)
+  assert.ok(focusGain(true, 0) < 1)
+  assert.ok(focusGain(false, 0) > 1)
+  assert.equal(focusGain(true, 4), focusGain(true, 1))
+  assert.equal(focusGain(false, -2), focusGain(false, 0))
 })

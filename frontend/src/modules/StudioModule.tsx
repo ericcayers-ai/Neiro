@@ -23,6 +23,7 @@ import {
   stemLabel,
   transposeSuggestion,
 } from '../constants/options'
+import { focusGain, isTargetStem } from '../player/mix'
 import {
   IconLoop,
   IconMute,
@@ -314,6 +315,8 @@ export function StudioModule() {
   const [playhead, setPlayhead] = useState(0)
   const [ab, setAb] = useState<'stems' | 'original'>('stems')
   const [mixOpen, setMixOpen] = useState(false)
+  // 0.5 = neutral; >0.5 boosts vocals/singers and ducks backing, <0.5 the reverse.
+  const [targetFocus, setTargetFocus] = useState(0.5)
   const [beatSnap, setBeatSnap] = useState(false)
   const [keyConflict, setKeyConflict] = useState<string | null>(null)
   const [pendingTranspose, setPendingTranspose] = useState<{
@@ -546,7 +549,7 @@ export function StudioModule() {
       if (ab === 'original') {
         level = t.id === tracks[0]?.id ? 1 : 0
       } else if (audible(t)) {
-        level = Math.min(1.5, t.gain)
+        level = Math.min(1.5, t.gain * focusGain(isTargetStem(t.name), targetFocus))
       }
       if (graph) {
         graph.gain.gain.value = level
@@ -556,7 +559,7 @@ export function StudioModule() {
         el.volume = Math.min(1, level)
       }
     }
-  }, [tracks, audible, ab])
+  }, [tracks, audible, ab, targetFocus])
 
   useEffect(() => {
     applyVolumes()
@@ -2248,6 +2251,26 @@ export function StudioModule() {
             <h3>Mix</h3>
             <p className="intent">
               Preview bus — mute/solo/gain/pan stay client-side until you Bounce or export.
+            </p>
+            <div className="row" style={{ marginTop: '0.35rem' }}>
+              <label className="field" style={{ flex: 1 }}>
+                Vocal focus ({Math.round(targetFocus * 100)}%)
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={targetFocus}
+                  onChange={(event) => setTargetFocus(Number(event.target.value))}
+                  aria-valuetext={`${Math.round(targetFocus * 100)} percent vocal focus`}
+                />
+              </label>
+              <button type="button" onClick={() => setTargetFocus(0.5)} title="Neutral balance">
+                Reset
+              </button>
+            </div>
+            <p className="intent" style={{ marginTop: 0 }}>
+              Target stems (vocals/singers) vs backing; 50% leaves every fader unchanged.
             </p>
             {stemPacks.length > 0 && (
               <div className="studio-pack-list">

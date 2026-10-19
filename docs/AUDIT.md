@@ -1738,7 +1738,7 @@ The matrix above is the audit-time baseline. Post-pass status:
 | T-11 | P | **N** | Method label reflects actual DSP |
 | T-17, T-18, T-19, T-22 | M | **RT native** | Markers (+ prev/next transport), clips, ramp, sequence |
 | T-20 | M | **partial** | Player scenes (params/loop/markers/clips) + library scenes API; no Studio widget-layout scenes |
-| T-21 | P | **P** | Stem Mix unchanged; player reducer is preview |
+| T-21 | P | **partial** | Studio Mix adds a target/backing focus cross-fade; no stem WebGPU/target model |
 | T-29, T-30 | P | **P (honest)** | Real timestamped heuristic + confidence, not transformer |
 | T-31, T-32, T-33 | P | **partial/N** | Sections labelled heuristic; lanes shown in Analysis and the player; model install states unchanged |
 | T-40–T-47 | P/M | **N/partial** | Library, notes, markers, clips, resume/reset; versions API without UI |

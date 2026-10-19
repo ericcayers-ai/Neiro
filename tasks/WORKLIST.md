@@ -53,6 +53,9 @@ Gate: `python scripts/verify_goal.py --full` — **18/18 PASS** on 2026-10-20.
   note/CC learn for 11 actions, any device, clear per action, local persistence.
   Player keyboard shortcuts are remappable too (9 actions, conflict handling,
   reset); app-wide rail shortcuts remain fixed. 32 player tests.
+- [x] **P2-10 Studio target/backing focus.** Mix drawer cross-fades vocals/singers against
+  the backing (neutral at 50%, bounded), with a pure `focusGain` helper and test.
+  Stem-solo/mute/gain/pan behaviour is unchanged.
 - [~] **P2-6 Byte-bounded cache + disk preflight.** Upload preflight/507, a disk-aware
   effective cache budget (half of free space), update rejection above 90% free, and
   a startup disk note exist. Remaining: model-size preflight before downloads and a
