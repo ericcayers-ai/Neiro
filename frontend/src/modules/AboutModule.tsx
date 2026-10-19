@@ -69,6 +69,32 @@ export function AboutModule() {
         <li>DAW injectors (VST2 / CLAP) share one Neiro window for every mode, including capture.</li>
       </ul>
 
+      <h3 style={{ marginTop: 28 }}>Quick start</h3>
+      <details className="advanced-block">
+        <summary>Four steps from file to practice</summary>
+        <ol className="muted" style={{ lineHeight: 1.7, paddingLeft: 18 }}>
+          <li>Import a file (or fetch a URL) — the source stays untouched.</li>
+          <li>Analyse it, then open Practice: transpose, slow down, loop a section.</li>
+          <li>Use Render with Neiro when you want the queued engine-quality version.</li>
+          <li>Save markers/clips and per-song settings to the local Library.</li>
+        </ol>
+      </details>
+
+      <h3 style={{ marginTop: 28 }}>What&apos;s new in 1.2.1</h3>
+      <ul className="muted" style={{ lineHeight: 1.7, paddingLeft: 18 }}>
+        <li>
+          Shared real-time player: clean-room phase-vocoder stretch, formant, EQ, tuner and a
+          queued render of the same settings.
+        </li>
+        <li>
+          Local Library with notes, markers, clips, versions, per-song settings and a Resume card.
+        </li>
+        <li>Optional companion extension: tab capture, pairing and queued upload to this engine.</li>
+        <li>
+          Desktop installers with a bundled model-free engine and an OS-chosen loopback port.
+        </li>
+      </ul>
+
       <h3 style={{ marginTop: 28 }}>Headless / batch</h3>
       <p className="muted" style={{ marginTop: 0 }}>
         These paths are functional today via the CLI. The desktop shell does not host a watch-folder

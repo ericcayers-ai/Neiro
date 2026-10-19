@@ -396,3 +396,9 @@ helper with tests (player Node tests 39).
 The Analysis timeline can hide key/tempo, chords and beats independently; the
 choice persists in `neiro.analysis.lanes` and defaults to all visible. The SSR test
 asserts the three lane labels (vitest 14).
+
+## Thirty-eighth batch: About quick start and What's new
+
+About now has a four-step Quick start and a 1.2.1 feature list (player/render,
+library/resume, companion, installers). SSR asserts both sections (vitest 15).
+Guided tours and support links remain open on T-71.

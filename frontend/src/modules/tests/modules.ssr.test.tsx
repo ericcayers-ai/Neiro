@@ -9,6 +9,7 @@ import { RestoreModule } from '../RestoreModule'
 import { SeparateModule } from '../SeparateModule'
 import { PreferencesModule } from '../PreferencesModule'
 import { AnalysisLanes } from '../AnalysisLanes'
+import { AboutModule } from '../AboutModule'
 
 function render(node: React.ReactNode) {
   return renderToStaticMarkup(
@@ -25,6 +26,13 @@ describe('module shells render through the catalogue', () => {
     expect(html).toContain('No songs yet')
     expect(html).toContain('Add current file')
     expect(html).toContain('Resume last')
+  })
+
+  it('renders the About help and what-new sections', () => {
+    const html = render(<AboutModule />)
+    expect(html).toContain('Quick start')
+    expect(html).toContain('What&#x27;s new in 1.2.1')
+    expect(html).toContain('Resume card')
   })
 
   it('renders analysis lanes with key/chord/beat toggles', () => {

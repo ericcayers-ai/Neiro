@@ -1046,7 +1046,7 @@ player, **Q** queued Neiro engine, **RT+Q** hybrid, **Addon** extension surface,
 | T-68 | Premium/low-latency settings | None | M | Player quality mode | RT | P1 |
 | T-69 | Music/chord/rhythm analysis toggles/WebGPU | Server analysis always on; no WebGPU | P | Per-lane toggles (key/tempo, chords, beats) with persistence; Q analysis | Q | P2 |
 | T-70 | Data/reset (history/stems/audio/models/permissions/settings/scenes) | Prefs/cache/model/tools partial; no library/permissions/scenes | P | Central data manager | Q | P2 |
-| T-71 | Help/guide/what's new/support/onboarding tours | About, Studio help, command palette; no tours/what's new/support | P | Help center + tour | — | P2 |
+| T-71 | Help/guide/what's new/support/onboarding tours | About, Studio help, command palette; no tours/what's new/support | P | Quick start + What's new in About; tours/support still absent | — | P2 |
 | T-72 | Trial/resume/product education | No subscription; no trial/upsell | N/A | Do not port paid funnel; local onboarding only | N/A | P3 |
 | T-73 | Accessibility (ARIA, keyboard, focus, motion) | Good baseline; no WCAG/axe/screen-reader audit | P | A11y audit + fixes | — | P1 |
 | T-74 | Studio A/B, null test, undo/redo, spectrogram | Native | N | Keep | Q | P3 |
