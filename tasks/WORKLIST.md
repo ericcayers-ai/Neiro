@@ -24,7 +24,9 @@ Gate: `python scripts/verify_goal.py --full` — **18/18 PASS** on 2026-10-20.
 - [x] **P0-8 Analysis honesty.** Confidence/no-result, heuristic labels, UI lanes.
 - [x] **P0-9 Docs truth pass.** README/SECURITY/session/performance/traceability
   corrected; banner updated.
-- [ ] **P0-10 Short-basetemp note in test docs.** `pytest` still needs
+- [x] **P0-10 Frontend test runner.** Vitest + SSR `PlayerSurface` tests (5),
+  wired to `npm test` and gate C22.
+- [ ] **P0-11 Short-basetemp note in test docs.** `pytest` still needs
   `--basetemp C:\np` on Windows; document it in the contributing guide.
 
 ## Phase 1 — shared real-time player

@@ -147,3 +147,10 @@ The Mix drawer gains a vocal-focus cross-fade (0–100%, neutral at 50%) applied
 target stems (vocals/singers) versus backing, via a bounded pure helper in
 `player/mix.ts` with a Node test. It complements gain/pan/solo/mute; no stem model
 or WebGPU path was added. Player tests 33; gate 19/19.
+
+## Eleventh batch: frontend component tests
+
+Vitest (node environment) renders `PlayerSurface` through `react-dom/server`:
+transport/controls/labels/A4 readout, A–B/markers/clips/scenes/MIDI/shortcut
+surfaces, the analysis overlay with a report, its absence without one, and the
+no-duration gate. `npm test` runs it; gate C22 runs it with `--full`.

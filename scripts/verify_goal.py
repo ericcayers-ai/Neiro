@@ -29,7 +29,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PY = sys.executable
 BASETEMP = Path(os.environ.get("NEIRO_GATE_BASETEMP", r"C:\np"))
 
-CRITERIA = [f"C{i}" for i in range(1, 22)]
+CRITERIA = [f"C{i}" for i in range(1, 23)]
 
 
 def _run(
@@ -315,6 +315,24 @@ def c20_download_preflight(fast: bool) -> tuple[bool, str]:
     return _pytest(["tests/test_download_preflight.py"], fast=True)
 
 
+def c22_frontend_tests(fast: bool, full: bool) -> tuple[bool, str]:
+    if not full:
+        return False, "not run (pass --full)"
+    if not (ROOT / "frontend" / "node_modules").exists():
+        return False, "frontend/node_modules missing; run npm ci"
+    npx = shutil.which("npx") or shutil.which("npx.cmd")
+    if not npx:
+        return False, "npx not found on PATH"
+    proc = _run([npx, "--no-install", "vitest", "run"], cwd=ROOT / "frontend", timeout=900)
+    if proc.returncode != 0:
+        return False, _tail(proc.stdout + proc.stderr, 8)
+    summary = ""
+    for line in (proc.stdout or "").splitlines():
+        if "Tests" in line and "passed" in line:
+            summary = line.strip()
+    return True, summary or "vitest passed"
+
+
 def c21_a11y_static(fast: bool) -> tuple[bool, str]:
     script = ROOT / "scripts" / "a11y_static.py"
     if not script.is_file():
@@ -374,6 +392,7 @@ CHECKS = {
     "C19": c19_disk,
     "C20": c20_download_preflight,
     "C21": c21_a11y_static,
+    "C22": c22_frontend_tests,
 }
 
 
@@ -399,6 +418,8 @@ def main() -> int:
             continue
         if cid == "C4":
             passed, detail = c4_frontend(args.fast, args.full)
+        elif cid == "C22":
+            passed, detail = c22_frontend_tests(args.fast, args.full)
         else:
             passed, detail = CHECKS[cid](args.fast)
         results.append((cid, passed, detail))

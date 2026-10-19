@@ -7,7 +7,7 @@ FAIL but may not overrule it.
 
 **Current state (2026-10-20, implementation pass):** `GATE PASS — 18/18 criteria`.
 Python suite 272 passed / 1 skipped (2 deselected); player tests 33 passed; addon validator 46/46;
-frontend tsc + build pass. Commit `cf6c35b` contains the implementation (including
+frontend tsc + build pass; 5 vitest SSR tests. Commit `cf6c35b` contains the implementation (including
 the preserved `pitch_correct` fix and its regression test). Receipts:
 `docs/evidence/{implementation,security,player-latency}-2026-10-20.md`.
 
