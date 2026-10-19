@@ -94,6 +94,13 @@ describe('PlayerSurface markup', () => {
     expect(html).toContain('phase-vocoder preview')
   })
 
+  it('hides practice panels in compact mode', () => {
+    const html = render({ compact: true })
+    expect(html).toContain('is-compact')
+    expect(html).not.toContain('player-practice')
+    expect(html).toContain('phase-vocoder preview')
+  })
+
   it('applies durable per-song settings', () => {
     const html = render({ initialParams: { transpose: 12, speed: 0.75 } })
     expect(html).toContain('A4 880.00 Hz')

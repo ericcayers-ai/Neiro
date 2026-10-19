@@ -69,6 +69,7 @@ interface StoredState {
   markers?: Marker[]
   clips?: Clip[]
   seekStep?: number
+  compact?: boolean
 }
 
 function loadStored(fileId: string): StoredState {
@@ -132,6 +133,7 @@ export function PlayerSurface({
   const [showRamp, setShowRamp] = useState(false)
   const [scenes, setScenes] = useState<SceneSnapshot[]>(() => loadScenes(fileId))
   const [seekStep, setSeekStep] = useState<number>(stored.seekStep ?? 5)
+  const [compactMode, setCompactMode] = useState<boolean>(stored.compact ?? compact ?? false)
   const [ramp, setRamp] = useState({
     mode: 'scale' as RampMode,
     scale: 'major' as RampScale,
@@ -278,13 +280,13 @@ export function PlayerSurface({
   // Persist per-file player state locally; the library is the durable store for
   // songs, this is the lightweight per-file scratchpad.
   useEffect(() => {
-    const payload: StoredState = { params, markers, clips, seekStep }
+    const payload: StoredState = { params, markers, clips, seekStep, compact: compactMode }
     try {
       localStorage.setItem(`neiro.player.${fileId}`, JSON.stringify(payload))
     } catch {
       // storage full: keep playing rather than failing the surface
     }
-  }, [fileId, params, markers, clips, seekStep])
+  }, [fileId, params, markers, clips, seekStep, compactMode])
 
   const update = useCallback((patch: Partial<PlayerParams>) => {
     setParams((current) => normalizeParams({ ...current, ...patch }))
@@ -590,7 +592,10 @@ export function PlayerSurface({
   }
 
   return (
-    <section className={`player-surface${compact ? ' is-compact' : ''}`} aria-label="Neiro player">
+    <section
+      className={`player-surface${compactMode || compact ? ' is-compact' : ''}`}
+      aria-label="Neiro player"
+    >
       <header className="player-head">
         <div>
           <h3>{title || t('player.play')}</h3>
@@ -598,6 +603,14 @@ export function PlayerSurface({
             {t('player.method')}: <strong>{method.label}</strong> — {method.detail}
           </p>
         </div>
+        <button
+          type="button"
+          onClick={() => setCompactMode((value) => !value)}
+          aria-expanded={!compactMode}
+          title={t('player.compactHint')}
+        >
+          {compactMode ? t('player.expand') : t('player.compact')}
+        </button>
         <div className="player-meta" role="status" aria-live="polite">
           <span>{formatTime(position)} / {formatTime(effectiveDuration)}</span>
           <span title="Measured control + output latency">
@@ -958,6 +971,7 @@ export function PlayerSurface({
         </div>
       )}
 
+      {!compactMode && (
       <div className="player-practice">
         <div className="player-panel">
           <div className="player-panel-head">
@@ -1107,6 +1121,7 @@ export function PlayerSurface({
           <p className="intent">{t('player.sceneHint')}</p>
         </div>
       </div>
+      )}
     </section>
   )
 }

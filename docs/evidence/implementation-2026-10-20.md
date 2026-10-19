@@ -219,3 +219,9 @@ is a pure helper with clamping/visibility tests. Player tests 38.
 with a path-escape guard; `POST /api/models/remove` requires a token and
 `confirm:true`; Prefs shows Remove for downloaded models and reports freed bytes.
 A scoped test proves unrelated model data survives. Download-preflight tests 4.
+
+## Twentieth batch: compact player mode
+
+The player header toggles a compact mode that hides markers/clips/scenes/MIDI
+panels in the markup (not only via CSS), persists per file, and is covered by an
+SSR test. Vitest 7.

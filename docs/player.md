@@ -59,6 +59,8 @@ gone — the worklet owns click generation and the count-in).
   (chromatic / circle of fifths / scale), and previous/next marker transport
   buttons. They persist per file in `localStorage` and can be stored durably in the
   library (`docs/library.md`).
+- **Compact mode** collapses the practice panels (markers/clips/scenes) into a
+  transport + controls bar; the choice persists per file.
 - **Scenes** snapshot parameters, loop, markers and clips under a name; saving the
   same name replaces it, applying restores every field, and deletion is local.
 - **MIDI learn** (`midi.ts` + `PlayerMidiPanel`): any connected input, note or CC,

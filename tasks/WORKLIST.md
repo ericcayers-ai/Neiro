@@ -43,6 +43,8 @@ Gate: `python scripts/verify_goal.py --full` — **18/18 PASS** on 2026-10-20.
   for stem playback; Mix gain/pan and A–B are unchanged. Remaining: route Studio
   transport through `PlayerEngine`.
 - [x] **P1-7 Tests + latency receipt.** 37 Node tests; `docs/evidence/player-latency-2026-10-20.md`.
+- [x] **P1-9 Compact player mode.** Header toggle hides practice panels (markup, not
+  just CSS), persists per file, and is SSR-tested.
 - [x] **P1-8 Render preview settings (Q).** `render` edit job applies speed+pitch and
   returns a downloadable WAV with provenance; contract test covers duration.
 
@@ -125,3 +127,19 @@ Gate: `python scripts/verify_goal.py --full` — **18/18 PASS** on 2026-10-20.
 - [ ] **P6-4 Rust build/clippy and signed installer** (owner/machine capacity).
 - [x] **P6-5 Disk preflight.** `tests/test_disk_preflight.py`; low-disk states cap the
   live cache budget and reject unsafe preferences.
+
+## Closure assessment (2026-10-20)
+
+The gate is green on 22 criteria, but the objective (literal Transpose parity) is
+not fully closed. The remaining gaps are owner/toolchain-gated:
+
+| Gap | Why it cannot close in this environment | Owner action |
+|---|---|---|
+| Studio per-stem real-time engine | Needs a multi-engine refactor of 2,600-line Studio playback; clock/loop/gain today are correct | Approve the refactor as its own phase |
+| Neural chord/beat (ONNX) | No runtime/weights installed; inference contract needs upstream verification | Choose models, install runtime, provide weights |
+| Sidecar + signing/updater | Requires Rust build target and signing certificates; dynamic-port contract is done | Build on a release machine with certs |
+| Full i18n / RTL | Translation programme; no copied locales allowed | Commission translations |
+| Live-site companion e2e, listening panel, axe audit | Need a real browser profile, ears and assistive tech | Run the documented owner checks |
+
+Everything else in `HANDOFF.md` §7 (Phases 0–4 and most of 5) has a measured
+receipt in `docs/evidence/`.
