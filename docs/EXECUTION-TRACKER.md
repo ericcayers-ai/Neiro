@@ -20,7 +20,7 @@ the preserved `pitch_correct` fix and its regression test). Receipts:
 | 2. Practice & library | **partial** (auto marker promotion open; MIDI learn, resume/reset, versions, disk-aware cache done) | gate C12; `docs/library.md` |
 | 3. Analysis | **partial** (heuristic only; ONNX adapters absent) | gate C13; `tests/test_analysis_timeline.py` |
 | 4. Optional companion | **source done**, live e2e owner-run | gate C14; `docs/COMPANION.md` |
-| 5. i18n / a11y / packaging | **partial** (catalogues; static a11y clean; dynamic port, standalone sidecar and Tauri release exe verified; signing/updater/fresh-machine open) | gate C18, C21, C23; `docs/packaging.md` |
+| 5. i18n / a11y / packaging | **partial** (catalogues; a11y clean; installers build with bundled engine, payload verified; signing/updater/fresh-machine open) | gate C18, C21, C23; `docs/packaging.md` |
 | 6. Release evidence | **partial** (Rust fmt/clippy/check done; signing open) | receipts + addenda |
 
 ## Confirmed vs not claimed

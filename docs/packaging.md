@@ -56,11 +56,21 @@ completed in **2m32s** and produced `src-tauri/target/release/neiro.exe`
 (optimized). That validates the config, the dynamic-port shell, and the resource
 path; the engine binary itself is per-platform and not committed.
 
+With the engine copied into `resources/engine/`, a full `tauri build` produced:
+
+| Artifact | Size |
+|---|---:|
+| `Neiro_1.2.1_x64_en-US.msi` | 56.0 MB |
+| `Neiro_1.2.1_x64-setup.exe` (NSIS) | 38.3 MB |
+
+An administrative MSI extraction (`msiexec /a … TARGETDIR=…`) confirmed the payload
+layout: `PFiles\Neiro\neiro.exe` plus `resources\engine\neiro-engine.exe`
+(10.5 MB) and its `_internal` folder (numpy etc.). That is the path `lib.rs` probes,
+so the installed app starts the bundled engine instead of system Python.
+
 Still missing (owner-gated):
 
-- copying the frozen engine into `resources/engine/` before a release (the build
-  script prints the exact step),
-- signing certificates + updater keys (`TAURI_SIGNING_PRIVATE_KEY`),
+- signing/notarisation and updater keys (`TAURI_SIGNING_PRIVATE_KEY`),
 - a fresh-machine test with no Python and no network,
 - uninstall verification.
 

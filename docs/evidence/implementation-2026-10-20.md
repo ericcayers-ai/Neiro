@@ -271,3 +271,21 @@ Built application at: src-tauri/target/release/neiro.exe
 
 Not verified: copying/shipping the engine in the bundle, installer, signing,
 launch on a fresh machine.
+
+## Twenty-fourth batch: installers with the bundled engine
+
+Staged the PyInstaller engine at `src-tauri/resources/engine/neiro-engine.exe` and
+ran a full `npx tauri build`:
+
+```
+Finished 2 bundles:
+  target/release/bundle/msi/Neiro_1.2.1_x64_en-US.msi          56.0 MB
+  target/release/bundle/nsis/Neiro_1.2.1_x64-setup.exe         38.3 MB
+```
+
+Payload verification (no install performed): `msiexec /a <msi> TARGETDIR=<temp>`
+extracted `PFiles\Neiro\neiro.exe`, `resources\engine\neiro-engine.exe`
+(10.5 MB) and `resources\engine\_internal\` (numpy, etc.) — the exact path the
+shell probes.
+
+Not verified: signed installers, updater, fresh-machine launch, uninstall.
