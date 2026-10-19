@@ -46,6 +46,9 @@ GATE PASS — 18/18 criteria
 | `npm run build` (frontend) | tsc + vite build pass; worklet emitted as an asset |
 | `ruff check .` / `ruff format --check .` | clean |
 | `git log --grep=pitch_correct` | commit `cf6c35b` |
+| Live smoke: `neiro ui --port 8381` + real HTTP | health 200; token issued; mutation 401 without token / 200 with it; `text/plain` 415; OPTIONS 204 + echoed ACAO; upload 200; library add/note/read 200; pair exchange 200; SPA 200 |
+| `GET /assets/player-worklet-*.js` | 200, `text/javascript`, 27,475 bytes (the worklet is served) |
+| `GET /api/library/export` | 200, `application/json` |
 
 ## What changed (by area)
 
