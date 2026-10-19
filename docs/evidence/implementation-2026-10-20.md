@@ -289,3 +289,20 @@ extracted `PFiles\Neiro\neiro.exe`, `resources\engine\neiro-engine.exe`
 shell probes.
 
 Not verified: signed installers, updater, fresh-machine launch, uninstall.
+
+## Twenty-fifth batch: bundled-engine launch verified
+
+MSI extracted with `msiexec /a` (no install). PATH set to
+`%SystemRoot%\system32;%SystemRoot%` (no Python). Launched
+`PFiles\Neiro\neiro.exe`:
+
+```
+APP PID=56592 exited=False
+child: neiro-engine.exe  "…\resources\engine\neiro-engine.exe"
+child: msedgewebview2.exe
+WINDOW=Neiro
+```
+
+Processes terminated after 15 s. This proves the shell takes the bundled-engine
+path with no system Python reachable. Not a clean-VM test (WebView2 preinstalled);
+signed installer, updater and uninstall remain owner steps.

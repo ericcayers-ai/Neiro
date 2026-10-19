@@ -68,10 +68,21 @@ layout: `PFiles\Neiro\neiro.exe` plus `resources\engine\neiro-engine.exe`
 (10.5 MB) and its `_internal` folder (numpy etc.). That is the path `lib.rs` probes,
 so the installed app starts the bundled engine instead of system Python.
 
+Launch verification (simulated fresh machine):
+
+1. MSI extracted with `msiexec /a` (no install, no system changes).
+2. PATH reduced to `%SystemRoot%\system32;%SystemRoot%` so no Python is reachable.
+3. `PFiles\Neiro\neiro.exe` launched; within 15 s it spawned
+   `resources\engine\neiro-engine.exe` and the main window title was **Neiro**.
+4. App and engine processes were terminated afterwards.
+
+That proves the shell prefers the bundled engine and does not need system Python
+for this layout. It is not a clean-VM test: WebView2 was already installed.
+
 Still missing (owner-gated):
 
 - signing/notarisation and updater keys (`TAURI_SIGNING_PRIVATE_KEY`),
-- a fresh-machine test with no Python and no network,
+- a clean-VM install with no Python, no WebView2 and no network,
 - uninstall verification.
 
 Do not describe the desktop build as standalone until those pass.

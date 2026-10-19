@@ -114,8 +114,9 @@ Gate: `python scripts/verify_goal.py --full` — **18/18 PASS** on 2026-10-20.
   the model-free sidecar builds and runs standalone (`scripts/build_sidecar.py`,
   verified health), and the shell prefers a bundled engine before system Python.
   Installers build with the bundled engine (MSI 56.0 MB, NSIS 38.3 MB; MSI
-  extraction verifies `resources/engine/neiro-engine.exe`). Remaining:
-  signing/updater and a fresh-machine install test.
+  extraction verifies `resources/engine/neiro-engine.exe`). Launch was verified
+  with Python removed from PATH: the app spawned the bundled engine and opened the
+  Neiro window. Remaining: signing/updater, clean-VM install, uninstall.
 - [~] **P5-4 Model manager status.** Sizes/licences/needs-install and a
   confirm-gated remove-weights action exist in Prefs; disk-impact preview and
   batch install remain.
