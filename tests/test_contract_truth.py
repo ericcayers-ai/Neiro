@@ -273,3 +273,19 @@ def test_queued_edit_rejects_bad_params(tmp_path):
         start_edit_job(state, fid, {"op": "time_stretch"})
     with pytest.raises(KeyError):
         start_edit_job(state, "missing", {"op": "time_stretch", "rate": 1.5})
+
+
+def test_session_export_returns_the_document(server, monkeypatch, tmp_path):
+    from neiro.engine import session as session_mod
+
+    monkeypatch.setattr(session_mod, "default_home", lambda: tmp_path / "home")
+    base, _ = server
+    token = _token(base)
+    _post(base, "/api/session/save", {"name": "exported", "notes": "keep me"}, token)
+    with urllib.request.urlopen(base + "/api/session/export?name=exported") as resp:
+        payload = json.load(resp)
+    assert payload["name"] == "exported"
+    assert payload["user_notes"] == "keep me"
+    with pytest.raises(urllib.error.HTTPError) as exc:
+        urllib.request.urlopen(base + "/api/session/export?name=missing")
+    assert exc.value.code == 404

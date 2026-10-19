@@ -1327,6 +1327,24 @@ def _make_handler(state: _State):
 
                 self._json(vram_status(state.vram))
                 return
+            if path == "/api/session/export":
+                name = self._query().get("name", "")
+                if not name:
+                    self._error(400, "name is required")
+                    return
+                from neiro.engine.session import SessionStore
+
+                try:
+                    doc = SessionStore().load(name)
+                except FileNotFoundError:
+                    self._error(404, "session not found")
+                    return
+                self._send(
+                    200,
+                    json.dumps(doc.to_dict(), indent=2).encode(),
+                    "application/json",
+                )
+                return
             if path == "/api/session/list":
                 from neiro.ui.api_extras import list_sessions
 

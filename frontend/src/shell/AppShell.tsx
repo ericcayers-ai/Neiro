@@ -480,6 +480,15 @@ export function AppShell({ children }: { children: ReactNode }) {
               >
                 {sessionDialog === 'save' ? 'Save' : 'Open'}
               </button>
+              {sessionDialog === 'open' && sessionName && (
+                <a
+                  className="btn-link"
+                  href={`/api/session/export?name=${encodeURIComponent(sessionName)}`}
+                  download={`${sessionName}.neiro.json`}
+                >
+                  Export JSON
+                </a>
+              )}
               <button type="button" disabled={sessionBusy} onClick={() => setSessionDialog(null)}>
                 Cancel
               </button>

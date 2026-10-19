@@ -108,3 +108,9 @@ server prints a disk note under 8 GB free, and the snapshot exposes
 `cache_budget_effective_gb`, `disk_free_gb` and `disk_tight`. New
 `tests/test_disk_preflight.py` (3 tests) covers the low-disk cap, rejection and the
 HTTP 400. About now documents the player/library shortcuts.
+
+## Fifth batch: session export
+
+`GET /api/session/export?name=` returns the portable session document (notes
+included) and the Open-session dialog offers the same download. Covered by a
+contract test (200 + notes, 404 for a missing session).

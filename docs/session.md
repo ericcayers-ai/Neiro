@@ -66,3 +66,8 @@ API (`/api/session/save`, `/api/session/open`) and the CLI. Free-text notes are 
 scalar `user_notes` field capped at 5,000 characters; the `notes` list remains the
 system/migration log. Legacy documents that stored notes as a character list are
 migrated on load.
+
+## Export
+
+`GET /api/session/export?name=<session>` returns the portable
+`.neiro.json` document; the Open-session dialog in the UI offers the same download.
