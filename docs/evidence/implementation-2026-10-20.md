@@ -390,3 +390,9 @@ The session bar shows **Resume: <title>** for the most recently played library s
 when no file is active. Clicking it asks the session for that song and focuses the
 Library, which opens it and clears the pending id. `mostRecentSong()` is a pure
 helper with tests (player Node tests 39).
+
+## Thirty-seventh batch: analysis lane toggles
+
+The Analysis timeline can hide key/tempo, chords and beats independently; the
+choice persists in `neiro.analysis.lanes` and defaults to all visible. The SSR test
+asserts the three lane labels (vitest 14).

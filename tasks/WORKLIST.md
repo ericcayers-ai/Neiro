@@ -84,6 +84,8 @@ Gate: `python scripts/verify_goal.py --full` — **18/18 PASS** on 2026-10-20.
 - [x] **P3-2 Beat grid.** Onset-flux phase search, 4/4 downbeats with confidence.
 - [x] **P3-7 Studio chord lane.** "Chords" button fetches the heuristic timeline for
   the first track and draws it in the visible window (`chordLane` helper + test).
+- [x] **P3-6 Analysis lane toggles.** Key/tempo, chords and beats can be hidden
+  individually; the choice persists (`neiro.analysis.lanes`) and is SSR-tested.
 - [ ] **P3-3 Optional ONNX chord/beat adapters.** Manifests/reporting for
   ChordMini/BTC and Beat This-class are not implemented; no weights downloaded.
 - [x] **P3-4 Analysis UI.** Chord lane, beat lane, key/meter, no-result state.

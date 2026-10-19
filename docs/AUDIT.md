@@ -1044,7 +1044,7 @@ player, **Q** queued Neiro engine, **RT+Q** hybrid, **Addon** extension surface,
 | T-66 | MIDI learn/mappings (note/CC/program/transport/MMC) | WebMIDI wait only; no mapping | M | MIDI service + persist | RT | P1 |
 | T-67 | Studio modes compact/side/wide | Responsive UI; no scenes/wide; wide is an extension limitation | P | Scenes/layout; do not port "wide" as a promise | RT | P2 |
 | T-68 | Premium/low-latency settings | None | M | Player quality mode | RT | P1 |
-| T-69 | Music/chord/rhythm analysis toggles/WebGPU | Server analysis always on; no WebGPU | P | Add per-feature toggles; Q analysis | Q | P2 |
+| T-69 | Music/chord/rhythm analysis toggles/WebGPU | Server analysis always on; no WebGPU | P | Per-lane toggles (key/tempo, chords, beats) with persistence; Q analysis | Q | P2 |
 | T-70 | Data/reset (history/stems/audio/models/permissions/settings/scenes) | Prefs/cache/model/tools partial; no library/permissions/scenes | P | Central data manager | Q | P2 |
 | T-71 | Help/guide/what's new/support/onboarding tours | About, Studio help, command palette; no tours/what's new/support | P | Help center + tour | — | P2 |
 | T-72 | Trial/resume/product education | No subscription; no trial/upsell | N/A | Do not port paid funnel; local onboarding only | N/A | P3 |

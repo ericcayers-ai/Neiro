@@ -8,6 +8,7 @@ import { LibraryModule } from '../LibraryModule'
 import { RestoreModule } from '../RestoreModule'
 import { SeparateModule } from '../SeparateModule'
 import { PreferencesModule } from '../PreferencesModule'
+import { AnalysisLanes } from '../AnalysisLanes'
 
 function render(node: React.ReactNode) {
   return renderToStaticMarkup(
@@ -24,6 +25,32 @@ describe('module shells render through the catalogue', () => {
     expect(html).toContain('No songs yet')
     expect(html).toContain('Add current file')
     expect(html).toContain('Resume last')
+  })
+
+  it('renders analysis lanes with key/chord/beat toggles', () => {
+    const html = renderToStaticMarkup(
+      <AnalysisLanes
+        report={{
+          duration_seconds: 60,
+          sample_rate: 44100,
+          channels: 2,
+          is_effectively_mono: false,
+          integrated_lufs: -14,
+          peak_dbfs: -1,
+          estimated_bpm: 120,
+          estimated_key: 'A minor',
+          chords: [{ chord: 'Am', start: 0, end: 8, confidence: 0.7 }],
+          beats: [{ time: 0, downbeat: true }],
+          chord_reliable: true,
+          chord_method: 'heuristic',
+          meter: '4/4',
+          tempo_confidence: 0.5,
+        }}
+      />,
+    )
+    expect(html).toContain('Key &amp; tempo')
+    expect(html).toContain('Chords')
+    expect(html).toContain('Beats')
   })
 
   it('renders the Preferences sections through the catalogue', () => {
