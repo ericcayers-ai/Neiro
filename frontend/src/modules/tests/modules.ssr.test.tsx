@@ -5,6 +5,7 @@ import { I18nProvider } from '../../i18n'
 import { SessionProvider } from '../../state/session'
 import { ImportModule } from '../ImportModule'
 import { LibraryModule } from '../LibraryModule'
+import { RestoreModule } from '../RestoreModule'
 
 function render(node: React.ReactNode) {
   return renderToStaticMarkup(
@@ -21,6 +22,11 @@ describe('module shells render through the catalogue', () => {
     expect(html).toContain('No songs yet')
     expect(html).toContain('Add current file')
     expect(html).toContain('Resume last')
+  })
+
+  it('renders the Restore empty gate', () => {
+    const html = render(<RestoreModule />)
+    expect(html).toContain('Import a track first')
   })
 
   it('renders the Import dropzone and URL fetch', () => {

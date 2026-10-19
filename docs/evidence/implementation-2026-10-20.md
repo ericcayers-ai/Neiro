@@ -364,3 +364,9 @@ Import and Library; Studio/Restore/Separate/MIDI/Prefs remain JSX.
 `SessionProvider` and asserts catalogue-sourced strings. Vitest is now **10 tests**
 (3 files); the player axe test still passes. This gives the newly catalogued modules
 a rendering check without a browser.
+
+## Thirty-third batch: Restore module catalogue
+
+Restore's gate, header, recommendation, results and actions resolve through the
+catalogue; module SSR now renders the Restore empty gate too. Remaining bodies:
+Studio, Separate, MIDI, Preferences (plus preset data).

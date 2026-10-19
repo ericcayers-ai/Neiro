@@ -9,6 +9,7 @@ import { ModuleHeader } from '../components/ModuleHeader'
 import { PlanStrip } from '../components/PlanStrip'
 import { RESTORE_CHAINS } from '../constants/options'
 import { useSession } from '../state/session'
+import { useT } from '../i18n'
 import './modules.css'
 
 /** Client-side mirror of ``recommend_enhance_chain`` for the Restore why-card. */
@@ -91,6 +92,7 @@ function recommendFromReport(report: AnalysisReport): {
 }
 
 export function RestoreModule() {
+  const t = useT()
   const {
     file,
     enhanceResult,
@@ -129,9 +131,7 @@ export function RestoreModule() {
 
   if (!file) {
     return (
-      <EmptyGate title="Restore">
-        Import a track first, then pick a layman preset (or Auto from analysis hints).
-      </EmptyGate>
+      <EmptyGate title={t('restore.title')}>{t('restore.gate')}</EmptyGate>
     )
   }
 
@@ -142,12 +142,11 @@ export function RestoreModule() {
   return (
     <div className="module-panel module-enter">
       <ModuleHeader
-        title="Restore"
+        title={t('restore.title')}
         lede={
           <>
-            Enhancement for <strong>{file.name}</strong> — writes a new artifact; source stays
-            untouched.
-            {hasCorrections ? ' Analysis corrections feed the auto chain.' : ''}
+            {t('restore.lede', { name: file.name })}
+            {hasCorrections ? ` ${t('restore.corrections')}` : ''}
           </>
         }
         actions={
@@ -156,25 +155,25 @@ export function RestoreModule() {
             className="primary"
             disabled={running}
             onClick={() => void run()}
-            title="Start restoration"
+            title={t('restore.start')}
           >
-            Restore
+            {t('restore.action')}
           </button>
         }
       />
 
       {recommendation && (
         <div className="option-detail" aria-live="polite" style={{ marginBottom: '0.75rem' }}>
-          <div className="option-detail-title">Recommended: {hintLabel}</div>
+          <div className="option-detail-title">{t('restore.recommended', { label: hintLabel })}</div>
           <p>{recommendation.why}</p>
           {recommendation.presetHint !== chain && (
             <div className="row" style={{ marginTop: '0.5rem' }}>
               <button
                 type="button"
                 onClick={() => setChain(recommendation.presetHint)}
-                title="Switch chain to the detector suggestion"
+                title={t('restore.useHint')}
               >
-                Use recommendation
+                {t('restore.useRecommendation')}
               </button>
             </div>
           )}
@@ -182,7 +181,7 @@ export function RestoreModule() {
       )}
 
       <div className="row">
-        <IntentField label="Preset" intent={selected.intent} htmlFor="restore-chain">
+        <IntentField label={t('restore.preset')} intent={selected.intent} htmlFor="restore-chain">
           <select
             id="restore-chain"
             value={chain}
@@ -215,8 +214,8 @@ export function RestoreModule() {
         <div style={{ marginTop: '1.25rem' }}>
           {result.noop ? (
             <div className="meta-block" role="status">
-              <strong>No changes were needed.</strong>{' '}
-              {result.reason || 'The restored output would equal the input.'}
+              <strong>{t('restore.noop')}</strong>{' '}
+              {result.reason || t('restore.noopReason')}
               <br />
               {(result.notes || []).join(' · ')}
             </div>
@@ -225,17 +224,17 @@ export function RestoreModule() {
               <audio
                 controls
                 src={result.file_url}
-                aria-label="Restored audio preview"
+                aria-label={t('restore.preview')}
                 style={{ width: '100%' }}
               />
               <div className="meta-block">
-                Applied: {(result.chain || []).join(' → ') || 'none'}
+                {t('restore.applied', { chain: (result.chain || []).join(' → ') || 'none' })}
                 <br />
                 {(result.notes || []).join(' · ')}
               </div>
               <div className="row" style={{ marginTop: '0.75rem' }}>
                 <a className="btn-link primary" href={result.file_url} download>
-                  Download
+                  {t('restore.download')}
                 </a>
                 {result.file_id && (
                   <button
@@ -243,15 +242,15 @@ export function RestoreModule() {
                     onClick={() =>
                       openInStudio(result.file_id!, result.file_url!, `${file.name}.restored`)
                     }
-                    title="Load the restored audio in Studio"
+                    title={t('restore.openStudioHint')}
                   >
-                    Open in Studio
+                    {t('restore.openStudio')}
                   </button>
                 )}
               </div>
             </>
           ) : (
-            <div className="meta-block">{(result.notes || ['Nothing to repair.']).join(' · ')}</div>
+            <div className="meta-block">{(result.notes || [t('restore.nothing')]).join(' · ')}</div>
           )}
         </div>
       )}
