@@ -164,11 +164,12 @@ for sines (A4/A3/C4), silence, noise and a positioned window. Player tests 36.
 
 ### Gate stability note
 
-One gate run executed concurrently with a frontend build/vitest reported 21/22
-without naming a failing criterion in the captured tail; two subsequent clean runs
-reported **22/22** (`GATE PASS`). No criterion has failed in isolation. Treat the
-single 21/22 as environmental contention from concurrent processes, not a known
-defect; if it recurs, capture the full gate log before changing anything.
+Two isolated mid-session runs reported 22/23 while other builds were running, and
+the captured tails did not name the failing criterion. After the tree settled,
+**three consecutive full gate runs exited 0 with `GATE PASS — 23/23`** (logs kept in
+the session temp directory). No criterion has failed in isolation. If a failure
+recurs, capture the full gate log before changing anything; do not "fix" a
+criterion without a repro.
 
 ## Thirteenth batch: app-wide i18n scaffold
 
@@ -335,3 +336,18 @@ Added `jsdom` + `axe-core` dev dependencies and `PlayerSurface.axe.test.tsx`
 (jsdom environment): server-render → mount → axe. Latest: **8 vitest tests, 0
 serious/critical violations**. Contrast/target-size rules are not evaluable in
 jsdom and remain owner-run.
+
+## Thirtieth batch: gate stability
+
+Ran the full gate three times back-to-back on the same tree:
+
+```
+run 1 exit=0
+run 2 exit=0
+run 3 exit=0
+GATE PASS — 23/23 criteria (each run)
+```
+
+This supersedes the earlier single-run stability caveat; the two mid-session
+22/23 observations coincided with concurrent builds and were not reproducible in
+isolation or in these three runs.
