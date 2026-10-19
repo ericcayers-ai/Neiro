@@ -5,7 +5,7 @@ must not be assumed*. Updated whenever a phase changes state. The gate
 (`python scripts/verify_goal.py --full`) is the authority; this file may explain a
 FAIL but may not overrule it.
 
-**Current state (2026-10-20, implementation pass):** `GATE PASS — 23/23 criteria` (three consecutive full runs).
+**Current state (2026-10-20, implementation pass):** `GATE PASS — 23/23 criteria`.
 Python suite 276 passed / 3 skipped; player tests 39 passed; vitest 15 (incl. axe); addon validator 47/47;
 frontend tsc + build pass; cargo fmt/clippy/check pass; installers verified. Commit `cf6c35b` contains the implementation (including
 the preserved `pitch_correct` fix and its regression test). Receipts:

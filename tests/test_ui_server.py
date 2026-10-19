@@ -359,8 +359,14 @@ def test_prefs_get_update_and_flush(server):
     )
     assert updated["cache_budget_gb"] == 8.0
     assert updated["warm_pool_ttl_s"] == 60.0
-    assert state.cache.disk_budget_bytes == int(
-        updated["cache_budget_effective_gb"] * 1_000_000_000
+    assert state.cache.disk_budget_bytes == updated["cache_budget_effective_bytes"]
+    # The GB field is a rounded display value; allow display rounding only.
+    assert (
+        abs(
+            updated["cache_budget_effective_bytes"]
+            - updated["cache_budget_effective_gb"] * 1_000_000_000
+        )
+        <= 10_000_000
     )
     assert state.vram.warm_pool_ttl_s == 60.0
 

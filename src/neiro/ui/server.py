@@ -160,8 +160,11 @@ class _State:
         free_gb = shutil.disk_usage(self.workspace).free / 1_000_000_000
         self.disk_free_gb = round(free_gb, 2)
         effective = min(max(0.1, budget_gb), max(0.1, free_gb * 0.5))
+        # Keep the exact byte budget and a rounded display value; comparing the
+        # rounded GB to the cache's exact bytes is wrong when disk-clamped.
+        self.effective_cache_budget_bytes = int(effective * 1_000_000_000)
         self.effective_cache_budget_gb = round(effective, 2)
-        self.cache.disk_budget_bytes = int(effective * 1_000_000_000)
+        self.cache.disk_budget_bytes = self.effective_cache_budget_bytes
         self.vram.warm_pool_ttl_s = max(0.0, ttl)
         self.vram.evict_expired()
 
@@ -175,6 +178,7 @@ class _State:
             "cache_misses": self.cache.misses,
             "cache_disk_usage_bytes": self.cache.disk_usage_bytes(),
             "cache_budget_effective_gb": self.effective_cache_budget_gb,
+            "cache_budget_effective_bytes": self.effective_cache_budget_bytes,
             "disk_free_gb": self.disk_free_gb,
             "disk_tight": self.disk_free_gb < 8.0,
             "resident_models": self.vram.resident_models(),

@@ -164,12 +164,13 @@ for sines (A4/A3/C4), silence, noise and a positioned window. Player tests 36.
 
 ### Gate stability note
 
-Two isolated mid-session runs reported 22/23 while other builds were running, and
-the captured tails did not name the failing criterion. After the tree settled,
-**three consecutive full gate runs exited 0 with `GATE PASS — 23/23`** (logs kept in
-the session temp directory). No criterion has failed in isolation. If a failure
-recurs, capture the full gate log before changing anything; do not "fix" a
-criterion without a repro.
+Earlier 22/23 runs were first blamed on concurrency. With a full log captured, the
+real cause was found: `test_prefs_get_update_and_flush` compared the cache's exact
+byte budget with a **rounded** GB field, and only fails when the effective budget is
+disk-clamped (it passed while disk was plentiful). Fixed by exposing
+`cache_budget_effective_bytes` and comparing exact bytes (see the batch below).
+After that fix, the full gate is **23/23**; there is no evidence of a flaky
+criterion, and failures should be reproduced from the full log before any change.
 
 ## Thirteenth batch: app-wide i18n scaffold
 
@@ -402,3 +403,13 @@ asserts the three lane labels (vitest 14).
 About now has a four-step Quick start and a 1.2.1 feature list (player/render,
 library/resume, companion, installers). SSR asserts both sections (vitest 15).
 Guided tours and support links remain open on T-71.
+
+## Thirty-ninth batch: cache-budget contract fix (the "flake" was real)
+
+`prefs_snapshot` returned `cache_budget_effective_gb` rounded to 2 decimals while
+the cache used `int(effective * 1e9)` bytes. On a machine with enough free disk the
+budget is not clamped (effective == requested 20 GB), so rounding happened to match;
+with ~9 GB free the budget is clamped (~4.81 GB) and the test's equality check
+failed. The API now also returns `cache_budget_effective_bytes`, the cache uses that
+exact value, and the test compares bytes (with a display-rounding tolerance for the
+GB field). Full gate: 23/23.
