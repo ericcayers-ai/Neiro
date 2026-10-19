@@ -9,6 +9,7 @@ import {
   getLibrarySong,
   libraryAudioUrl,
   listLibraryPlaylists,
+  addLibraryVersion,
   listLibrarySongs,
   markSongPlayed,
   resetLibrary,
@@ -290,6 +291,26 @@ export function LibraryModule() {
                 <button type="button" onClick={() => void importPlayerData()} disabled={busy}>
                   Import player markers/clips
                 </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const label = window.prompt('Version label', 'mix')
+                    if (!label) return
+                    void (async () => {
+                      try {
+                        await addLibraryVersion(selected.id, label)
+                        const detail = await getLibrarySong(selected.id)
+                        setSelected(detail.song)
+                        setMessage(`Version “${label}” saved.`)
+                      } catch (err) {
+                        setMessage(err instanceof Error ? err.message : String(err))
+                      }
+                    })()
+                  }}
+                  disabled={busy}
+                >
+                  Save version
+                </button>
               </div>
 
               {selected.path && (
@@ -359,6 +380,11 @@ export function LibraryModule() {
                   Add clip
                 </button>
               </div>
+              {(selected.versions || []).length > 0 && (
+                <p className="intent">
+                  Versions: {(selected.versions || []).map((version) => version.label).join(', ')}
+                </p>
+              )}
               <ul className="player-list">
                 {(selected.clips || []).map((clip) => (
                   <li key={clip.id}>

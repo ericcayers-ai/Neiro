@@ -177,3 +177,9 @@ fallback) and an `I18nProvider`/`useT()` with persisted locale selection. The sh
 rail, hints and session menu now render through it; player strings remain in their
 own catalogue. `docs/i18n.md` states the remaining extraction work and the absence
 of RTL/plural support. Gate C18 now requires the shell catalogue.
+
+## Fourteenth batch: library versions
+
+The Library detail gains Save version (label prompt) and a version list; the API
+endpoint is covered by an HTTP test. Versions are metadata/session pointers, not
+duplicated audio. Library tests 11.

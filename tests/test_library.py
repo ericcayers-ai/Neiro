@@ -211,6 +211,25 @@ def test_api_notes_markers_clips(server):
     assert status == 200 and deleted["ok"] is True
 
 
+def test_api_saves_a_song_version(server):
+    base, _ = server
+    token = _token(base)
+    _, payload = _request(
+        base, "/api/library/songs", method="POST", body={"title": "Versioned"}, token=token
+    )
+    song_id = payload["song"]["id"]
+    status, saved = _request(
+        base,
+        f"/api/library/songs/{song_id}/versions",
+        method="POST",
+        body={"label": "mix v2"},
+        token=token,
+    )
+    assert status == 200 and saved["version"]["label"] == "mix v2"
+    _, detail = _request(base, f"/api/library/songs/{song_id}", token=token)
+    assert detail["song"]["versions"][0]["label"] == "mix v2"
+
+
 def test_api_library_reset_requires_confirm_and_clears_songs(server):
     base, _ = server
     token = _token(base)

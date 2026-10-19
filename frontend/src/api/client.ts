@@ -593,6 +593,18 @@ export async function addToLibraryPlaylist(
   return readJson(res)
 }
 
+export async function addLibraryVersion(
+  songId: string,
+  label: string,
+): Promise<{ ok: boolean; version: { id: string; label: string } }> {
+  const res = await fetch(`/api/library/songs/${encodeURIComponent(songId)}/versions`, {
+    method: 'POST',
+    headers: await apiHeaders(),
+    body: JSON.stringify({ label }),
+  })
+  return readJson(res)
+}
+
 export async function resetLibrary(): Promise<{ ok: boolean; removed_songs: number }> {
   const res = await fetch('/api/library/reset', {
     method: 'POST',
