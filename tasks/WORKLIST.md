@@ -110,10 +110,10 @@ Gate: `python scripts/verify_goal.py --full` — **18/18 PASS** on 2026-10-20.
 - [~] **P5-2 Accessibility.** Baseline labels/live regions/keyboard + a clean
   static audit (`scripts/a11y_static.py`, gate C21). Axe, screen-reader and
   colour-contrast passes remain owner-run.
-- [~] **P5-3 Dynamic port + bundled sidecar/signing.** Dynamic port is implemented
-  on both sides (Python test + Tauri reserve/spawn/probe/navigate; cargo fmt/clippy/
-  check pass). Tauri still spawns system Python and has no sidecar, signing or
-  updater.
+- [~] **P5-3 Dynamic port + bundled sidecar/signing.** Dynamic port end-to-end;
+  the model-free sidecar builds and runs standalone (`scripts/build_sidecar.py`,
+  verified health), and the shell prefers a bundled engine before system Python.
+  Remaining: bundle.resources/`tauri build`, signing/updater, fresh-machine test.
 - [~] **P5-4 Model manager status.** Sizes/licences/needs-install and a
   confirm-gated remove-weights action exist in Prefs; disk-impact preview and
   batch install remain.

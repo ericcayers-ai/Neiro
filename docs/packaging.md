@@ -25,17 +25,31 @@ fixed port. `cargo fmt --check`, `cargo clippy -- -D warnings` and `cargo check`
 pass. **Runtime launch is not verified here**: a GUI build/launch and a
 fresh-machine test are still owner steps.
 
-## Sidecar
+## Sidecar (build verified)
 
-`packaging/neiro.spec` already builds a model-free PyInstaller folder, but Tauri's
-`tauri.conf.json` has no `externalBin`/`resources` entry and no updater/signing
-configuration. A release needs:
+`packaging/neiro.spec` builds a model-free PyInstaller folder; `scripts/build_sidecar.py`
+wraps it:
 
-- the frozen engine as a Tauri sidecar/resource,
-- a model-free default build (models are opt-in downloads),
+```powershell
+uv pip install pyinstaller          # once, dev environment
+python scripts/build_sidecar.py    # -> dist/neiro/neiro.exe (+ _internal/)
+```
+
+Measured 2026-10-20: build completed in ~39 s; `neiro.exe` is ~11 MB plus its
+runtime folder, reports `neiro 1.2.1`, and serves `/api/health` on an ephemeral
+port (`--port 0 --port-file`). This was verified with the frozen binary directly,
+not through a GUI.
+
+`src-tauri/src/lib.rs` now prefers a bundled engine, looking next to the app binary
+at `neiro-engine(.exe)`, `engine/…`, `resources/engine/…`, `resources/…`; it falls
+back to system Python for development. A release copies the built `neiro` folder
+to `src-tauri/resources/engine/` and renames the executable to `neiro-engine`.
+
+Still missing (owner-gated):
+
+- a `bundle.resources` entry and a full `tauri build` that ships the folder,
 - signing certificates + updater keys (`TAURI_SIGNING_PRIVATE_KEY`),
-- a fresh-machine test with no system Python.
+- a fresh-machine test with no Python and no network,
+- uninstall verification.
 
-None of that release work was performed here; the audit and work list keep it
-open. Do not describe the desktop build as standalone until a fresh machine
-without Python passes the launch test.
+Do not describe the desktop build as standalone until those pass.

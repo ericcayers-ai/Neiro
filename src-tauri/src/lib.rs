@@ -91,8 +91,47 @@ fn chrono_like_stamp() -> String {
     format!("{:?}", Instant::now())
 }
 
+/// Where a release build places the frozen engine next to the app binary.
+fn bundled_engine_candidates() -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            let name = if cfg!(windows) {
+                "neiro-engine.exe"
+            } else {
+                "neiro-engine"
+            };
+            out.push(dir.join(name));
+            out.push(dir.join("engine").join(name));
+            out.push(dir.join("resources").join("engine").join(name));
+            out.push(dir.join("resources").join(name));
+        }
+    }
+    out
+}
+
 fn spawn_engine(port: u16) -> Result<Child, String> {
-    let mut last_err = String::from("no Python interpreter found");
+    // Prefer a bundled model-free engine so a release install does not need a
+    // system Python. Falls back to the interpreter for development.
+    for candidate in bundled_engine_candidates() {
+        if !candidate.is_file() {
+            continue;
+        }
+        let mut cmd = Command::new(&candidate);
+        cmd.args(["ui", "--no-browser", "--port", &port.to_string()])
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped());
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            cmd.creation_flags(CREATE_NO_WINDOW);
+        }
+        if let Ok(child) = cmd.spawn() {
+            return Ok(drain_stderr_to_log(child));
+        }
+    }
+
+    let mut last_err = String::from("no bundled engine and no Python interpreter found");
     for bin in python_candidates() {
         let mut cmd = Command::new(bin);
         cmd.args([

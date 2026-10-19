@@ -1714,7 +1714,7 @@ below has a receipt in `docs/evidence/` and a criterion in `GOAL.md`.
 | Finding | State | Why it remains |
 |---|---|---|
 | F-17 cache budget vs disk | **closed for declared sizes** | Disk note, half-free cache cap, 90% preference rejection, upload preflight, and a declared-size model-download preflight (507 before a job). Unsized weights are labelled in progress |
-| F-23/F-24/F-25/F-27 packaging | **partial** | Dynamic port end-to-end (Python test + Tauri reserve/spawn/probe/navigate, cargo fmt/clippy/check); still spawns system Python, no sidecar/signing/updater, Python matrix contradictory |
+| F-23/F-24/F-25/F-27 packaging | **partial** | Dynamic port end-to-end; model-free sidecar builds and serves health standalone; Tauri prefers a bundled engine. Remaining: bundle wiring/signing/updater, fresh-machine test, Python matrix |
 | F-26 model capacity | open | Still 16/70 ready, CPU-only, no torch/ONNX; no weights downloaded in this pass |
 | F-31 frontend tests | **partial** | Vitest SSR tests cover the player markup/labels/overlay (5 tests, gate C22); no DOM/audio or user-event tests yet |
 | F-32 Rust build | **closed for compile** | `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo check` pass; runtime launch still owner-run |

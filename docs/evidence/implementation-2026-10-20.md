@@ -240,3 +240,21 @@ cargo check                               exit 0  (1m14s first run, cached after
 
 Not verified: GUI launch, restart behaviour under a real window, fresh-machine
 sidecar. Those remain owner steps; `docs/packaging.md` says so.
+
+## Twenty-second batch: standalone model-free sidecar
+
+`scripts/build_sidecar.py` builds `packaging/neiro.spec` with PyInstaller 6.22.3.
+Measured build ~39 s; output `dist/neiro/neiro.exe` (~11 MB) + runtime folder.
+
+Verified directly (no GUI, no system Python on the child process):
+
+```
+neiro.exe --version            -> neiro 1.2.1
+neiro.exe ui --no-browser --port 0 --port-file <tmp>
+GET http://127.0.0.1:<chosen>/api/health -> 200 ok (port 58546)
+```
+
+`src-tauri/src/lib.rs` now tries bundled engine paths next to the app binary
+(`neiro-engine`, `engine/`, `resources/engine/`, `resources/`) before falling back
+to Python; `cargo fmt/clippy/check` pass (gate C23). Bundling the folder into the
+Tauri resources, signing and a fresh-machine test remain owner steps.
