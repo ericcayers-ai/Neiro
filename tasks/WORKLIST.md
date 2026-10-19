@@ -113,7 +113,8 @@ Gate: `python scripts/verify_goal.py --full` — **18/18 PASS** on 2026-10-20.
 - [~] **P5-3 Dynamic port + bundled sidecar/signing.** Dynamic port end-to-end;
   the model-free sidecar builds and runs standalone (`scripts/build_sidecar.py`,
   verified health), and the shell prefers a bundled engine before system Python.
-  Remaining: bundle.resources/`tauri build`, signing/updater, fresh-machine test.
+  `bundle.resources` is wired and `tauri build --no-bundle` produced a release exe
+  (2m32s). Remaining: copy engine before release, signing/updater, fresh-machine test.
 - [~] **P5-4 Model manager status.** Sizes/licences/needs-install and a
   confirm-gated remove-weights action exist in Prefs; disk-impact preview and
   batch install remain.

@@ -258,3 +258,16 @@ GET http://127.0.0.1:<chosen>/api/health -> 200 ok (port 58546)
 (`neiro-engine`, `engine/`, `resources/engine/`, `resources/`) before falling back
 to Python; `cargo fmt/clippy/check` pass (gate C23). Bundling the folder into the
 Tauri resources, signing and a fresh-machine test remain owner steps.
+
+## Twenty-third batch: Tauri release build with resource wiring
+
+`bundle.resources = ["resources/engine"]` plus a tracked README; the config
+validates (`cargo check`). A release compile:
+
+```
+npx --prefix frontend tauri build --no-bundle   ->  Finished release in 2m32s
+Built application at: src-tauri/target/release/neiro.exe
+```
+
+Not verified: copying/shipping the engine in the bundle, installer, signing,
+launch on a fresh machine.

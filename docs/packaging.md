@@ -45,9 +45,21 @@ at `neiro-engine(.exe)`, `engine/…`, `resources/engine/…`, `resources/…`; 
 back to system Python for development. A release copies the built `neiro` folder
 to `src-tauri/resources/engine/` and renames the executable to `neiro-engine`.
 
+The release bundle is wired: `bundle.resources` includes `resources/engine/`
+(a tracked README explains the copy step), and
+
+```powershell
+npx --prefix frontend tauri build --no-bundle
+```
+
+completed in **2m32s** and produced `src-tauri/target/release/neiro.exe`
+(optimized). That validates the config, the dynamic-port shell, and the resource
+path; the engine binary itself is per-platform and not committed.
+
 Still missing (owner-gated):
 
-- a `bundle.resources` entry and a full `tauri build` that ships the folder,
+- copying the frozen engine into `resources/engine/` before a release (the build
+  script prints the exact step),
 - signing certificates + updater keys (`TAURI_SIGNING_PRIVATE_KEY`),
 - a fresh-machine test with no Python and no network,
 - uninstall verification.
