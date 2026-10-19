@@ -1167,3 +1167,17 @@
 .studio-chords span:nth-child(3n + 3) {
   background: #b6f0b6;
 }
+
+
+/* Studio real-time player dialog */
+.realtime-player {
+  width: min(940px, 94vw);
+  max-height: 90vh;
+  overflow: auto;
+  background: var(--panel, #12151c);
+  border: 1px solid var(--line, #2a2f3a);
+  border-radius: 12px;
+  padding: 0.9rem;
+  display: grid;
+  gap: 0.6rem;
+}

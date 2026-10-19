@@ -32,6 +32,7 @@ import {
 } from '../constants/options'
 import { focusGain, isTargetStem } from '../player/mix'
 import { chordLane } from '../player/timeline'
+import { PlayerSurface } from '../player/PlayerSurface'
 import {
   IconLoop,
   IconMute,
@@ -327,6 +328,7 @@ export function StudioModule() {
   const [targetFocus, setTargetFocus] = useState(0.5)
   const [studioReport, setStudioReport] = useState<AnalysisReport | null>(null)
   const [analysisBusy, setAnalysisBusy] = useState(false)
+  const [realtimeTrack, setRealtimeTrack] = useState<Track | null>(null)
   const [beatSnap, setBeatSnap] = useState(false)
   const [keyConflict, setKeyConflict] = useState<string | null>(null)
   const [pendingTranspose, setPendingTranspose] = useState<{
@@ -2018,6 +2020,31 @@ export function StudioModule() {
         <StudioHelpSheet onClose={() => setHelpOpen(false)} onAbout={() => setModule('about')} />
       )}
 
+      {realtimeTrack && (
+        <div
+          className="palette-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setRealtimeTrack(null)
+          }}
+        >
+          <div className="realtime-player" role="dialog" aria-modal="true" aria-label="Real-time player">
+            <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0 }}>{realtimeTrack.name}</h3>
+              <button type="button" onClick={() => setRealtimeTrack(null)}>
+                Close
+              </button>
+            </div>
+            <PlayerSurface
+              src={realtimeTrack.audioUrl}
+              fileId={realtimeTrack.fileId}
+              title={realtimeTrack.name}
+              duration={realtimeTrack.duration}
+            />
+          </div>
+        </div>
+      )}
+
       <div className="studio-body">
         <div className="studio-timeline" ref={wrapRef}>
           <div className="studio-track-tools">
@@ -2061,6 +2088,19 @@ export function StudioModule() {
               disabled={!tracks.length || analysisBusy}
             >
               {analysisBusy ? 'Chords…' : 'Chords'}
+            </button>
+            <button
+              type="button"
+              title="Open the selected track in the shared real-time player"
+              onClick={() => {
+                const track = tracks.find((item) => selectedIds.includes(item.id)) ?? tracks[0]
+                if (!track) return
+                pauseAll()
+                setRealtimeTrack(track)
+              }}
+              disabled={!tracks.length}
+            >
+              Real-time
             </button>
           </div>
 

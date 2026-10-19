@@ -92,6 +92,15 @@ From `docs/evidence/player-latency-2026-10-20.md`:
 - Browser control-to-audio latency is **not measured here** (no browser harness);
   the surface displays `baseLatency + outputLatency + algorithmic` at runtime.
 
+## Studio integration
+
+Studio's timeline keeps its multi-track transport (per-stem elements, gain/pan,
+A–B, master clock). A **Real-time** action opens the selected (or first) track in
+the shared `PlayerSurface` dialog and pauses the studio transport first, so the two
+clocks never play at once. This gives real-time transpose/speed/formant/EQ on a stem
+without pretending the per-stem engine has been unified; a full per-stem engine
+remains the open architectural item.
+
 ## Honest labels
 
 `describeMethod()` is the single source of UI wording. A phase-vocoder preview is

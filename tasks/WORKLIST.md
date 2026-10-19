@@ -39,9 +39,9 @@ Gate: `python scripts/verify_goal.py --full` — **18/18 PASS** on 2026-10-20.
 - [x] **P1-4 PlayerSurface UI.** Controls, method label, latency readout, markers,
   clips, ramp.
 - [x] **P1-5 MIDI Practice migrated.** Uses `PlayerSurface`; DAW MIDI resumes a gate.
-- [~] **P1-6 Studio transport migration.** Studio still owns its timeline `<audio>`
-  for stem playback; Mix gain/pan and A–B are unchanged. Remaining: route Studio
-  transport through `PlayerEngine`.
+- [~] **P1-6 Studio transport migration.** Studio keeps its multi-track transport,
+  but a Real-time action opens the selected/first track in the shared player
+  (pausing the studio first). Remaining: per-stem engine unification.
 - [x] **P1-7 Tests + latency receipt.** 37 Node tests; `docs/evidence/player-latency-2026-10-20.md`.
 - [x] **P1-9 Compact player mode.** Header toggle hides practice panels (markup, not
   just CSS), persists per file, and is SSR-tested.

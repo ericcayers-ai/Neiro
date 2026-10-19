@@ -16,7 +16,7 @@ the preserved `pitch_correct` fix and its regression test). Receipts:
 | Phase | State | Evidence |
 |---|---|---|
 | 0. Truth & safety | **done** | gate C1–C9, C15, C17, C19, C20; security/disk receipts |
-| 1. Shared real-time player | **done** (Studio transport partial) | gate C10–C11; latency receipt |
+| 1. Shared real-time player | **done** (Studio per-stem engine open; real-time dialog added) | gate C10–C11; latency receipt |
 | 2. Practice & library | **partial** (auto marker promotion open; MIDI learn, resume/reset, versions, disk-aware cache done) | gate C12; `docs/library.md` |
 | 3. Analysis | **partial** (heuristic only; ONNX adapters absent) | gate C13; `tests/test_analysis_timeline.py` |
 | 4. Optional companion | **source done**, live e2e owner-run | gate C14; `docs/COMPANION.md` |

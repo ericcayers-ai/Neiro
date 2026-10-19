@@ -306,3 +306,10 @@ WINDOW=Neiro
 Processes terminated after 15 s. This proves the shell takes the bundled-engine
 path with no system Python reachable. Not a clean-VM test (WebView2 preinstalled);
 signed installer, updater and uninstall remain owner steps.
+
+## Twenty-sixth batch: Studio real-time player dialog
+
+Studio gains a Real-time action that pauses its multi-track transport and opens the
+selected/first track in `PlayerSurface` (full RT controls, method label, tuner,
+render). It is an integration, not a per-stem engine: the studio clock and the
+player clock never run at once.
