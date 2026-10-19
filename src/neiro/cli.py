@@ -373,7 +373,12 @@ def cmd_watch(args: argparse.Namespace) -> int:
 def cmd_ui(args: argparse.Namespace) -> int:
     from neiro.ui.server import serve
 
-    return serve(port=args.port, open_browser=not args.no_browser, ws_port=args.ws_port)
+    return serve(
+        port=args.port,
+        open_browser=not args.no_browser,
+        ws_port=args.ws_port,
+        port_file=args.port_file,
+    )
 
 
 def cmd_session_save(args: argparse.Namespace) -> int:
@@ -517,6 +522,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_ui = sub.add_parser("ui", help="open the local interface in a browser")
     p_ui.add_argument("--port", type=int, default=8377)
+    p_ui.add_argument(
+        "--port-file",
+        default=None,
+        help="write the bound port here (use --port 0 for an OS-chosen port)",
+    )
     p_ui.add_argument("--no-browser", action="store_true")
     p_ui.add_argument(
         "--ws-port",

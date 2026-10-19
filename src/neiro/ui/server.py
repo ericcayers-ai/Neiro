@@ -2415,11 +2415,22 @@ def _start_ws_control_plane(state: _State, ws_port: int) -> None:
     print(f"WS control channel at ws://127.0.0.1:{ws_port}/")
 
 
-def serve(port: int = 8377, open_browser: bool = True, ws_port: int | None = None) -> int:
+def serve(
+    port: int = 8377,
+    open_browser: bool = True,
+    ws_port: int | None = None,
+    port_file: str | Path | None = None,
+) -> int:
     state = _State()
-    state.port = port
     server = ThreadingHTTPServer(("127.0.0.1", port), _make_handler(state))
-    url = f"http://127.0.0.1:{port}/"
+    # ``port=0`` means "let the OS choose"; the real port must be reported, not 0.
+    actual_port = int(server.server_address[1])
+    state.port = actual_port
+    url = f"http://127.0.0.1:{actual_port}/"
+    if port_file is not None:
+        target = Path(port_file)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(str(actual_port), encoding="utf-8")
     print(f"Neiro interface at {url} (local only — Ctrl+C to stop)")
     print(f"Workspace: {state.workspace}")
     if state.disk_free_gb < 8.0:

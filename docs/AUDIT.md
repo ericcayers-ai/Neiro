@@ -1714,7 +1714,7 @@ below has a receipt in `docs/evidence/` and a criterion in `GOAL.md`.
 | Finding | State | Why it remains |
 |---|---|---|
 | F-17 cache budget vs disk | **mostly closed** | Startup disk note, effective cache budget capped at half of free space, preference updates above 90% free rejected, upload preflight/507. Remaining: model-size preflight before downloads |
-| F-23/F-24/F-25/F-27 packaging | open | Tauri still spawns system Python on fixed port 8377; no bundled sidecar, signing or updater; Python matrix still contradictory (CI 3.10–3.12, local 3.13) |
+| F-23/F-24/F-25/F-27 packaging | **partial** | Python now supports `--port 0 --port-file` (tested); Tauri still spawns system Python on fixed 8377 with no sidecar/signing/updater; Python matrix still contradictory |
 | F-26 model capacity | open | Still 16/70 ready, CPU-only, no torch/ONNX; no weights downloaded in this pass |
 | F-31 frontend tests | partial | Node tests cover DSP/transport logic; there is still no DOM/React test runner |
 | F-32 Rust build | not run | No target cache; `cargo check`/clippy not executed |

@@ -133,3 +133,10 @@ seeking, Home/End, and a shared `clampSeek` helper with a Node test. Player test
 displacement, reset and local persistence; `PlayerShortcutPanel` exposes Learn/Clear
 per action. Home/End and the wait-gate Space/Enter remain fixed by design. Player
 tests 32; gate 19/19.
+
+## Ninth batch: dynamic port contract
+
+`neiro ui --port 0 --port-file <path>` binds an OS-chosen loopback port, reports
+the real port to the file and prints the actual URL; `tests/test_dynamic_port.py`
+spawns the CLI and checks health on that port. `docs/packaging.md` records the
+Tauri contract (still unimplemented in Rust) and the sidecar/signing gap.
