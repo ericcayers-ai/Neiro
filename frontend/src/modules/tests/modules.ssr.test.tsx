@@ -7,6 +7,7 @@ import { ImportModule } from '../ImportModule'
 import { LibraryModule } from '../LibraryModule'
 import { RestoreModule } from '../RestoreModule'
 import { SeparateModule } from '../SeparateModule'
+import { PreferencesModule } from '../PreferencesModule'
 
 function render(node: React.ReactNode) {
   return renderToStaticMarkup(
@@ -23,6 +24,12 @@ describe('module shells render through the catalogue', () => {
     expect(html).toContain('No songs yet')
     expect(html).toContain('Add current file')
     expect(html).toContain('Resume last')
+  })
+
+  it('renders the Preferences sections through the catalogue', () => {
+    const html = render(<PreferencesModule />)
+    expect(html).toContain('Compute &amp; storage')
+    expect(html).toContain('No telemetry by default')
   })
 
   it('renders the Separate empty gate', () => {

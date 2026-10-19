@@ -17,6 +17,7 @@ import {
 import { useLocalPref } from '../api/hooks'
 import { IntentField } from '../components/IntentField'
 import { ModuleHeader } from '../components/ModuleHeader'
+import { useT } from '../i18n'
 import { CompanionCard } from './CompanionCard'
 import { DataResetCard } from './DataResetCard'
 import './modules.css'
@@ -29,6 +30,7 @@ const PACK_LABELS: Record<string, string> = {
 }
 
 export function PreferencesModule() {
+  const t = useT()
   const [theme, setTheme] = useLocalPref('neiro.pref.theme', 'dark')
   const [density, setDensity] = useLocalPref('neiro.pref.density', 'comfortable')
   const [fontScale, setFontScale] = useLocalPref('neiro.pref.fontScale', '100')
@@ -296,28 +298,28 @@ export function PreferencesModule() {
   return (
     <div className="module-panel module-enter">
       <ModuleHeader
-        title="Preferences"
-        lede="Theme and density stay in this browser profile; models, cache, and tools sync to the local engine."
+        title={t('prefs.title')}
+        lede={t('prefs.lede')}
       />
 
-      <h3>Interface</h3>
+      <h3>{t('prefs.interface')}</h3>
       <div className="row">
-        <IntentField label="Theme" intent="Dark, light, and high-contrast are first-class." htmlFor="theme">
+        <IntentField label={t('prefs.theme')} intent={t('prefs.themeIntent')} htmlFor="theme">
           <select id="theme" value={theme} onChange={(e) => setTheme(e.target.value)}>
-            <option value="dark">Dark (ink-on-slate)</option>
-            <option value="light">Light</option>
-            <option value="high-contrast">High contrast</option>
+            <option value="dark">{t('prefs.themeDark')}</option>
+            <option value="light">{t('prefs.themeLight')}</option>
+            <option value="high-contrast">{t('prefs.themeHigh')}</option>
           </select>
         </IntentField>
-        <IntentField label="Density" intent="Compact reduces padding for dense editing." htmlFor="density">
+        <IntentField label={t('prefs.density')} intent={t('prefs.densityIntent')} htmlFor="density">
           <select id="density" value={density} onChange={(e) => setDensity(e.target.value)}>
-            <option value="comfortable">Comfortable</option>
-            <option value="compact">Compact</option>
+            <option value="comfortable">{t('prefs.densityComfortable')}</option>
+            <option value="compact">{t('prefs.densityCompact')}</option>
           </select>
         </IntentField>
         <IntentField
-          label="Font scale"
-          intent="Independent of OS zoom; supports up to 200%. Scales rem-based UI."
+          label={t('prefs.fontScale')}
+          intent={t('prefs.fontScaleIntent')}
           htmlFor="font-scale"
         >
           <select id="font-scale" value={fontScale} onChange={(e) => setFontScale(e.target.value)}>
@@ -329,8 +331,8 @@ export function PreferencesModule() {
           </select>
         </IntentField>
         <IntentField
-          label="Motion"
-          intent="Honor prefers-reduced-motion or force reduce."
+          label={t('prefs.motion')}
+          intent={t('prefs.motionIntent')}
           htmlFor="motion"
         >
           <select
@@ -338,14 +340,14 @@ export function PreferencesModule() {
             value={reducedMotion}
             onChange={(e) => setReducedMotion(e.target.value)}
           >
-            <option value="system">System</option>
-            <option value="reduce">Reduce</option>
-            <option value="no-preference">No preference</option>
+            <option value="system">{t('prefs.motionSystem')}</option>
+            <option value="reduce">{t('prefs.motionReduce')}</option>
+            <option value="no-preference">{t('prefs.motionNoPreference')}</option>
           </select>
         </IntentField>
       </div>
 
-      <h3 id="prefs-models">Models</h3>
+      <h3 id="prefs-models">{t('prefs.models')}</h3>
       <p className="intent" style={{ marginTop: 0 }}>
         Download weights for available backends. Packs pull a starter set for each workflow.
       </p>
@@ -391,11 +393,11 @@ export function PreferencesModule() {
         <table className="models-table">
           <thead>
             <tr>
-              <th scope="col">Model</th>
-              <th scope="col">Task</th>
-              <th scope="col">Status</th>
-              <th scope="col">Size</th>
-              <th scope="col">Action</th>
+              <th scope="col">{t('prefs.model')}</th>
+              <th scope="col">{t('prefs.task')}</th>
+              <th scope="col">{t('prefs.status')}</th>
+              <th scope="col">{t('prefs.size')}</th>
+              <th scope="col">{t('prefs.action')}</th>
             </tr>
           </thead>
           <tbody>
@@ -417,14 +419,14 @@ export function PreferencesModule() {
                       disabled={Boolean(downloadJobId)}
                       onClick={() => void removeOne(m.id)}
                     >
-                      Remove
+                      {t('prefs.remove')}
                     </button>
                   )}{' '}
                   {m.status === 'ready' ? (
-                    <span className="muted">Ready</span>
+                    <span className="muted">{t('prefs.ready')}</span>
                   ) : m.status === 'needs-install' ? (
                     <span className="muted" title={(m.requires || []).join(', ')}>
-                      Install deps
+                      {t('prefs.installDeps')}
                     </span>
                   ) : (
                     <button
@@ -432,7 +434,7 @@ export function PreferencesModule() {
                       disabled={Boolean(downloadJobId) || !m.available}
                       onClick={() => void downloadOne(m.id)}
                     >
-                      Download
+                      {t('prefs.download')}
                     </button>
                   )}
                 </td>
@@ -442,26 +444,26 @@ export function PreferencesModule() {
         </table>
       </div>
 
-      <h3 id="prefs-tools">Tools</h3>
+      <h3 id="prefs-tools">{t('prefs.tools')}</h3>
       <div className="option-detail">
-        <div className="option-detail-title">Verovio</div>
+        <div className="option-detail-title">{t('prefs.verovio')}</div>
         <p>
           {tools?.verovio.installed
-            ? 'Installed — SVG score engraving available.'
+            ? t('prefs.verovioReady')
             : tools?.verovio.hint || 'pip install verovio'}
         </p>
         {!tools?.verovio.installed && (
           <button type="button" disabled={engineBusy} onClick={() => void onInstallVerovio()}>
-            Install Verovio
+            {t('prefs.installVerovio')}
           </button>
         )}
       </div>
       <div className="option-detail" style={{ marginTop: '0.65rem' }}>
-        <div className="option-detail-title">MuseScore</div>
+        <div className="option-detail-title">{t('prefs.musescore')}</div>
         <p>
           {tools?.musescore.installed
-            ? `Found: ${tools.musescore.path}`
-            : 'Not on PATH — browse to MuseScore4.exe / mscore, or install for PDF export.'}
+            ? t('prefs.musescoreFound', { path: tools.musescore.path ?? '' })
+            : t('prefs.musescoreMissing')}
         </p>
         <div className="row" style={{ gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
           <input
@@ -471,26 +473,26 @@ export function PreferencesModule() {
             placeholder="C:\Program Files\MuseScore 4\bin\MuseScore4.exe"
             onChange={(e) => setMuseScorePathDraft(e.target.value)}
             style={{ flex: '1 1 16rem', minWidth: '12rem' }}
-            aria-label="MuseScore executable path"
+            aria-label={t('prefs.musePath')}
           />
           <button
             type="button"
             disabled={engineBusy || !museScorePathDraft.trim()}
             onClick={() => void onSaveMuseScorePath(museScorePathDraft.trim())}
           >
-            Set path
+            {t('prefs.setPath')}
           </button>
           <button type="button" disabled={engineBusy} onClick={() => museScoreInputRef.current?.click()}>
-            Browse…
+            {t('prefs.browse')}
           </button>
           {tools?.musescore.installed && (
             <button type="button" className="ghost" disabled={engineBusy} onClick={() => void onSaveMuseScorePath(null)}>
-              Clear override
+              {t('prefs.clearOverride')}
             </button>
           )}
           {tools?.musescore.download_url && (
             <a className="btn-link" href={tools.musescore.download_url} target="_blank" rel="noreferrer">
-              MuseScore download
+              {t('prefs.museDownload')}
             </a>
           )}
         </div>
@@ -520,24 +522,24 @@ export function PreferencesModule() {
         />
       </div>
       <div className="option-detail" style={{ marginTop: '0.65rem' }}>
-        <div className="option-detail-title">Soundfont</div>
+        <div className="option-detail-title">{t('prefs.soundfont')}</div>
         <p>
           {tools?.soundfont.installed
-            ? `Present: ${tools.soundfont.files.join(', ')} — MIDI Studio piano unlocked (FluidR3 browser kit; SF2 for MuseScore).`
+            ? t('prefs.soundfontReady', { files: tools.soundfont.files.join(', ') })
             : tools?.soundfont.hint || 'GM SF2 for MIDI Studio.'}
         </p>
         {!tools?.soundfont.installed && (
           <button type="button" disabled={engineBusy} onClick={() => void onInstallSoundfont()}>
-            Download GM soundfont
+            {t('prefs.downloadSf')}
           </button>
         )}
       </div>
 
-      <h3>Compute &amp; storage</h3>
+      <h3>{t('prefs.compute')}</h3>
       <div className="row">
         <IntentField
-          label="Cache budget (GB)"
-          intent="LRU eviction when the content-addressed cache exceeds this size."
+          label={t('prefs.cacheBudget')}
+          intent={t('prefs.cacheIntent')}
           htmlFor="cache-budget"
         >
           <input
@@ -552,8 +554,8 @@ export function PreferencesModule() {
           />
         </IntentField>
         <IntentField
-          label="Warm-pool TTL (s)"
-          intent="How long models stay resident between jobs. 0 disables auto-eviction."
+          label={t('prefs.warmTtl')}
+          intent={t('prefs.warmIntent')}
           htmlFor="warm-ttl"
         >
           <input
@@ -568,28 +570,28 @@ export function PreferencesModule() {
           />
         </IntentField>
         <button type="button" disabled={engineBusy} onClick={() => void syncCompute()}>
-          Apply to engine
+          {t('prefs.applyEngine')}
         </button>
         <button type="button" disabled={engineBusy} onClick={() => void onFlush(false)}>
-          Flush warm pool
+          {t('prefs.flush')}
         </button>
         <button type="button" disabled={engineBusy} onClick={() => void onFlush(true)}>
-          Flush + clear cache
+          {t('prefs.flushClear')}
         </button>
       </div>
       <p className="muted" style={{ marginTop: '0.75rem' }}>
-        Resident models:{' '}
-        {residents.length > 0 ? residents.join(', ') : 'none (warm pool empty)'}
+        {t('prefs.residents', {
+          models: residents.length > 0 ? residents.join(', ') : t('prefs.noneResident'),
+        })}
       </p>
 
       <CompanionCard />
 
       <DataResetCard />
 
-      <h3>Privacy</h3>
+      <h3>{t('prefs.privacy')}</h3>
       <p className="muted">
-        No network access except model downloads and app updates, both user-initiated. No telemetry
-        by default.
+        {t('prefs.privacyText')}
       </p>
 
       {status && (

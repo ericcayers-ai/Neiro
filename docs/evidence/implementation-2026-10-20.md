@@ -376,3 +376,10 @@ Studio, Separate, MIDI, Preferences (plus preset data).
 Separate's gate, header, preset/tier/bleed controls, queue hint and stem-result
 actions resolve through the catalogue; module SSR renders the Separate empty gate
 too. Remaining bodies: Studio, MIDI, Preferences.
+
+## Thirty-fifth batch: Preferences catalogue
+
+Preferences sections, controls, model-table headers, tool actions, compute fields
+and privacy text resolve through the catalogue; some dynamic status messages remain
+English. Module SSR renders Preferences too (vitest 13). Remaining bodies: Studio,
+MIDI (plus preset data and dynamic messages).
