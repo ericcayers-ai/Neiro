@@ -435,3 +435,10 @@ exercises the token/API/worker/artifact path used by the player's Render button.
 MIDI Studio's gate, header, mode-tab aria label and empty-roll state resolve through
 the catalogue; mode labels/hints and body controls remain data/English. SSR renders
 the empty gate (vitest 16).
+
+## Forty-third batch: Studio compact mode
+
+A Compact toggle in Studio collapses lane heights (2.25 rem; 4.5 rem with
+spectrogram) and persists in `neiro.studio.compact`. This is the compact part of
+T-67; "wide" remains an extension limitation and is not promised. No automated UI
+test (Studio needs a full session); build + typecheck cover it.

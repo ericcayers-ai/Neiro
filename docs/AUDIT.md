@@ -1042,7 +1042,7 @@ player, **Q** queued Neiro engine, **RT+Q** hybrid, **Addon** extension surface,
 | T-64 | Seek interval/scrub preview/wheel | Studio wheel zoom; no settings/scrub preview | P | Player settings | RT | P2 |
 | T-65 | Custom keyboard shortcuts | Fixed shortcuts + command palette; not remappable | P | Shortcut service + conflict UI | — | P2 |
 | T-66 | MIDI learn/mappings (note/CC/program/transport/MMC) | WebMIDI wait only; no mapping | M | MIDI service + persist | RT | P1 |
-| T-67 | Studio modes compact/side/wide | Responsive UI; no scenes/wide; wide is an extension limitation | P | Scenes/layout; do not port "wide" as a promise | RT | P2 |
+| T-67 | Studio modes compact/side/wide | Responsive UI; no scenes/wide; wide is an extension limitation | P | Compact track mode; scenes/wide remain; do not promise wide | RT | P2 |
 | T-68 | Premium/low-latency settings | None | M | Player quality mode | RT | P1 |
 | T-69 | Music/chord/rhythm analysis toggles/WebGPU | Server analysis always on; no WebGPU | P | Per-lane toggles (key/tempo, chords, beats) with persistence; Q analysis | Q | P2 |
 | T-70 | Data/reset (history/stems/audio/models/permissions/settings/scenes) | Prefs/cache/model/tools partial; no library/permissions/scenes | P | Central data manager | Q | P2 |

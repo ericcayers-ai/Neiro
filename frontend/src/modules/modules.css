@@ -1181,3 +1181,14 @@
   display: grid;
   gap: 0.6rem;
 }
+
+/* Compact Studio rows (T-67) */
+.studio-timeline.is-compact .studio-lane {
+  min-height: 2.25rem;
+}
+.studio-timeline.is-compact .studio-lane.has-spec {
+  min-height: 4.5rem;
+}
+.studio-timeline.is-compact .studio-track {
+  padding: 0;
+}

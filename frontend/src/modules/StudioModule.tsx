@@ -326,6 +326,13 @@ export function StudioModule() {
   const [mixOpen, setMixOpen] = useState(false)
   // 0.5 = neutral; >0.5 boosts vocals/singers and ducks backing, <0.5 the reverse.
   const [targetFocus, setTargetFocus] = useState(0.5)
+  const [compact, setCompact] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('neiro.studio.compact') === '1'
+    } catch {
+      return false
+    }
+  })
   const [studioReport, setStudioReport] = useState<AnalysisReport | null>(null)
   const [analysisBusy, setAnalysisBusy] = useState(false)
   const [realtimeTrack, setRealtimeTrack] = useState<Track | null>(null)
@@ -552,6 +559,14 @@ export function StudioModule() {
     },
     [ensureAudioCtx],
   )
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('neiro.studio.compact', compact ? '1' : '0')
+    } catch {
+      /* ignore */
+    }
+  }, [compact])
 
   const loadStudioAnalysis = useCallback(async () => {
     const track = tracks[0]
@@ -2046,7 +2061,7 @@ export function StudioModule() {
       )}
 
       <div className="studio-body">
-        <div className="studio-timeline" ref={wrapRef}>
+        <div className={`studio-timeline${compact ? ' is-compact' : ''}`} ref={wrapRef}>
           <div className="studio-track-tools">
             <button type="button" title="Add empty track" onClick={addEmptyTrack}>
               + Track
@@ -2088,6 +2103,14 @@ export function StudioModule() {
               disabled={!tracks.length || analysisBusy}
             >
               {analysisBusy ? 'Chords…' : 'Chords'}
+            </button>
+            <button
+              type="button"
+              aria-pressed={compact}
+              title="Compact track heights"
+              onClick={() => setCompact((value) => !value)}
+            >
+              Compact
             </button>
             <button
               type="button"
