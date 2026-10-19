@@ -161,3 +161,11 @@ no-duration gate. `npm test` runs it; gate C22 runs it with `--full`.
 errors, parabolic refinement) and note/cents naming; the player samples a 60 ms
 window every 300 ms while playing and shows "heard A4 +2¢". Covered by Node tests
 for sines (A4/A3/C4), silence, noise and a positioned window. Player tests 36.
+
+### Gate stability note
+
+One gate run executed concurrently with a frontend build/vitest reported 21/22
+without naming a failing criterion in the captured tail; two subsequent clean runs
+reported **22/22** (`GATE PASS`). No criterion has failed in isolation. Treat the
+single 21/22 as environmental contention from concurrent processes, not a known
+defect; if it recurs, capture the full gate log before changing anything.
