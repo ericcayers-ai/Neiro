@@ -3,6 +3,13 @@
 export type Catalogue = Record<string, string>
 
 export const EN: Catalogue = {
+  'midi.title': 'MIDI Studio',
+  'midi.gate': 'Import a file first, then transcribe to MIDI, edit the roll, engrave a score, or practice.',
+  'midi.lede': 'Transcribe, piano roll, score, edit, and practice for {name}. Shortcut 8 jumps to Practice.',
+  'midi.modes': 'MIDI Studio modes',
+  'midi.noMidi': 'No MIDI yet',
+  'midi.noMidiBody': 'Run Transcribe to fill the piano roll.',
+  'midi.goTranscribe': 'Go to Transcribe',
   'prefs.title': 'Preferences',
   'prefs.lede': 'Theme and density stay in this browser profile; models, cache, and tools sync to the local engine.',
   'prefs.interface': 'Interface',

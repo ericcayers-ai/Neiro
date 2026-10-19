@@ -429,3 +429,9 @@ the condition the old test silently depended on.
 `/api/job/<id>` until done, checks the ~0.25 s duration and `render(...)`
 provenance, then downloads `audio_url` and asserts a non-empty 200 response. This
 exercises the token/API/worker/artifact path used by the player's Render button.
+
+## Forty-second batch: MIDI Studio shell catalogue
+
+MIDI Studio's gate, header, mode-tab aria label and empty-roll state resolve through
+the catalogue; mode labels/hints and body controls remain data/English. SSR renders
+the empty gate (vitest 16).

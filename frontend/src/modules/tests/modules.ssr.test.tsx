@@ -10,6 +10,7 @@ import { SeparateModule } from '../SeparateModule'
 import { PreferencesModule } from '../PreferencesModule'
 import { AnalysisLanes } from '../AnalysisLanes'
 import { AboutModule } from '../AboutModule'
+import { MidiStudioModule } from '../MidiStudioModule'
 
 function render(node: React.ReactNode) {
   return renderToStaticMarkup(
@@ -26,6 +27,11 @@ describe('module shells render through the catalogue', () => {
     expect(html).toContain('No songs yet')
     expect(html).toContain('Add current file')
     expect(html).toContain('Resume last')
+  })
+
+  it('renders the MIDI Studio empty gate', () => {
+    const html = render(<MidiStudioModule />)
+    expect(html).toContain('transcribe to MIDI')
   })
 
   it('renders the About help and what-new sections', () => {

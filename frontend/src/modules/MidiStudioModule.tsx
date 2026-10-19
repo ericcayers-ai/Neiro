@@ -14,6 +14,7 @@ import { EmptyGate } from '../components/EmptyGate'
 import { IntentField } from '../components/IntentField'
 import { JobProgress } from '../components/JobProgress'
 import { ModuleHeader } from '../components/ModuleHeader'
+import { useT } from '../i18n'
 import { PlanStrip } from '../components/PlanStrip'
 import {
   TRANSCRIBE_MODES,
@@ -473,6 +474,7 @@ function TranscribeControls({
 
 /** Unified MIDI Studio — absorbs Transcribe + Learn. */
 export function MidiStudioModule() {
+  const t = useT()
   const {
     file,
     transcribeResult,
@@ -597,9 +599,7 @@ export function MidiStudioModule() {
 
   if (!file) {
     return (
-      <EmptyGate title="MIDI Studio">
-        Import a file first, then transcribe to MIDI, edit the roll, engrave a score, or practice.
-      </EmptyGate>
+      <EmptyGate title={t('midi.title')}>{t('midi.gate')}</EmptyGate>
     )
   }
 
@@ -609,16 +609,11 @@ export function MidiStudioModule() {
   return (
     <div className="module-panel module-enter midi-studio">
       <ModuleHeader
-        title="MIDI Studio"
-        lede={
-          <>
-            Transcribe, piano roll, score, edit, and practice for <strong>{file.name}</strong>.
-            Shortcut <kbd>8</kbd> jumps to Practice.
-          </>
-        }
+        title={t('midi.title')}
+        lede={<>{t('midi.lede', { name: file.name })}</>}
       />
 
-      <div className="midi-mode-tabs" role="tablist" aria-label="MIDI Studio modes">
+      <div className="midi-mode-tabs" role="tablist" aria-label={t('midi.modes')}>
         {MODES.map((m) => (
           <button
             key={m.id}
@@ -642,10 +637,10 @@ export function MidiStudioModule() {
 
       {(modeTyped === 'roll' || modeTyped === 'roll-score' || modeTyped === 'edit') && !transcribeResult && (
         <div className="gate">
-          <div className="gate-title">No MIDI yet</div>
-          <p className="gate-body">Run Transcribe to fill the piano roll.</p>
+          <div className="gate-title">{t('midi.noMidi')}</div>
+          <p className="gate-body">{t('midi.noMidiBody')}</p>
           <button type="button" onClick={() => setMode('transcribe')}>
-            Go to Transcribe
+            {t('midi.goTranscribe')}
           </button>
         </div>
       )}
