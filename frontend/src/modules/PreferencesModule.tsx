@@ -16,6 +16,7 @@ import {
 import { useLocalPref } from '../api/hooks'
 import { IntentField } from '../components/IntentField'
 import { ModuleHeader } from '../components/ModuleHeader'
+import { CompanionCard } from './CompanionCard'
 import './modules.css'
 
 const PACK_LABELS: Record<string, string> = {
@@ -555,6 +556,8 @@ export function PreferencesModule() {
         Resident models:{' '}
         {residents.length > 0 ? residents.join(', ') : 'none (warm pool empty)'}
       </p>
+
+      <CompanionCard />
 
       <h3>Privacy</h3>
       <p className="muted">

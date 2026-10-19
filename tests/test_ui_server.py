@@ -53,8 +53,15 @@ def _get(url):
         return resp.status, resp.read()
 
 
+def _token(base):
+    with urllib.request.urlopen(base + "/api/auth/token") as resp:
+        return json.load(resp)["token"]
+
+
 def _post(url, data, headers):
-    req = urllib.request.Request(url, data=data, headers=headers)
+    hdrs = dict(headers or {})
+    hdrs.setdefault("X-Neiro-Token", _token(url.split("/api/")[0]))
+    req = urllib.request.Request(url, data=data, headers=hdrs)
     with urllib.request.urlopen(req) as resp:
         return json.load(resp)
 
@@ -63,7 +70,7 @@ def _upload(base, data=None):
     return _post(
         base + "/api/upload",
         data or _tone_wav_bytes(),
-        {"X-Filename": "tone.wav"},
+        {"X-Filename": "tone.wav", "Content-Type": "application/octet-stream"},
     )
 
 

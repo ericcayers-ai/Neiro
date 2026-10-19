@@ -7,6 +7,8 @@ a thin client over the same planner/graph engine as the CLI.
 Endpoints:
     GET  /                      React SPA (or legacy redirect)
     GET  /api/health            liveness {status, version, engine}
+    GET/POST/DELETE /api/library/...  local songs, notes, markers, clips, scenes
+    GET  /api/auth/token        per-process mutation token (same-origin only)
     GET  /api/version           {name, version, api_version}
     POST /api/upload            raw audio bytes (X-Filename header) -> analysis
     POST /api/ingest-url        {url}               -> analysis (yt-dlp)
@@ -24,6 +26,7 @@ Endpoints:
     GET  /api/waveform          ?file_id&width[&start&end] -> peak envelope
     GET  /api/spectrogram       ?file_id            -> quantised log-freq grid
     POST /api/edit              {file_id, op, ...}  -> new (edited) file_id
+    POST /api/edit/job          {file_id, op, ...}  -> job id (progress/cancel/cache)
                             bounce: {op:bounce, tracks:[{file_id,gain,pan,offset}]}
                             split:  {file_id, op:split, at} -> {left, right}
                             pitch_correct: {file_id, op:pitch_correct, key?, strength?}
@@ -53,9 +56,12 @@ Endpoints:
 from __future__ import annotations
 
 import contextlib
+import hmac
 import json
 import mimetypes
 import re
+import secrets
+import shutil
 import tempfile
 import threading
 import time
@@ -64,13 +70,19 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
-from urllib.parse import unquote
+from urllib.parse import unquote, urlsplit
 
 from neiro import __version__
 from neiro.engine.cache import ArtifactCache
 from neiro.engine.graph import CancelledError, ExecutionContext, Progress
 from neiro.engine.registry import default_registry
 from neiro.engine.vram import VRAMManager
+from neiro.ui.security import (
+    UPLOAD_RESERVE_BYTES,
+    RequestRejected,
+    SecurityPolicy,
+    check_outbound_url,
+)
 
 __all__ = ["serve"]
 
@@ -113,6 +125,9 @@ class _State:
         self.registry = default_registry()
         self.vram = VRAMManager()
         self.cache = ArtifactCache(max_entries=64)
+        # (file_id, op, params) -> rendered file_id for queued edits. Bounded, local,
+        # process-lifetime only; artifacts remain on disk in the workspace.
+        self.edit_cache: dict[str, str] = {}
         self.files: dict[str, Path] = {}
         self.parents: dict[str, str] = {}  # edited file_id -> file_id it derived from
         self.jobs: dict[str, dict] = {}
@@ -120,6 +135,13 @@ class _State:
         self.transcription_sessions: dict[str, Any] = {}
         self.lock = threading.Lock()
         self.port = 8377
+        # Per-process browser-threat policy: loopback Host, Origin allowlist, token,
+        # body/upload caps. See neiro.ui.security for the threat model.
+        self.security = SecurityPolicy()
+        # Short-lived pairing code for the optional browser companion. Shown in
+        # Neiro's Prefs; exchanging it yields the per-process API token.
+        self.pair_code = _new_pair_code()
+        self.pair_expires = time.time() + _PAIR_TTL_S
         # Optional: set by serve() when the WS control channel is enabled, so
         # progress lines get pushed there too, not just appended for polling.
         self.ws_hub = None
@@ -185,6 +207,13 @@ class _State:
         file_id = uuid.uuid4().hex[:12]
         self.files[file_id] = path
         return file_id
+
+
+_PAIR_TTL_S = 600
+
+
+def _new_pair_code() -> str:
+    return f"{secrets.randbelow(1_000_000):06d}"
 
 
 def _safe_name(name: str) -> str:
@@ -442,7 +471,21 @@ def _run_enhancement(
         chain=chain,
         corrections=corrections,
     )
-    result: dict = {"chain": plan.chain, "notes": plan.notes}
+    if not plan.chain:
+        # Nothing to repair: report the no-op explicitly instead of "done" with no
+        # artefact. The UI/CLI must not imply an output exists when there is none.
+        with state.lock:
+            state.jobs[job_id].update(
+                status="done",
+                result={
+                    "chain": [],
+                    "notes": plan.notes,
+                    "noop": True,
+                    "reason": "nothing to repair; the output would equal the input",
+                },
+            )
+        return
+    result: dict = {"chain": plan.chain, "notes": plan.notes, "noop": False}
     if plan.chain:
         ctx = ExecutionContext(
             cache=state.cache,
@@ -484,11 +527,14 @@ def _run_pitch_correct(
     with state.lock:
         state.job_contexts[job_id] = ctx
     try:
-        progress("pitch_correct: loading", fraction=0.05)
+        # ctx.report is the one sanctioned emitter: it wraps the value in a Progress object,
+        # which is what the callback from _job_progress takes. Calling the callback directly
+        # with a string and a `fraction=` kwarg raised TypeError and killed every job.
+        ctx.report("pitch_correct", "loading", 0.05)
         if ctx.cancelled:
             raise CancelledError()
         audio = state.load(file_id)
-        progress("pitch_correct: analyzing pitch", fraction=0.15)
+        ctx.report("pitch_correct", "analyzing pitch", 0.15)
         if ctx.cancelled:
             raise CancelledError()
 
@@ -503,7 +549,7 @@ def _run_pitch_correct(
         )
         if ctx.cancelled:
             raise CancelledError()
-        progress("pitch_correct: writing", fraction=0.9)
+        ctx.report("pitch_correct", "writing", 0.9)
         name = _safe_name(Path(state.files[file_id]).stem + ".pitch-correct.wav")
         p = write_audio(result, job_dir / name, fmt="wav", bit_depth=16)
         new_id = state.register_path(p)
@@ -519,12 +565,160 @@ def _run_pitch_correct(
             "provenance": getattr(result, "provenance", None),
             "notes": [f"pitch_correct key={key or 'chromatic'} strength={strength:g}"],
         }
-        progress("pitch_correct: done", fraction=1.0)
+        ctx.report("pitch_correct", "done", 1.0)
         with state.lock:
             state.jobs[job_id].update(status="done", result=payload)
     finally:
         with state.lock:
             state.job_contexts.pop(job_id, None)
+
+
+EDIT_JOB_OPS = ("time_stretch", "pitch_shift", "pitch_correct")
+EDIT_CACHE_ENTRIES = 32
+
+
+def _edit_cache_key(file_id: str, op: str, params: dict) -> str:
+    import json as _json
+
+    return f"{file_id}|{op}|" + _json.dumps(params, sort_keys=True, separators=(",", ":"))
+
+
+def start_edit_job(state: _State, file_id: str, body: dict) -> str:
+    """Queue a long DSP edit and return its job id (progress/cancel/cache).
+
+    The synchronous ``/api/edit`` path stays for short ops and older clients; the
+    practice/player path uses this so a speed or pitch change never blocks the UI on
+    a whole-file render.
+    """
+    from neiro.dsp import edit as ed
+    from neiro.dsp import waveform_peaks
+    from neiro.io import write_audio
+
+    op = str(body.get("op") or "")
+    if op not in EDIT_JOB_OPS:
+        raise ValueError(f"queued edit supports {', '.join(EDIT_JOB_OPS)}")
+    if file_id not in state.files:
+        raise KeyError(f"unknown file_id {file_id!r} — upload first")
+
+    if op == "time_stretch":
+        rate = body.get("rate", body.get("stretch"))
+        if rate is None:
+            raise ValueError("time_stretch requires rate")
+        params = {"rate": float(rate)}
+        if not (0.1 <= params["rate"] <= 10.0):
+            raise ValueError("rate must be within 0.1..10")
+    elif op == "pitch_shift":
+        semis = body.get("semitones", body.get("semitone"))
+        if semis is None:
+            raise ValueError("pitch_shift requires semitones")
+        params = {"semitones": float(semis)}
+        if not (-36.0 <= params["semitones"] <= 36.0):
+            raise ValueError("semitones must be within -36..36")
+    else:
+        key = body.get("key")
+        params = {"key": str(key) if key else None, "strength": float(body.get("strength", 1.0))}
+
+    cache_key = _edit_cache_key(file_id, op, params)
+    with state.lock:
+        cached = state.edit_cache.get(cache_key)
+    job_id = uuid.uuid4().hex[:12]
+    if cached and cached in state.files:
+        cached_path = state.files[cached]
+        with state.lock:
+            state.jobs[job_id] = {
+                "status": "done",
+                "kind": "edit",
+                "progress": [f"edit: cache hit for {op}"],
+                "progress_events": [],
+                "stage": "cached",
+                "fraction": 1.0,
+                "eta_s": 0.0,
+                "result": {
+                    "file_id": cached,
+                    "parent": file_id,
+                    "op": op,
+                    "audio_url": f"/files/{cached_path.relative_to(state.workspace).as_posix()}",
+                    "duration": None,
+                    "cached": True,
+                    "method": "queued-edit-cache",
+                },
+            }
+        return job_id
+
+    with state.lock:
+        state.jobs[job_id] = {
+            "status": "running",
+            "kind": "edit",
+            "progress": [],
+            "progress_events": [],
+            "stage": "queued",
+            "fraction": 0.0,
+            "eta_s": None,
+        }
+
+    def _work() -> None:
+        ctx = ExecutionContext(cache=state.cache, progress=_job_progress(state, job_id))
+        with state.lock:
+            state.job_contexts[job_id] = ctx
+        try:
+            ctx.report("edit", f"{op} loading", 0.05)
+            audio = state.load(file_id)
+            if ctx.cancelled:
+                raise CancelledError()
+            ctx.report("edit", f"{op} rendering", 0.2)
+            if op == "time_stretch":
+                result = ed.time_stretch(audio, params["rate"])
+                suffix = ".stretch.wav"
+            elif op == "pitch_shift":
+                result = ed.pitch_shift(audio, params["semitones"])
+                suffix = ".pitch.wav"
+            else:
+                result = ed.pitch_correct(
+                    audio,
+                    key=params["key"],
+                    strength=params["strength"],
+                    cancel_check=lambda: bool(ctx.cancelled),
+                )
+                suffix = ".pitch-correct.wav"
+            if ctx.cancelled:
+                raise CancelledError()
+            ctx.report("edit", f"{op} writing", 0.9)
+            name = _safe_name(Path(state.files[file_id]).stem + suffix)
+            job_dir = state.workspace / "jobs" / job_id
+            job_dir.mkdir(parents=True, exist_ok=True)
+            path = write_audio(result, job_dir / name, fmt="wav", bit_depth=24)
+            new_id = state.register_path(path)
+            with state.lock:
+                state.parents[new_id] = file_id
+                state.edit_cache[cache_key] = new_id
+                while len(state.edit_cache) > EDIT_CACHE_ENTRIES:
+                    state.edit_cache.pop(next(iter(state.edit_cache)))
+            payload = {
+                "file_id": new_id,
+                "parent": file_id,
+                "op": op,
+                "audio_url": f"/files/jobs/{job_id}/{name}",
+                "duration": result.duration_seconds,
+                "waveform": waveform_peaks(result, width=1200),
+                "provenance": getattr(result, "provenance", None),
+                "method": getattr(result, "provenance", None) or "neiro-engine",
+                "cached": False,
+            }
+            ctx.report("edit", f"{op} done", 1.0)
+            with state.lock:
+                state.jobs[job_id].update(status="done", result=payload)
+        except CancelledError:
+            with state.lock:
+                state.jobs[job_id].update(status="cancelled", error="cancelled")
+        except Exception as exc:
+            with state.lock:
+                state.jobs[job_id].update(status="error", error=str(exc))
+        finally:
+            with state.lock:
+                state.job_contexts.pop(job_id, None)
+
+    threading.Thread(target=_work, daemon=True).start()
+    return job_id
 
 
 _RUNNERS = {
@@ -921,6 +1115,8 @@ def _make_handler(state: _State):
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-store")
+            for key, value in state.security.cors_headers(self.headers.get("Origin")).items():
+                self.send_header(key, value)
             self.end_headers()
             self.wfile.write(body)
 
@@ -930,9 +1126,55 @@ def _make_handler(state: _State):
         def _error(self, code: int, message: str) -> None:
             self._json({"error": message}, code)
 
-        def _read_body(self) -> bytes:
-            length = int(self.headers.get("Content-Length", 0))
-            return self.rfile.read(length) if length else b""
+        def _guard(self, *, mutation: bool) -> None:
+            """Enforce Host, Origin and (for mutations) the per-process token."""
+            policy = state.security
+            policy.check_host(self.headers.get("Host", ""))
+            policy.check_origin(self.headers.get("Origin"))
+            if not mutation:
+                return
+            path = unquote(urlsplit(self.path).path)
+            if policy.is_public_mutation(path):
+                # Pairing establishes trust; it still requires loopback Host, an
+                # allowlisted Origin and the current 6-digit code.
+                return
+            if policy.is_native_bridge(path):
+                # Native DAW bridge: non-simple content types + loopback Host/Origin.
+                # It cannot be forged by a cross-site form or a simple request.
+                return
+            policy.check_token(self.headers.get("X-Neiro-Token"))
+
+        def _read_body(self, limit: int | None = None) -> bytes:
+            policy = state.security
+            cap = policy.max_json_bytes if limit is None else limit
+            if self.headers.get("Transfer-Encoding"):
+                raise RequestRejected(411, "chunked request bodies are not supported")
+            try:
+                length = int(self.headers.get("Content-Length", 0) or 0)
+            except ValueError as exc:
+                raise RequestRejected(400, "invalid Content-Length") from exc
+            if length > cap:
+                raise RequestRejected(413, f"request body too large (max {cap} bytes)")
+            return self.rfile.read(length) if length > 0 else b""
+
+        def _read_json(self) -> dict:
+            """Read a JSON body, refusing simple cross-site content types (415)."""
+            raw_ctype = self.headers.get("Content-Type") or ""
+            ctype = raw_ctype.split(";", 1)[0].strip().lower()
+            if ctype != "application/json":
+                raise RequestRejected(
+                    415, f"expected Content-Type: application/json (got {ctype or 'none'})"
+                )
+            raw = self._read_body(state.security.max_json_bytes)
+            if not raw:
+                return {}
+            try:
+                parsed = json.loads(raw)
+            except json.JSONDecodeError as exc:
+                raise RequestRejected(400, f"invalid JSON body: {exc}") from exc
+            if not isinstance(parsed, dict):
+                raise RequestRejected(400, "JSON body must be an object")
+            return parsed
 
         def _query(self) -> dict[str, str]:
             from urllib.parse import parse_qs, urlparse
@@ -964,6 +1206,55 @@ def _make_handler(state: _State):
 
         # -- GET ---------------------------------------------------------------
         def do_GET(self) -> None:  # noqa: N802
+            try:
+                self._guard(mutation=False)
+                self._do_GET()
+            except RequestRejected as exc:
+                self._error(exc.code, exc.message)
+            except Exception as exc:  # surface, don't crash the server
+                self._error(500, str(exc))
+
+        def do_OPTIONS(self) -> None:  # noqa: N802
+            try:
+                self._guard(mutation=False)
+            except RequestRejected as exc:
+                self._error(exc.code, exc.message)
+                return
+            origin = self.headers.get("Origin")
+            headers = state.security.cors_headers(origin)
+            self.send_response(204 if headers else 403)
+            for key, value in headers.items():
+                self.send_header(key, value)
+            self.send_header("Content-Length", "0")
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+
+        def _do_GET(self) -> None:
+            if self.path == "/api/pair/code":
+                fetch_site = (self.headers.get("Sec-Fetch-Site") or "").lower()
+                if fetch_site in {"cross-site", "same-site"}:
+                    self._error(403, "pairing code is only shown to the local UI")
+                    return
+                if time.time() >= state.pair_expires:
+                    state.pair_code = _new_pair_code()
+                    state.pair_expires = time.time() + _PAIR_TTL_S
+                self._json(
+                    {
+                        "code": state.pair_code,
+                        "expires_at": state.pair_expires,
+                        "ttl_s": _PAIR_TTL_S,
+                    }
+                )
+                return
+            if self.path == "/api/auth/token":
+                # Same-origin only: a page on another site cannot read this response
+                # (no wildcard CORS) and DNS rebinding is blocked by the Host check.
+                fetch_site = (self.headers.get("Sec-Fetch-Site") or "").lower()
+                if fetch_site in {"cross-site", "same-site"}:
+                    self._error(403, "token is only issued to the local UI")
+                    return
+                self._json({"token": state.security.token, "header": "X-Neiro-Token"})
+                return
             from urllib.parse import urlparse
 
             parsed = urlparse(self.path)
@@ -1051,6 +1342,26 @@ def _make_handler(state: _State):
                     self._send(200, hit.read_bytes(), self._ctype_for(hit))
                     return
 
+            if path.startswith("/api/library/audio/"):
+                from neiro.library.store import LibraryStore
+
+                song_id = path.rstrip("/").rsplit("/", 1)[-1]
+                song = LibraryStore().get_song(song_id)
+                if not song or not song.get("path"):
+                    self._error(404, "song has no local audio")
+                    return
+                target = Path(song["path"])
+                if not target.is_file():
+                    self._error(404, "audio file is missing from disk")
+                    return
+                self._send(200, target.read_bytes(), self._ctype_for(target))
+                return
+            if path.startswith("/api/library/"):
+                from neiro.ui.library_api import handle_library
+
+                status, payload = handle_library(state, "GET", path)
+                self._json(payload, status)
+                return
             if path.startswith("/api/waveform"):
                 self._handle_waveform()
                 return
@@ -1129,12 +1440,17 @@ def _make_handler(state: _State):
         # -- POST --------------------------------------------------------------
         def do_POST(self) -> None:  # noqa: N802
             try:
+                self._guard(mutation=True)
                 if self.path == "/api/upload":
                     self._handle_upload()
                 elif self.path == "/api/ingest-url":
                     self._handle_ingest_url()
+                elif self.path == "/api/pair":
+                    self._handle_pair()
                 elif self.path == "/api/edit":
                     self._handle_edit()
+                elif self.path == "/api/edit/job":
+                    self._handle_edit_job()
                 elif self.path == "/api/prefs":
                     self._handle_prefs_update()
                 elif self.path == "/api/prefs/flush":
@@ -1169,16 +1485,44 @@ def _make_handler(state: _State):
                     self._handle_daw_capture()
                 elif self.path.startswith("/api/daw/"):
                     self._handle_daw(self.path)
+                elif self.path.startswith("/api/library/"):
+                    self._handle_library_post()
                 else:
                     self._error(404, "not found")
+            except RequestRejected as exc:
+                self._error(exc.code, exc.message)
             except Exception as exc:  # surface, don't crash the server
                 self._error(500, str(exc))
+
+        def do_DELETE(self) -> None:  # noqa: N802
+            try:
+                self._guard(mutation=True)
+                path = unquote(urlsplit(self.path).path)
+                if path.startswith("/api/library/"):
+                    from neiro.ui.library_api import handle_library
+
+                    status, payload = handle_library(state, "DELETE", path)
+                    self._json(payload, status)
+                    return
+                self._error(404, "not found")
+            except RequestRejected as exc:
+                self._error(exc.code, exc.message)
+            except Exception as exc:
+                self._error(500, str(exc))
+
+        def _handle_library_post(self) -> None:
+            from neiro.ui.library_api import handle_library
+
+            body = self._read_json()
+            path = unquote(urlsplit(self.path).path)
+            status, payload = handle_library(state, "POST", path, body)
+            self._json(payload, status)
 
         def _handle_daw(self, path: str) -> None:
             from neiro.ui.daw_bridge import default_bridge, normalize_module
 
             bridge = default_bridge()
-            body = json.loads(self._read_body() or b"{}")
+            body = self._read_json()
             if path == "/api/daw/register":
                 inst = bridge.register(
                     track_name=str(body.get("track_name", "DAW track")),
@@ -1250,13 +1594,18 @@ def _make_handler(state: _State):
                 default="separate",
             )
             name = _safe_name(self.headers.get("X-Filename") or "daw-capture.wav")
-            data = self._read_body()
+            # Cap ~80 MB — keeps local Edison-style dumps practical.
+            cap = 80 * 1024 * 1024
+            try:
+                declared = int(self.headers.get("Content-Length") or 0)
+            except ValueError:
+                declared = 0
+            if declared > cap:
+                self._error(413, "capture too large (max 80 MB)")
+                return
+            data = self._read_body(cap)
             if not data:
                 self._error(400, "empty capture")
-                return
-            # Soft cap ~80 MB — keeps local Edison-style dumps practical.
-            if len(data) > 80 * 1024 * 1024:
-                self._error(413, "capture too large (max 80 MB)")
                 return
             file_id = uuid.uuid4().hex[:12]
             dest = state.workspace / "uploads" / file_id / name
@@ -1280,14 +1629,14 @@ def _make_handler(state: _State):
             self._json({"ok": True, "capture": status.get("last_capture"), "status": status})
 
         def _handle_prefs_update(self) -> None:
-            body = json.loads(self._read_body() or b"{}")
+            body = self._read_json()
             try:
                 self._json(state.update_prefs(body))
             except (TypeError, ValueError) as exc:
                 self._error(400, str(exc))
 
         def _handle_prefs_flush(self) -> None:
-            body = json.loads(self._read_body() or b"{}")
+            body = self._read_json()
             clear_cache = bool(body.get("clear_cache", False))
             self._json(state.flush_compute(clear_cache=clear_cache))
 
@@ -1305,7 +1654,10 @@ def _make_handler(state: _State):
         def _handle_plugins_post(self) -> None:
             from neiro.engine.user_plugins import set_plugin_grants
 
-            body = json.loads(self._read_body() or b"{}")
+            body = self._read_json()
+            if body.get("confirm") is not True:
+                self._error(400, "plugin grants require {'confirm': true} from a local UI")
+                return
             if isinstance(body.get("grants"), dict):
                 updates = {str(key): bool(value) for key, value in body["grants"].items()}
             elif "plugin" in body:
@@ -1321,7 +1673,7 @@ def _make_handler(state: _State):
         def _handle_compute_post(self) -> None:
             from neiro.ui.api_extras import flush_vram, vram_status
 
-            body = json.loads(self._read_body() or b"{}")
+            body = self._read_json()
             action = str(body.get("action", "status"))
             if action == "flush":
                 self._json(flush_vram(state.vram))
@@ -1331,24 +1683,27 @@ def _make_handler(state: _State):
         def _handle_session_save(self) -> None:
             from neiro.ui.api_extras import save_session_doc
 
-            body = json.loads(self._read_body() or b"{}")
+            body = self._read_json()
             name = str(body.get("name") or "untitled")
             file_id = body.get("file_id")
             path = state.files.get(file_id) if file_id else None
-            self._json(
-                save_session_doc(
+            try:
+                payload = save_session_doc(
                     name=name,
                     file_id=file_id,
                     file_path=path,
                     graph_config=dict(body.get("graph_config") or {}),
                     notes=body.get("notes"),
                 )
-            )
+            except ValueError as exc:
+                self._error(400, str(exc))
+                return
+            self._json(payload)
 
         def _handle_session_open(self) -> None:
             from neiro.ui.api_extras import open_session_doc
 
-            body = json.loads(self._read_body() or b"{}")
+            body = self._read_json()
             name = str(body.get("name") or "")
             if not name:
                 self._error(400, "name is required")
@@ -1450,7 +1805,7 @@ def _make_handler(state: _State):
             from neiro.ui.api_extras import notes_to_public
 
             job_id = path.rstrip("/").rsplit("/", 1)[-1]
-            body = json.loads(self._read_body() or b"{}")
+            body = self._read_json()
             with state.lock:
                 sess = state.transcription_sessions.get(job_id)
             if sess is None:
@@ -1550,7 +1905,7 @@ def _make_handler(state: _State):
             self._json({"models": models, "packs": {k: list(v) for k, v in MODEL_PACKS.items()}})
 
         def _handle_models_download(self) -> None:
-            body = json.loads(self._read_body() or b"{}")
+            body = self._read_json()
             ids: list[str] = []
             pack = body.get("pack")
             if pack:
@@ -1578,7 +1933,10 @@ def _make_handler(state: _State):
             self._json({"job_id": job_id, "model_ids": uniq})
 
         def _handle_tools_install(self) -> None:
-            body = json.loads(self._read_body() or b"{}")
+            body = self._read_json()
+            if body.get("confirm") is not True:
+                self._error(400, "tool installs require {'confirm': true} from a local UI")
+                return
             tool = str(body.get("tool") or "").lower()
             if tool == "verovio":
                 self._json(install_verovio())
@@ -1591,7 +1949,7 @@ def _make_handler(state: _State):
             )
 
         def _handle_musescore_path(self) -> None:
-            body = json.loads(self._read_body() or b"{}")
+            body = self._read_json()
             path = body.get("path")
             self._json(set_musescore_path(None if path is None else str(path)))
 
@@ -1659,11 +2017,40 @@ def _make_handler(state: _State):
                 }
             )
 
+        def _handle_pair(self) -> None:
+            body = self._read_json()
+            code = str(body.get("code") or "")
+            now = time.time()
+            if now >= state.pair_expires:
+                state.pair_code = _new_pair_code()
+                state.pair_expires = now + _PAIR_TTL_S
+                self._error(400, "pairing code expired; refresh it in Neiro")
+                return
+            if not code or not hmac.compare_digest(code, state.pair_code):
+                self._error(403, "invalid pairing code")
+                return
+            # Rotate after use so a leaked code cannot be replayed.
+            state.pair_code = _new_pair_code()
+            state.pair_expires = now + _PAIR_TTL_S
+            self._json(
+                {"ok": True, "token": state.security.token, "expires_at": state.pair_expires}
+            )
+
+        def _handle_edit_job(self) -> None:
+            body = self._read_json()
+            file_id = str(body.get("file_id") or "")
+            try:
+                job_id = start_edit_job(state, file_id, body)
+            except (KeyError, ValueError) as exc:
+                self._error(400, str(exc))
+                return
+            self._json({"job_id": job_id})
+
         def _handle_edit(self) -> None:
             from neiro.dsp import edit as ed
             from neiro.dsp import waveform_peaks
 
-            body = json.loads(self._read_body() or b"{}")
+            body = self._read_json()
             op = body.get("op", "")
 
             if op in ("bounce", "combine"):
@@ -1883,7 +2270,7 @@ def _make_handler(state: _State):
             }
 
         def _handle_ingest_url(self) -> None:
-            body = json.loads(self._read_body() or b"{}")
+            body = self._read_json()
             url = (body.get("url") or "").strip()
             if not url:
                 self._error(400, "url is required")
@@ -1894,6 +2281,7 @@ def _make_handler(state: _State):
                 if not is_url(url):
                     self._error(400, "url must start with http:// or https://")
                     return
+                url = check_outbound_url(url)
                 cached = fetch_url_audio(url)
                 file_id = uuid.uuid4().hex[:12]
                 name = _safe_name(cached.stem + ".wav")
@@ -1910,7 +2298,26 @@ def _make_handler(state: _State):
             from neiro.io import load_audio
 
             name = _safe_name(self.headers.get("X-Filename", "upload.wav"))
-            data = self._read_body()
+            raw_ctype = (self.headers.get("Content-Type") or "").split(";", 1)[0].strip().lower()
+            if raw_ctype == "application/json":
+                self._error(415, "audio upload must not be JSON; send the bytes")
+                return
+            declared = self.headers.get("Content-Length")
+            try:
+                declared_len = int(declared or 0)
+            except ValueError:
+                declared_len = 0
+            if declared_len > state.security.max_upload_bytes:
+                self._error(
+                    413,
+                    f"upload too large (max {state.security.max_upload_bytes} bytes)",
+                )
+                return
+            free = shutil.disk_usage(state.workspace).free
+            if free < max(UPLOAD_RESERVE_BYTES, declared_len * 2):
+                self._error(507, f"not enough free disk ({free // (1024 * 1024)} MiB)")
+                return
+            data = self._read_body(state.security.max_upload_bytes)
             if not data:
                 self._error(400, "empty upload")
                 return
@@ -1926,7 +2333,7 @@ def _make_handler(state: _State):
             self._json(self._register_analyzed(dest, name))
 
         def _handle_job(self, kind: str) -> None:
-            body = json.loads(self._read_body() or b"{}")
+            body = self._read_json()
             file_id = body.get("file_id", "")
             try:
                 job_id = start_job(state, kind, file_id, body)

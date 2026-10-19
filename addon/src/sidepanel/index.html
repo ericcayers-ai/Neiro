@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Neiro Companion</title>
+    <link rel="stylesheet" href="./panel.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Neiro Companion</h1>
+      <span id="pair-dot" class="dot" title="Engine pairing"></span>
+    </header>
+
+    <section class="card">
+      <div class="row">
+        <span id="site">This page</span>
+        <span id="media-state" class="muted">checking…</span>
+      </div>
+      <div class="row">
+        <button id="capture-start" type="button">Start tab capture</button>
+        <button id="capture-stop" type="button" disabled>Stop</button>
+      </div>
+      <p class="muted">
+        Captures only what the browser is allowed to play. No DRM bypass, no upload, no telemetry.
+      </p>
+    </section>
+
+    <section class="card">
+      <label for="transpose">Transpose <output id="transpose-value">0 st</output></label>
+      <input id="transpose" type="range" min="-12" max="12" step="1" value="0" />
+      <label for="cents">Fine pitch <output id="cents-value">0¢</output></label>
+      <input id="cents" type="range" min="-100" max="100" step="1" value="0" />
+      <label class="inline"><input id="bypass" type="checkbox" /> Bypass processing</label>
+      <p id="method" class="muted">Clean-room granular preview (formants follow pitch).</p>
+    </section>
+
+    <section class="card">
+      <h2>Queued processing (Neiro engine)</h2>
+      <div class="row">
+        <input id="pair-code" type="text" inputmode="numeric" placeholder="6-digit code" />
+        <button id="pair" type="button">Pair</button>
+      </div>
+      <p id="pair-status" class="muted">Not paired. Show the code in Neiro → Prefs → Companion.</p>
+      <label class="inline"
+        >Upload a file to Neiro
+        <input id="queued-file" type="file" accept="audio/*" />
+      </label>
+      <p id="queued-status" class="muted">Quality path: separation, analysis and renders run in Neiro.</p>
+    </section>
+
+    <script src="./panel.js" type="module"></script>
+  </body>
+</html>

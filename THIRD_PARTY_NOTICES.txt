@@ -1,0 +1,44 @@
+THIRD-PARTY NOTICES — Neiro
+===========================
+
+Neiro core and frontend
+-----------------------
+MIT. See LICENSE. Original code by the Neiro project contributors.
+
+Real-time player DSP (frontend/src/player/worklet/player-worklet.js)
+------------------------------------------------------------------
+Original clean-room implementation written for Neiro (MIT). It is a phase-vocoder
+time-stretcher + linear resampler + cepstral formant warp + biquad EQ + centre
+reducer. No third-party DSP library is bundled, linked, or translated.
+
+Neiro does **not** include or use Rubber Band, `rb.wasm`, or any Tune73 commercial
+build. It also does not include code, UI, images, locale strings, model CDN
+artefacts, or other assets from the Transpose browser extension
+(ioimlbgefgadofblnajllknopjboejda). Behaviour was reimplemented from public
+capability descriptions; expression was not copied.
+
+Browser companion (addon/)
+--------------------------
+Original MIT code. Uses only Chrome extension APIs (MV3) and the Web Audio API. Its
+granular shifter is original and local; no remote code, no analytics, no bundled
+third-party script. Optional pairing talks only to the local Neiro process at
+127.0.0.1.
+
+Models and optional tools
+-------------------------
+Model weights are not bundled in this repository. Each model's upstream licence is
+recorded in `docs/models.md` and in its manifest (`license_spdx`). Optional Python
+extras may pull GPL-3.0 or `unknown`-licensed upstream packages; installing them is
+the user's choice and may create distribution obligations if redistributed. This
+file is a notice index, not legal advice.
+
+Runtime and build dependencies
+------------------------------
+- Python standard library; NumPy (BSD-3-Clause); soundfile/librosa and other
+  optional extras per `pyproject.toml`.
+- React / React DOM (MIT), Vite (MIT), TypeScript (Apache-2.0), oxlint (MIT),
+  IBM Plex Sans / Mono via @fontsource (SIL Open Font License 1.1).
+- Tauri (MIT/Apache-2.0) for the desktop shell.
+
+If you redistribute a build, include this file and the upstream licence texts for
+every optional dependency and model weight you ship.

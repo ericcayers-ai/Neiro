@@ -23,13 +23,13 @@ from neiro.engine.session import SessionDocument, SessionStore, ModelPin, file_f
 
 doc = SessionDocument(
     name="my-song",
-    source=file_fingerprint(Path("song.flac")),   # {path, sha256, size, mtime_ns}
+    source=file_fingerprint(Path("song.flac")),  # {path, sha256, size, mtime_ns}
     graph_config={"preset": "vocals-neural-ensemble", "tier": "reference"},
     models=[ModelPin(model_id="bs-roformer-1297", weight_sha256="…", license_spdx="MIT")],
 )
 
-store = SessionStore()          # defaults to the platform Neiro home (see below)
-path = store.save(doc)          # writes <name>.neiro.json
+store = SessionStore()  # defaults to the platform Neiro home (see below)
+path = store.save(doc)  # writes <name>.neiro.json
 reopened = store.load(path)
 ```
 
@@ -61,9 +61,8 @@ project folder you want to sync deliberately).
 
 The session format and store are implemented and tested
 (`tests/test_session_and_bleed.py`), and are the write-once target for
-provenance going forward. **Not yet wired:** the UI doesn't yet expose "save
-session" / "open session" as a user action (roadmap `R-0109`, `M6 — Openness`);
-today it's a library building block the CLI and engine can already use for
-scripted/batch workflows (see `neiro watch`, [`docs/plugins.md`](plugins.md#watch-folder-daemon)).
-Contributions wiring session save/open into the Preferences or About module are
-welcome — see [`CONTRIBUTING.md`](../CONTRIBUTING.md).
+provenance going forward. **Current state:** save/open is exposed in the UI (`AppShell` session menu), the
+API (`/api/session/save`, `/api/session/open`) and the CLI. Free-text notes are a
+scalar `user_notes` field capped at 5,000 characters; the `notes` list remains the
+system/migration log. Legacy documents that stored notes as a character list are
+migrated on load.

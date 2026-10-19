@@ -127,6 +127,12 @@ class AnalysisReport(Artifact):
     chords: tuple[dict[str, Any], ...] = ()
     sections: tuple[dict[str, Any], ...] = ()
     downbeats: tuple[float, ...] = ()
+    beats: tuple[dict[str, Any], ...] = ()
+    chord_method: str = "heuristic-chord-timeline"
+    chord_reliable: bool = False
+    meter: str | None = None
+    tempo_confidence: float | None = None
+    analysis_method: str = "dsp-heuristic"
     capabilities: tuple[str, ...] = ()
 
     def as_dict(self) -> dict[str, Any]:
@@ -150,6 +156,14 @@ class AnalysisReport(Artifact):
             "chords": list(self.chords),
             "sections": list(self.sections),
             "downbeats": list(self.downbeats),
+            "beats": list(self.beats),
+            "chord_method": self.chord_method,
+            "chord_reliable": self.chord_reliable,
+            "meter": self.meter,
+            "tempo_confidence": (
+                None if self.tempo_confidence is None else round(self.tempo_confidence, 3)
+            ),
+            "analysis_method": self.analysis_method,
             "capabilities": list(self.capabilities),
             "notes": list(self.notes),
         }

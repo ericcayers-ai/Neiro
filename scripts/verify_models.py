@@ -25,6 +25,24 @@ from neiro.engine.registry import ModelEntry, default_registry
 ROOT = Path(__file__).resolve().parent.parent
 MANIFEST_DIR = ROOT / "src" / "neiro" / "manifests"
 
+
+def cli_models_output() -> str:
+    """Return the output of ``neiro models`` using *this* interpreter.
+
+    Shelling out to ``neiro`` relies on the console script being on PATH. In a
+    normal venv (and in the audit environment) it is not, so stdout was empty and
+    every model was reported absent. ``sys.executable -m neiro.cli`` is the
+    interpreter-safe equivalent.
+    """
+    proc = subprocess.run(
+        [sys.executable, "-m", "neiro.cli", "models"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return proc.stdout or ""
+
+
 REQUIRES_TO_EXTRA: dict[str, str] = {
     "audio_separator": "separation",
     "piano_transcription_inference": "piano",
@@ -209,9 +227,7 @@ def main() -> int:
             if mid not in all_ids:
                 failures.append(f"ENHANCE_STEPS[{step!r}] missing {mid!r}")
 
-    cli_out = subprocess.run(
-        ["neiro", "models"], capture_output=True, text=True, check=False
-    ).stdout
+    cli_out = cli_models_output()
     for entry in entries:
         issues = verify_structural(entry)
         smoke_status, smoke_detail = smoke_inference(entry, neural=args.neural)

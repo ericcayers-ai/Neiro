@@ -29,6 +29,7 @@ const MODULES: { id: ModuleId; label: string; hint: string; key?: string }[] = [
   { id: 'separate', label: 'Separate', hint: 'Stem separation jobs', key: '4' },
   { id: 'restore', label: 'Restore', hint: 'Enhancement and repair chains', key: '5' },
   { id: 'midi', label: 'MIDI', hint: 'Transcribe, roll, score, edit, practice', key: '6' },
+  { id: 'library', label: 'Library', hint: 'Songs, notes, markers, clips, playlists', key: '0' },
   { id: 'preferences', label: 'Prefs', hint: 'Theme, density, models, compute', key: '9' },
   { id: 'about', label: 'About', hint: 'Version, privacy, Studio shortcuts' },
 ]
@@ -70,6 +71,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [sessionDialog, setSessionDialog] = useState<null | 'save' | 'open'>(null)
   const [sessionName, setSessionName] = useState('')
+  const [sessionNotes, setSessionNotes] = useState('')
   const [sessionList, setSessionList] = useState<{ name: string }[]>([])
   const [sessionBusy, setSessionBusy] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -171,6 +173,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         name,
         file_id: file?.fileId,
         graph_config,
+        notes: sessionNotes.trim() || undefined,
       })
       setSessionDialog(null)
       flash(`Saved session “${res.name}”`)
@@ -201,9 +204,13 @@ export function AppShell({ children }: { children: ReactNode }) {
       if (cfg.studioTracks?.length) {
         restoreStudioTracks(cfg.studioTracks)
       }
+      const savedNotes =
+        typeof res.session?.user_notes === 'string' ? res.session.user_notes : ''
+      setSessionNotes(savedNotes)
       setSessionDialog(null)
       flash(
-        `Opened “${name}” — packs/MIDI/Studio timeline/corrections restored; re-import audio if URLs expired.`,
+        `Opened “${name}” — packs/MIDI/Studio timeline/corrections restored; re-import audio if URLs expired.` +
+          (savedNotes ? ' Notes restored.' : ''),
       )
     } catch (err) {
       flash(err instanceof Error ? err.message : String(err))
@@ -448,6 +455,20 @@ export function AppShell({ children }: { children: ReactNode }) {
                     }
                   }}
                 />
+              </label>
+            )}
+            {sessionDialog === 'save' && (
+              <label className="field">
+                <span>Notes (optional, 5,000 characters)</span>
+                <textarea
+                  value={sessionNotes}
+                  maxLength={5000}
+                  rows={4}
+                  disabled={sessionBusy}
+                  placeholder="Practice notes, mix decisions, what to try next…"
+                  onChange={(e) => setSessionNotes(e.target.value)}
+                />
+                <span className="intent">{sessionNotes.length}/5000</span>
               </label>
             )}
             <div className="row" style={{ marginTop: '1rem' }}>

@@ -16,6 +16,9 @@ from typing import Any
 
 SESSION_VERSION = 1
 
+#: Per-session free-text notes cap (Transpose parity: 5,000 characters).
+USER_NOTES_LIMIT = 5000
+
 
 def default_home() -> Path:
     if os.name == "nt":
@@ -67,6 +70,10 @@ class SessionDocument:
     edits: list[dict[str, Any]] = field(default_factory=list)
     checkpoints: list[JobCheckpoint] = field(default_factory=list)
     analysis_corrections: dict[str, Any] = field(default_factory=dict)
+    # Free-text per-session notes (Transpose parity: 5,000-character scalar). The
+    # ``notes`` list below stays the system/migration log so old documents keep
+    # loading; user text must never be a character list.
+    user_notes: str = ""
     notes: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
@@ -79,6 +86,15 @@ class SessionDocument:
         checkpoints = [
             JobCheckpoint(**c) if isinstance(c, dict) else c for c in data.get("checkpoints", [])
         ]
+        raw_notes = data.get("notes") or []
+        user_notes = str(data.get("user_notes") or "")
+        if isinstance(raw_notes, str):
+            # Legacy/buggy documents stored the scalar as a list of characters.
+            user_notes = user_notes or raw_notes
+            raw_notes = []
+        elif raw_notes and all(isinstance(n, str) and len(n) == 1 for n in raw_notes):
+            user_notes = user_notes or "".join(raw_notes)
+            raw_notes = []
         return cls(
             session_version=int(data.get("session_version", SESSION_VERSION)),
             created_at=float(data.get("created_at", time.time())),
@@ -91,7 +107,8 @@ class SessionDocument:
             edits=list(data.get("edits") or []),
             checkpoints=checkpoints,
             analysis_corrections=dict(data.get("analysis_corrections") or {}),
-            notes=list(data.get("notes") or []),
+            user_notes=user_notes[:USER_NOTES_LIMIT],
+            notes=[str(n) for n in raw_notes],
         )
 
 

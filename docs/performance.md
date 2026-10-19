@@ -30,8 +30,11 @@ Your numbers will differ; run the benchmark for your hardware.
 | Waveform peaks | ~2900× |
 | Spectrogram image | ~700× |
 
-Every stage is real-time-capable; the heavier ones (HPSS, YIN) still process a
-song in a fraction of its duration.
+Every offline DSP stage can process faster than real time; the heavier ones (HPSS,
+YIN) still process a song in a fraction of its duration. This is *processing*
+headroom, not a player claim: the real-time player is separate, and its measured
+algorithmic latency and render factor are recorded in
+`docs/evidence/player-latency-2026-10-20.md`.
 
 ## How the speed is achieved
 

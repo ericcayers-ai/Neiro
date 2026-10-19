@@ -5,6 +5,7 @@ export type ModuleId =
   | 'separate'
   | 'restore'
   | 'midi'
+  | 'library'
   | 'transcribe' // legacy → midi
   | 'mixer'
   | 'learn' // legacy → midi (Practice)
@@ -79,6 +80,15 @@ export interface AnalysisReport {
   instruments?: InstrumentHint[]
   vocal_conditions?: VocalConditions
   notes?: string[]
+  chords?: { chord: string; start: number; end: number; confidence: number }[]
+  beats?: { time: number; downbeat: boolean }[]
+  downbeats?: number[]
+  chord_method?: string
+  chord_reliable?: boolean
+  meter?: string | null
+  tempo_confidence?: number | null
+  analysis_method?: string
+  capabilities?: string[]
 }
 
 export interface UploadResponse {
@@ -197,6 +207,9 @@ export interface EnhanceResult {
   notes?: string[]
   file_url?: string
   file_id?: string
+  /** True when nothing needed repair; no output exists and must not be offered. */
+  noop?: boolean
+  reason?: string
 }
 
 export interface PitchCorrectResult {
@@ -249,4 +262,43 @@ export interface ExportFormat {
   id: 'wav16' | 'wav24' | 'flac'
   label: string
   intent: string
+}
+
+export interface LibraryMarker {
+  id: string
+  song_id: string
+  time: number
+  label: string
+}
+
+export interface LibraryClip {
+  id: string
+  song_id: string
+  name: string
+  start: number
+  end: number
+  loop_count: number
+  enabled: boolean
+}
+
+export interface LibrarySong {
+  id: string
+  title: string
+  artist?: string | null
+  source_url?: string | null
+  path?: string | null
+  duration?: number | null
+  notes: string
+  created: number
+  updated: number
+  markers?: LibraryMarker[]
+  clips?: LibraryClip[]
+  versions?: { id: string; label: string; created: number }[]
+}
+
+export interface LibraryPlaylist {
+  id: string
+  name: string
+  is_default: boolean
+  songs: { id: string; title: string }[]
 }

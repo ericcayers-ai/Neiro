@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "Neiro Companion",
+  "version": "0.1.0",
+  "description": "Optional real-time transpose companion for Neiro. Audio stays on this machine.",
+  "minimum_chrome_version": "127",
+  "permissions": ["activeTab", "offscreen", "scripting", "storage", "sidePanel", "contextMenus"],
+  "optional_permissions": ["tabCapture"],
+  "optional_host_permissions": ["https://*/*", "http://*/*"],
+  "background": {
+    "service_worker": "src/service-worker.js",
+    "type": "module"
+  },
+  "side_panel": {
+    "default_path": "src/sidepanel/index.html"
+  },
+  "action": {
+    "default_title": "Neiro Companion",
+    "default_popup": "src/popup/index.html"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["src/audio/capture-worklet.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

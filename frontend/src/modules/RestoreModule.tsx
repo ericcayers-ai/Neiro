@@ -213,7 +213,14 @@ export function RestoreModule() {
 
       {result && (
         <div style={{ marginTop: '1.25rem' }}>
-          {result.file_url ? (
+          {result.noop ? (
+            <div className="meta-block" role="status">
+              <strong>No changes were needed.</strong>{' '}
+              {result.reason || 'The restored output would equal the input.'}
+              <br />
+              {(result.notes || []).join(' · ')}
+            </div>
+          ) : result.file_url ? (
             <>
               <audio controls src={result.file_url} style={{ width: '100%' }} />
               <div className="meta-block">

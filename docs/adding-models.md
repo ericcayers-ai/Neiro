@@ -37,16 +37,19 @@ class MySeparator:
             model_id=model_id,
             task="separate",
             stems=("vocals", "instrumental"),
-            fp32_gb=6.0, fp16_gb=3.2, supports_fp16=True,
+            fp32_gb=6.0,
+            fp16_gb=3.2,
+            supports_fp16=True,
             sample_rate=44100,
-            quality_class="reference",   # draft | standard | reference
+            quality_class="reference",  # draft | standard | reference
             license_spdx="MIT",
         )
         self._model = None
 
     def load(self, device, precision):
-        import torch                      # heavy import: lazy, inside load()
+        import torch  # heavy import: lazy, inside load()
         from my_pkg import load_weights
+
         self._model = load_weights(precision).to(device)
 
     def separate(self, audio: AudioTensor) -> dict[str, AudioTensor]:
@@ -54,7 +57,9 @@ class MySeparator:
         vocals, instrumental = self._model(audio.samples)
         return {
             "vocals": AudioTensor(vocals, audio.sample_rate).with_provenance(self.profile.model_id),
-            "instrumental": AudioTensor(instrumental, audio.sample_rate).with_provenance(self.profile.model_id),
+            "instrumental": AudioTensor(instrumental, audio.sample_rate).with_provenance(
+                self.profile.model_id
+            ),
         }
 
     def unload(self):
@@ -105,6 +110,7 @@ neiro models        # your model should appear; "available" reflects requires
 
 ```python
 from neiro.engine.registry import default_registry
+
 reg = default_registry()
 entry = reg.get("my-sep")
 assert entry.available()

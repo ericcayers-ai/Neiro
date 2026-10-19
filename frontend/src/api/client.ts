@@ -9,6 +9,8 @@ import type {
   SeparateResult,
   SpectrogramData,
   TranscribeResult,
+  LibraryPlaylist,
+  LibrarySong,
   UploadResponse,
   VersionResponse,
   WaveformData,
@@ -32,11 +34,38 @@ async function readJson<T>(res: Response): Promise<T> {
   return data
 }
 
+/**
+ * Per-process API token, fetched once from the local server. The server rejects
+ * every mutation without it (and refuses to hand it to a cross-site fetch), so the
+ * UI must send it on POSTs. It is not a secret from the page itself.
+ */
+let apiTokenPromise: Promise<string> | null = null
+
+function apiToken(): Promise<string> {
+  if (!apiTokenPromise) {
+    apiTokenPromise = fetch('/api/auth/token', { cache: 'no-store' })
+      .then((res) => readJson<{ token: string }>(res))
+      .then((data) => data.token)
+      .catch(() => '')
+  }
+  return apiTokenPromise
+}
+
+async function apiHeaders(json = true): Promise<Record<string, string>> {
+  const headers: Record<string, string> = { 'X-Neiro-Token': await apiToken() }
+  if (json) headers['Content-Type'] = 'application/json'
+  return headers
+}
+
 export async function uploadFile(file: File): Promise<UploadResponse> {
   const res = await fetch('/api/upload', {
     method: 'POST',
     body: file,
-    headers: { 'X-Filename': file.name },
+    headers: {
+      ...(await apiHeaders(false)),
+      'X-Filename': file.name,
+      'Content-Type': 'application/octet-stream',
+    },
   })
   return readJson(res)
 }
@@ -44,7 +73,7 @@ export async function uploadFile(file: File): Promise<UploadResponse> {
 export async function ingestUrl(url: string): Promise<UploadResponse> {
   const res = await fetch('/api/ingest-url', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await apiHeaders(),
     body: JSON.stringify({ url }),
   })
   return readJson(res)
@@ -61,7 +90,7 @@ export async function startSeparate(
 ): Promise<{ job_id: string }> {
   const res = await fetch('/api/separate', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await apiHeaders(),
     body: JSON.stringify({
       file_id: fileId,
       preset,
@@ -114,7 +143,7 @@ export async function fetchPlan(params: {
 export async function flushCompute(): Promise<{ ok: boolean; flushed: string[] }> {
   const res = await fetch('/api/compute', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await apiHeaders(),
     body: JSON.stringify({ action: 'flush' }),
   })
   return readJson(res)
@@ -124,10 +153,11 @@ export async function saveSession(body: {
   name: string
   file_id?: string | null
   graph_config?: Record<string, unknown>
-}): Promise<{ ok: boolean; name: string }> {
+  notes?: string
+}): Promise<{ ok: boolean; name: string; session?: { user_notes?: string } }> {
   const res = await fetch('/api/session/save', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await apiHeaders(),
     body: JSON.stringify(body),
   })
   return readJson(res)
@@ -141,7 +171,7 @@ export async function listSessions(): Promise<{ sessions: { name: string; path: 
 export async function openSession(name: string): Promise<{ ok: boolean; session: Record<string, unknown> }> {
   const res = await fetch('/api/session/open', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await apiHeaders(),
     body: JSON.stringify({ name }),
   })
   return readJson(res)
@@ -153,7 +183,7 @@ export async function editNotes(
 ): Promise<{ tracks: Record<string, MidiEvent[]>; tempo_bpm: number }> {
   const res = await fetch(`/api/notes/${jobId}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await apiHeaders(),
     body: JSON.stringify(body),
   })
   return readJson(res)
@@ -171,7 +201,7 @@ export async function startTranscribe(
 ): Promise<{ job_id: string }> {
   const res = await fetch('/api/transcribe', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await apiHeaders(),
     body: JSON.stringify({
       file_id: fileId,
       mode,
@@ -221,7 +251,7 @@ export async function startModelDownload(opts: {
 }): Promise<{ job_id: string; model_ids: string[] }> {
   const res = await fetch('/api/models/download', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await apiHeaders(),
     body: JSON.stringify(opts),
   })
   return readJson(res)
@@ -247,7 +277,7 @@ export async function installTool(tool: 'verovio' | 'soundfont'): Promise<{
 }> {
   const res = await fetch('/api/tools/install', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await apiHeaders(),
     body: JSON.stringify({ tool }),
   })
   return readJson(res)
@@ -261,7 +291,7 @@ export async function setMuseScorePath(path: string | null): Promise<{
 }> {
   const res = await fetch('/api/tools/musescore', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await apiHeaders(),
     body: JSON.stringify({ path }),
   })
   return readJson(res)
@@ -274,7 +304,7 @@ export async function startEnhance(
 ): Promise<{ job_id: string }> {
   const res = await fetch('/api/enhance', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await apiHeaders(),
     body: JSON.stringify({
       file_id: fileId,
       chain,
@@ -308,7 +338,7 @@ export async function updatePrefs(body: {
 }): Promise<PrefsResponse> {
   const res = await fetch('/api/prefs', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await apiHeaders(),
     body: JSON.stringify(body),
   })
   return readJson(res)
@@ -317,7 +347,7 @@ export async function updatePrefs(body: {
 export async function flushPrefs(clearCache = false): Promise<PrefsResponse> {
   const res = await fetch('/api/prefs/flush', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await apiHeaders(),
     body: JSON.stringify({ clear_cache: clearCache }),
   })
   return readJson(res)
@@ -385,7 +415,7 @@ export async function applyEdit(body: {
 }): Promise<EditResponse> {
   const res = await fetch('/api/edit', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await apiHeaders(),
     body: JSON.stringify(body),
   })
   return readJson(res)
@@ -399,6 +429,26 @@ export async function timeStretchFile(fileId: string, rate: number): Promise<Edi
   return applyEdit({ file_id: fileId, op: 'time_stretch', rate })
 }
 
+/**
+ * Queued long edit: returns a job id instead of blocking the UI on a whole-file
+ * render. Poll with getJob; results are cached per (file, op, params).
+ */
+export async function startEditJob(body: {
+  file_id: string
+  op: 'time_stretch' | 'pitch_shift' | 'pitch_correct'
+  rate?: number
+  semitones?: number
+  key?: string
+  strength?: number
+}): Promise<{ job_id: string }> {
+  const res = await fetch('/api/edit/job', {
+    method: 'POST',
+    headers: await apiHeaders(),
+    body: JSON.stringify(body),
+  })
+  return readJson(res)
+}
+
 export async function pitchShiftFile(fileId: string, semitones: number): Promise<EditResponse> {
   return applyEdit({ file_id: fileId, op: 'pitch_shift', semitones })
 }
@@ -409,7 +459,7 @@ export async function pitchCorrectFile(
 ): Promise<{ job_id: string }> {
   const res = await fetch('/api/pitch_correct', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await apiHeaders(),
     body: JSON.stringify({
       file_id: fileId,
       key: opts?.key,
@@ -455,3 +505,97 @@ export function exportUrl(fileId: string, format: 'wav16' | 'wav24' | 'flac'): s
 }
 
 export type { SeparateResult, TranscribeResult, EnhanceResult }
+
+// ------------------------------------------------------------------ library
+
+export async function listLibrarySongs(): Promise<{ songs: LibrarySong[] }> {
+  const res = await fetch('/api/library/songs', { cache: 'no-store' })
+  return readJson(res)
+}
+
+export async function addLibrarySong(body: {
+  file_id?: string
+  title?: string
+  artist?: string
+  source_url?: string
+  notes?: string
+  settings?: Record<string, unknown>
+}): Promise<{ ok: boolean; song: LibrarySong }> {
+  const res = await fetch('/api/library/songs', {
+    method: 'POST',
+    headers: await apiHeaders(),
+    body: JSON.stringify(body),
+  })
+  return readJson(res)
+}
+
+export async function getLibrarySong(songId: string): Promise<{ song: LibrarySong }> {
+  const res = await fetch(`/api/library/songs/${encodeURIComponent(songId)}`, { cache: 'no-store' })
+  return readJson(res)
+}
+
+export async function saveLibraryNotes(songId: string, notes: string): Promise<{ notes: string }> {
+  const res = await fetch(`/api/library/songs/${encodeURIComponent(songId)}/notes`, {
+    method: 'POST',
+    headers: await apiHeaders(),
+    body: JSON.stringify({ notes }),
+  })
+  return readJson(res)
+}
+
+export async function deleteLibrarySong(songId: string): Promise<{ ok: boolean }> {
+  const res = await fetch(`/api/library/songs/${encodeURIComponent(songId)}`, {
+    method: 'DELETE',
+    headers: await apiHeaders(),
+  })
+  return readJson(res)
+}
+
+export async function addLibraryMarker(
+  songId: string,
+  time: number,
+  label: string,
+): Promise<{ ok: boolean; marker: { id: string } }> {
+  const res = await fetch(`/api/library/songs/${encodeURIComponent(songId)}/markers`, {
+    method: 'POST',
+    headers: await apiHeaders(),
+    body: JSON.stringify({ time, label }),
+  })
+  return readJson(res)
+}
+
+export async function addLibraryClip(
+  songId: string,
+  body: { name: string; start: number; end: number; loop_count?: number },
+): Promise<{ ok: boolean; clip: { id: string } }> {
+  const res = await fetch(`/api/library/songs/${encodeURIComponent(songId)}/clips`, {
+    method: 'POST',
+    headers: await apiHeaders(),
+    body: JSON.stringify(body),
+  })
+  return readJson(res)
+}
+
+export async function listLibraryPlaylists(): Promise<{ playlists: LibraryPlaylist[] }> {
+  const res = await fetch('/api/library/playlists', { cache: 'no-store' })
+  return readJson(res)
+}
+
+export async function addToLibraryPlaylist(
+  playlistId: string,
+  songId: string,
+): Promise<{ ok: boolean }> {
+  const res = await fetch(`/api/library/playlists/${encodeURIComponent(playlistId)}/items`, {
+    method: 'POST',
+    headers: await apiHeaders(),
+    body: JSON.stringify({ song_id: songId }),
+  })
+  return readJson(res)
+}
+
+export function libraryAudioUrl(songId: string): string {
+  return `/api/library/audio/${encodeURIComponent(songId)}`
+}
+
+export type { LibrarySong, LibraryPlaylist }
+

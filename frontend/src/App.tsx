@@ -7,6 +7,7 @@ import { StudioModule } from './modules/StudioModule'
 import { SeparateModule } from './modules/SeparateModule'
 import { RestoreModule } from './modules/RestoreModule'
 import { MidiStudioModule } from './modules/MidiStudioModule'
+import { LibraryModule } from './modules/LibraryModule'
 import { PreferencesModule } from './modules/PreferencesModule'
 import { AboutModule } from './modules/AboutModule'
 import type { ModuleId } from './api/types'
@@ -36,6 +37,7 @@ function ModuleSwitcher() {
         '4': 'separate',
         '5': 'restore',
         '6': 'midi',
+        '0': 'library',
         '9': 'preferences',
       }
       if (map[e.key]) setModule(map[e.key])
@@ -60,6 +62,8 @@ function ModuleSwitcher() {
     case 'transcribe':
     case 'learn':
       return <MidiStudioModule />
+    case 'library':
+      return <LibraryModule />
     case 'preferences':
       return <PreferencesModule />
     case 'about':

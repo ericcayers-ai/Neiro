@@ -1072,3 +1072,66 @@
   font-size: 0.95rem;
 }
 
+
+
+/* Analysis timeline lanes (chords + beats) */
+.analysis-lanes {
+  margin: 1rem 0;
+  display: grid;
+  gap: 0.75rem;
+}
+.analysis-lane {
+  display: grid;
+  gap: 0.3rem;
+}
+.analysis-lane-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+}
+.chord-lane {
+  position: relative;
+  height: 30px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  overflow: hidden;
+}
+.chord-block {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #0b0d12;
+  background: #8fd3ff;
+  border-right: 1px solid rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  white-space: nowrap;
+}
+.chord-block:nth-child(3n + 2) {
+  background: #ffd08f;
+}
+.chord-block:nth-child(3n + 3) {
+  background: #b6f0b6;
+}
+.beat-lane {
+  position: relative;
+  height: 22px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+}
+.beat-tick {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.35);
+}
+.beat-tick.is-downbeat {
+  width: 2px;
+  background: #ffd08f;
+}

@@ -1,0 +1,91 @@
+# Player
+
+Neiro has **one shared real-time player** for the app and the optional browser
+companion. The Python engine remains the queued, rendered-quality path.
+
+## Layout
+
+| File | Role |
+|---|---|
+| `frontend/src/player/AudioEngine.ts` | one `AudioContext`, worklet lifecycle, decode/load, fallback |
+| `frontend/src/player/Transport.ts` | pure state machine: play/pause/seek, A–B loop, wait gate, count-in |
+| `frontend/src/player/params.ts` | parameter clamps, EQ/tuning presets, honest method labels |
+| `frontend/src/player/markers.ts` | markers, clips, sequence resolution, practice-ramp generator |
+| `frontend/src/player/PlayerSurface.tsx` | transport + controls + markers/clips UI |
+| `frontend/src/player/worklet/player-worklet.js` | clean-room DSP (plain ESM, Node-testable) |
+| `frontend/src/player/i18n.ts` | single English string catalogue for new player strings |
+| `frontend/src/player/tests/*.test.mjs` | DSP + transport + clips tests |
+
+## DSP chain
+
+```
+source PCM -> phase-vocoder stretch (speed) -> linear resample (pitch)
+            -> cepstral formant warp (optional) -> 6-band EQ
+            -> centre reducer -> gain -> output
+```
+
+- **Phase vocoder** (`PhaseVocoder`): 1024-frame Hann, 256 synthesis hop, per-bin
+  phase propagation. Pitch-exact; smears transients more than WSOLA, which is why
+  the UI calls it a preview.
+- **Pitch** = transpose semitones + fine cents, applied by resampling after the
+  stretch; the stretch factor is `pitch/speed`, so duration depends only on speed.
+- **Varispeed** links pitch and speed: no time stretch, only resampling (natural
+  tape-style behaviour).
+- **Formant** (`FormantWarp`): cepstral envelope warp; `1.0` bypasses the stage.
+- **EQ**: six peaking biquads at 60/170/350/1k/3.5k/10k Hz, ±15 dB.
+- **Vocal reducer**: centre subtraction with an amount control (preview only; the
+  queued karaoke separation is the quality path).
+- **Bypass** is bit-exact (null test) and skips all DSP.
+
+Parameter changes are messaged to the worklet; nothing runs on the React render
+path. One context per surface; no context-per-effect (the old metronome leak is
+gone — the worklet owns click generation and the count-in).
+
+## Transport behaviour
+
+- **A–B loop** wraps at B with the overshoot preserved; the loop lives in samples,
+  not in an `<audio loop>` attribute.
+- **Count-in** generates metronome clicks for 4 beats (configurable) at the
+  song/transcribed BPM, then starts at the requested position.
+- **Metronome** is a worklet click (accent on beat 1), phase-locked to playback.
+- **Wait mode** stops playback at each note/chord onset (deduplicated within 20 ms).
+  Keyboard step resumes on Space/Enter; WebMIDI resumes only on the expected pitch;
+  a matching DAW MIDI note from the VST injector also resumes via `resumeToken`.
+- **Markers and clips** are data: add at playhead, jump, loop from marker, create a
+  clip from A–B, per-clip loop count, sequence playback, practice-ramp generator
+  (chromatic / circle of fifths / scale). They persist per file in `localStorage`
+  and can be stored durably in the library (`docs/library.md`).
+
+## Measured limits (this machine)
+
+From `docs/evidence/player-latency-2026-10-20.md`:
+
+- Algorithmic latency: **23.2 ms** (1024-frame phase vocoder at 44.1 kHz).
+- Offline render factor in Node: **5.2×–13.5×** real time depending on stages.
+- Browser control-to-audio latency is **not measured here** (no browser harness);
+  the surface displays `baseLatency + outputLatency + algorithmic` at runtime.
+
+## Honest labels
+
+`describeMethod()` is the single source of UI wording. A phase-vocoder preview is
+never called "Rubber Band" or simply "pitch-preserving"; a `playbackRate` fallback
+says that pitch is not preserved. The engine path is labelled "Rendered (Neiro
+engine)" and carries per-job provenance.
+
+## Fallback
+
+If `audioWorklet` cannot load, `AudioEngine` uses `AudioBufferSourceNode` and sets
+`mode = 'fallback'`; the surface then shows the caveat. The app stays usable, but
+the fallback is not parity.
+
+## Tests
+
+```powershell
+node --test frontend/src/player/tests/*.test.mjs
+node frontend/src/player/tests/bench.mjs
+```
+
+The tests cover FFT round-trip, bypass exactness, speed/pitch/varispeed direction,
+EQ gain, reducer null, formant peak movement, NaN safety, render speed, transport
+loop/wait/end, markers, clips/sequences, ramp generation, parameter clamps, method
+labels and provenance formatting.

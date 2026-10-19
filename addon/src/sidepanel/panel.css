@@ -1,0 +1,111 @@
+:root {
+  color-scheme: dark;
+  --bg: #0e1117;
+  --panel: #161b24;
+  --line: #262d3a;
+  --text: #e6eaf2;
+  --muted: #93a0b4;
+  --accent: #8fd3ff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0.8rem;
+  background: var(--bg);
+  color: var(--text);
+  font: 13px/1.45 "IBM Plex Sans", system-ui, sans-serif;
+  display: grid;
+  gap: 0.7rem;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+h1 {
+  font-size: 1rem;
+  margin: 0;
+}
+
+h2 {
+  font-size: 0.85rem;
+  margin: 0 0 0.3rem;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.65rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.row {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+button {
+  background: #222a36;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.35rem 0.6rem;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+input[type='range'] {
+  width: 100%;
+}
+
+input[type='text'] {
+  flex: 1;
+  background: #0f131a;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.35rem;
+}
+
+label {
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.8rem;
+}
+
+label.inline {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.75rem;
+  margin: 0;
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #5a6474;
+}
+
+.dot.paired {
+  background: #74d68a;
+}

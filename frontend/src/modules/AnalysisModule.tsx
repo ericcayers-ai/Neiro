@@ -8,6 +8,7 @@ import { EmptyGate } from '../components/EmptyGate'
 import { ModuleHeader } from '../components/ModuleHeader'
 import { fmtTime } from '../constants/options'
 import { useSession } from '../state/session'
+import { AnalysisLanes } from './AnalysisLanes'
 import './modules.css'
 
 const DRAFT_KEY = 'neiro.session.analysisCorrectionsDraft'
@@ -363,6 +364,8 @@ export function AnalysisModule() {
           ))}
         </tbody>
       </table>
+
+      <AnalysisLanes report={r} />
 
       {(r.notes || []).filter((n) => !n.startsWith('user_corrections:')).length > 0 && (
         <div className="flags">

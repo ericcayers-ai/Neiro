@@ -611,28 +611,93 @@ _CHORD_TEMPLATES = {
 }
 
 
-def _estimate_chords(
-    chroma: np.ndarray, bpm: float | None, duration: float
-) -> tuple[dict[str, Any], ...]:
-    """Sparse chord lattice from global chroma vs. major/minor templates."""
-    if chroma is None or chroma.size != 12 or duration <= 0:
-        return ()
-    c = chroma / (chroma.sum() + 1e-12)
-    scores = []
-    for name, tmpl in _CHORD_TEMPLATES.items():
-        t = tmpl / (tmpl.sum() + 1e-12)
-        scores.append((name, float(np.dot(c, t))))
-    scores.sort(key=lambda x: x[1], reverse=True)
-    top = scores[0]
-    # One global chord label with start/end for the whole clip (lattice can refine later)
-    return (
-        {
-            "chord": top[0],
-            "confidence": round(top[1], 3),
-            "start": 0.0,
-            "end": round(duration, 3),
-        },
-    )
+_CHORD_QUALITIES = (("maj", (0, 4, 7)), ("min", (0, 3, 7)))
+
+
+def _chord_timeline(
+    samples,
+    sample_rate: int,
+    bpm: float | None,
+    duration: float,
+) -> tuple[tuple[dict[str, Any], ...], dict[str, Any]]:
+    """Beat/segment-synchronous chord timeline from chroma vs 24 triads.
+
+    This is a heuristic, not a transformer: one segment per ~1 s, cosine match
+    against 12 major + 12 minor triads, confidence from similarity and the margin
+    over the runner-up. Low-energy or ambiguous material returns *no* result rather
+    than a confident-looking single label.
+    """
+    if duration <= 0.2:
+        return (), {
+            "method": "heuristic-chord-timeline",
+            "reliable": False,
+            "reason": "clip too short",
+        }
+    mono = samples.mean(axis=0)
+    n_fft, hop = 8192, 2048
+    spectrum = np.abs(stft(mono, n_fft=n_fft, hop=hop))
+    if spectrum.size == 0:
+        return (), {
+            "method": "heuristic-chord-timeline",
+            "reliable": False,
+            "reason": "no spectrum",
+        }
+    freqs = np.fft.rfftfreq(n_fft, 1 / sample_rate)
+    band = (freqs >= 55) & (freqs <= 2200)
+    bins = np.round(69 + 12 * np.log2(np.maximum(freqs, 1e-9) / 440)).astype(int) % 12
+    seg_frames = max(1, int(round(1.0 * sample_rate / hop)))
+    segments: list[dict[str, Any]] = []
+    for frame_start in range(0, spectrum.shape[1], seg_frames):
+        block = spectrum[band, frame_start : frame_start + seg_frames]
+        if block.size == 0:
+            continue
+        chroma = np.zeros(12)
+        band_bins = bins[band]
+        for pc in range(12):
+            chroma[pc] = float(block[band_bins == pc].sum())
+        total = float(chroma.sum())
+        if total <= 1e-9:
+            continue
+        chroma /= total
+        best_name = None
+        best_score = 0.0
+        runner_up = 0.0
+        for root in range(12):
+            for quality, intervals in _CHORD_QUALITIES:
+                template = np.zeros(12)
+                for interval in intervals:
+                    template[(root + interval) % 12] = 1.0
+                score = float(
+                    chroma @ template / (np.linalg.norm(chroma) * np.linalg.norm(template) + 1e-9)
+                )
+                name = f"{_NOTE_NAMES[root]}{'' if quality == 'maj' else 'm'}"
+                if score > best_score:
+                    runner_up = best_score
+                    best_score, best_name = score, name
+                elif score > runner_up:
+                    runner_up = score
+        similarity = float(np.clip((best_score - 0.42) / 0.28, 0.0, 1.0))
+        margin = float(np.clip((best_score - runner_up) * 4.0, 0.0, 1.0))
+        confidence = round(min(1.0, 0.65 * similarity + 0.35 * margin), 3)
+        start_s = round(frame_start * hop / sample_rate, 3)
+        end_s = round(min(duration, (frame_start + seg_frames) * hop / sample_rate), 3)
+        if segments and segments[-1]["chord"] == best_name:
+            segments[-1]["end"] = end_s
+            segments[-1]["confidence"] = round(max(segments[-1]["confidence"], confidence), 3)
+        else:
+            segments.append(
+                {"chord": best_name, "start": start_s, "end": end_s, "confidence": confidence}
+            )
+    reliable = bool(segments) and any(s["confidence"] >= 0.25 for s in segments)
+    meta: dict[str, Any] = {
+        "method": "heuristic-chord-timeline",
+        "model": None,
+        "reliable": reliable,
+    }
+    if not reliable:
+        meta["reason"] = "no reliable chord result (low harmonic confidence)"
+        return (), meta
+    return tuple(segments), meta
 
 
 def _estimate_sections(
@@ -640,7 +705,14 @@ def _estimate_sections(
 ) -> tuple[dict[str, Any], ...]:
     """Heuristic intro/verse/chorus segmentation by energy curve breaks."""
     if duration < 8:
-        return ({"label": "full", "start": 0.0, "end": round(duration, 3)},)
+        return (
+            {
+                "label": "full",
+                "start": 0.0,
+                "end": round(duration, 3),
+                "method": "energy-blocks",
+            },
+        )
     mono = samples.mean(axis=0)
     n_blocks = max(4, int(duration / 4))
     block = max(1, mono.size // n_blocks)
@@ -663,21 +735,73 @@ def _estimate_sections(
         if labels and labels[-1]["label"] == label:
             labels[-1]["end"] = round(end, 3)
         else:
-            labels.append({"label": label, "start": round(start, 3), "end": round(end, 3)})
+            labels.append(
+                {
+                    "label": label,
+                    "start": round(start, 3),
+                    "end": round(end, 3),
+                    "method": "energy-blocks",
+                }
+            )
     return tuple(labels)
 
 
-def _estimate_downbeats(bpm: float | None, duration: float) -> tuple[float, ...]:
-    if not bpm or bpm <= 0 or duration <= 0:
-        return ()
-    beat = 60.0 / bpm
-    bar = beat * 4
-    times = []
-    t = 0.0
-    while t < duration:
-        times.append(round(t, 4))
-        t += bar
-    return tuple(times[:512])
+def _beat_grid(
+    samples, sample_rate: int, bpm: float | None, duration: float
+) -> tuple[tuple[dict[str, Any], ...], dict[str, Any]]:
+    """Heuristic beat grid: onset-flux phase search at the estimated tempo.
+
+    No neural beat tracker is installed, so this is labelled a heuristic and the
+    meter is a 4/4 assumption with its own confidence. Ambiguous onsets return no
+    grid rather than a confident-looking fixed lattice.
+    """
+    if not bpm or bpm <= 0 or duration <= 0.4:
+        return (), {
+            "method": "heuristic-beat-grid",
+            "reliable": False,
+            "reason": "no tempo estimate",
+        }
+    mono = samples.mean(axis=0)
+    n_fft, hop = 1024, 512
+    spectrum = np.abs(stft(mono, n_fft=n_fft, hop=hop))
+    if spectrum.shape[1] < 4:
+        return (), {"method": "heuristic-beat-grid", "reliable": False, "reason": "clip too short"}
+    flux = np.maximum(0.0, np.diff(spectrum, axis=1)).sum(axis=0)
+    fps = sample_rate / hop
+    period = 60.0 / bpm
+    if period * fps < 2:
+        return (), {"method": "heuristic-beat-grid", "reliable": False, "reason": "tempo too fast"}
+    best_phase = 0.0
+    best_score = -1.0
+    for phase in np.linspace(0.0, period, 32, endpoint=False):
+        indices = np.arange(phase * fps, flux.size, period * fps).astype(int)
+        indices = indices[(indices >= 0) & (indices < flux.size)]
+        if indices.size < 2:
+            continue
+        score = float(flux[indices].mean())
+        if score > best_score:
+            best_score = score
+            best_phase = float(phase)
+    mean_flux = float(flux.mean()) + 1e-9
+    confidence = float(np.clip((best_score / mean_flux - 1.0) / 1.5, 0.0, 1.0))
+    times = np.arange(best_phase, duration, period)
+    if times.size > 2048:
+        times = times[:2048]
+    beats = tuple(
+        {"time": round(float(t), 3), "downbeat": bool(i % 4 == 0)} for i, t in enumerate(times)
+    )
+    reliable = bool(beats) and confidence > 0.15
+    meta: dict[str, Any] = {
+        "method": "heuristic-beat-grid",
+        "reliable": reliable,
+        "meter": "4/4" if reliable else None,
+        "tempo_confidence": round(confidence, 3),
+        "phase": round(best_phase, 3),
+    }
+    if not reliable:
+        meta["reason"] = "no reliable beat grid (weak onset periodicity)"
+        return (), meta
+    return beats, meta
 
 
 def _estimate_rt60(samples: np.ndarray, sample_rate: int) -> float | None:
@@ -771,14 +895,27 @@ def analyze(audio: AudioTensor, *, registry: Any | None = None) -> AnalysisRepor
 
     bpm = _tempo(samples, sr)
     key = _estimate_key(chroma)
-    chords = _estimate_chords(chroma, bpm, audio.duration_seconds)
+    chords, chord_meta = _chord_timeline(samples, sr, bpm, audio.duration_seconds)
+    beats, beat_meta = _beat_grid(samples, sr, bpm, audio.duration_seconds)
     sections = _estimate_sections(samples, sr, bpm, audio.duration_seconds)
-    downbeats = _estimate_downbeats(bpm, audio.duration_seconds)
+    downbeats = tuple(b["time"] for b in beats if b.get("downbeat"))
+    if chord_meta.get("reason"):
+        notes.append(str(chord_meta["reason"]))
+    if beat_meta.get("reason"):
+        notes.append(str(beat_meta["reason"]))
+    if chords:
+        notes.append("chords: heuristic beat-synchronous triads (no neural chord model installed)")
+    if beats:
+        notes.append(
+            "beats: heuristic onset-flux grid; downbeats assume 4/4 "
+            f"(tempo confidence {float(beat_meta.get('tempo_confidence') or 0):.0%})"
+        )
     capabilities = (
         "dsp-loudness",
         "dsp-tempo-key",
         tagger_capability,
-        "dsp-chord-lattice",
+        "dsp-chord-timeline-heuristic",
+        "dsp-beat-grid-heuristic",
         "dsp-structure",
         "dsp-hum-echo",
     )
@@ -811,5 +948,11 @@ def analyze(audio: AudioTensor, *, registry: Any | None = None) -> AnalysisRepor
         chords=chords,
         sections=sections,
         downbeats=downbeats,
+        beats=beats,
+        chord_method=str(chord_meta.get("method") or "heuristic-chord-timeline"),
+        chord_reliable=bool(chord_meta.get("reliable")),
+        meter=beat_meta.get("meter"),
+        tempo_confidence=beat_meta.get("tempo_confidence"),
+        analysis_method="dsp-heuristic",
         capabilities=capabilities,
     )

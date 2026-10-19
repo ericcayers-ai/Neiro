@@ -24,7 +24,8 @@
 | **Separate** | Vocals, karaoke, harmonic/percussive, 4/6-stem, drums — ensembles + null-test residual |
 | **Restore** | Declip, dehum, denoise, dereverb, super-res, mastering — auto chains from analysis |
 | **Transcribe** | Audio → MIDI (YIN floor; Basic Pitch / piano when installed) + MusicXML / tab / lyrics |
-| **Studio** | Waveform + spectrogram edits, Mix drawer, Learn practice, DAW injector capture |
+| **Studio** | Waveform + spectrogram edits, Mix drawer, real-time practice player, DAW injector capture |
+| **Library** | Local SQLite songs, notes, markers, clips, playlists — no account or cloud |
 | **Privacy** | Binds to `127.0.0.1` only. Pure-DSP floor works with **no model downloads**. |
 
 <p align="center">
@@ -79,7 +80,7 @@ pip install -e ".[youtube]"      # URL ingest (yt-dlp)
 pip install -e ".[dev]"          # tests + linting
 ```
 
-Requires **Python 3.10–3.12** and [ffmpeg](https://ffmpeg.org) on `PATH` for compressed/video inputs (WAV/FLAC work without it).  
+Requires **Python 3.10–3.12** for the CI-supported matrix (the core also runs on 3.13; some optional neural extras still need ≤ 3.12) and [ffmpeg](https://ffmpeg.org) on `PATH` for compressed/video inputs (WAV/FLAC work without it).  
 `[all]` omits `basicpitch` / `superres` so Python 3.12 installs stay clean — add those on 3.10/3.11.
 
 <p align="center">
@@ -158,7 +159,7 @@ Dependency-free YIN for the model-free floor; Basic Pitch and piano (with pedal)
 
 - **Analyze** — loudness, tempo, key, clipping, bandwidth, effective-mono, hum/echo, instrument hints  
 - **Studio** — trim / silence / fade / gain / normalize / reverse with non-destructive undo  
-- **Learn** — loop regions, count-in, metronome, step / WebMIDI / DAW wait mode  
+- **Practice** — real-time transpose / fine pitch / 25–400% speed / formant / EQ / vocal reducer, A–B loop, count-in, metronome, markers, practice clips, and step / WebMIDI / DAW wait mode
 - **DAW** — shared-window VST2 / CLAP injectors, Edison-style capture into the same UI  
 </details>
 
@@ -212,14 +213,15 @@ Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Lowest-frictio
 | DAG runtime, cache, VRAM ladder, manifests | ✅ |
 | Analysis + DSP separation / restore / YIN transcription | ✅ no downloads |
 | Neural adapters (Demucs, RoFormer, Basic Pitch, AudioSR, …) | ✅ opt-in weights |
-| Studio, Mixer, Learn, Preferences, session Save/Open | ✅ |
+| Studio, Mixer, Practice, Library, Preferences, session Save/Open | ✅ |
 | Desktop shell (Tauri 2 + React) | ✅ |
 | Watch-folder batch (`neiro watch`) | ✅ |
 | DAW shared-window injector + Edison capture | ✅ |
 | Symbolic export (MusicXML / tab / LRC; PDF via Verovio/MuseScore) | ✅ |
+| Optional MV3 companion (tab capture, pairing) | ✅ source + static validation |
 | Full MUSDB / MAESTRO eval tables | ⏳ needs user datasets |
 
-**Neiro 1.1.1** — UI navigation QOL (command palette, collapsible rail, session dialogs) on top of the 1.1.0 DAW + model-zoo release. See [`CHANGELOG.md`](CHANGELOG.md).
+**Neiro 1.2.1** — UI navigation QOL (command palette, collapsible rail, session dialogs) on top of the 1.1.0 DAW + model-zoo release. See [`CHANGELOG.md`](CHANGELOG.md).
 
 ---
 
