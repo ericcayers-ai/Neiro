@@ -9,6 +9,7 @@
 
 import workletUrl from './worklet/player-worklet.js?url'
 import type { PlayerParams } from './params'
+import { pitchAt, type PitchReading } from './pitch'
 
 export type EngineMode = 'preview' | 'fallback'
 
@@ -185,6 +186,16 @@ export class PlayerEngine {
     const base = ctx.baseLatency || 0
     const output = (ctx as AudioContext & { outputLatency?: number }).outputLatency || 0
     return base + output + (this.mode === 'preview' ? this.workletLatency : 0)
+  }
+
+  /** Preview tuner: fundamental near a source-time position, or null. */
+  pitchAt(seconds: number, windowSeconds = 0.06): PitchReading | null {
+    if (!this.buffer || this.mode !== 'preview') return null
+    const channels = [
+      this.buffer.getChannelData(0),
+      this.buffer.numberOfChannels > 1 ? this.buffer.getChannelData(1) : this.buffer.getChannelData(0),
+    ]
+    return pitchAt(channels, this.buffer.sampleRate, Math.floor(seconds * this.buffer.sampleRate), windowSeconds)
   }
 
   get position(): number {

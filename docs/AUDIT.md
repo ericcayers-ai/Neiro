@@ -972,7 +972,7 @@ player, **Q** queued Neiro engine, **RT+Q** hybrid, **Addon** extension surface,
 | T-09 | Pitch display (cents/Hz) | None | M | Player readout | RT | P2 |
 | T-10 | Premium audio / low-latency mode | None | M | Player quality modes; label trade-off | RT | P1 |
 | T-11 | Time-stretch provenance/quality indicator | API returns provenance; practice UI ignores it and always says "pitch-preserving" | P | Show method + quality; no false claim | RT+Q | P1 |
-| T-12 | Per-note pitch correction (Neiro strength) | Native job; works (6.8 s for 4 s) | N | Keep as Q export; add RT tuner preview | Q+RT | P2 |
+| T-12 | Per-note pitch correction (Neiro strength) | Native job; works (6.8 s for 4 s) | N | Q export + preview tuner readout (autocorrelation) | Q+RT | P2 |
 | T-13 | Local playback/transport | Native `<audio>`/Studio transport; no shared clock | N | Migrate to Player; preserve transport | RT | P1 |
 | T-14 | Waveform/spectrogram | Native in Studio | N | Keep; share analysis view | Q | P3 |
 | T-15 | A-B loop | Native in Studio selection (`loopSel`/`sel`); practice panel loops whole file | P | Shared Player A-B; remove whole-file lie | RT | P1 |

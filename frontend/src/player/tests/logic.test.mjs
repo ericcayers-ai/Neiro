@@ -23,6 +23,7 @@ import { MIDI_ACTIONS, MidiMapper, parseMidiMessage } from '../midi.ts'
 import { libraryWrites, playerStorageKey, readPlayerArtifacts } from '../librarySync.ts'
 import { ShortcutMap, bindingLabel, eventToBinding, conflictFor } from '../shortcuts.ts'
 import { focusGain, isTargetStem } from '../mix.ts'
+import { detectPitchHz, nearestNote, pitchAt } from '../pitch.ts'
 
 test('transport plays, pauses and ends', () => {
   const transport = new Transport({ duration: 10 })
@@ -310,4 +311,44 @@ test('vocal focus cross-fade is neutral at 50% and bounded', () => {
   assert.ok(focusGain(false, 0) > 1)
   assert.equal(focusGain(true, 4), focusGain(true, 1))
   assert.equal(focusGain(false, -2), focusGain(false, 0))
+})
+
+function tone(freq, seconds, sr = 22050, amp = 0.3) {
+  const out = new Float32Array(Math.round(seconds * sr))
+  for (let i = 0; i < out.length; i += 1) out[i] = amp * Math.sin((2 * Math.PI * freq * i) / sr)
+  return out
+}
+
+test('pitch detection finds sines and names them', () => {
+  const a4 = detectPitchHz(tone(440, 0.1), 22050)
+  assert.ok(a4 != null && Math.abs(a4 - 440) < 2, `A4 ${a4}`)
+  assert.deepEqual(nearestNote(440), { hz: 440, note: 'A', octave: 4, midi: 69, cents: 0 })
+  const a3 = nearestNote(detectPitchHz(tone(220, 0.1), 22050))
+  assert.equal(a3.note, 'A')
+  assert.equal(a3.octave, 3)
+  const c4 = nearestNote(detectPitchHz(tone(261.63, 0.1), 22050))
+  assert.equal(c4.note, 'C')
+  assert.equal(c4.octave, 4)
+  assert.ok(Math.abs(c4.cents) <= 2)
+})
+
+test('pitch detection rejects silence and noise', () => {
+  assert.equal(detectPitchHz(new Float32Array(2048), 22050), null)
+  const noise = new Float32Array(2048)
+  let seed = 7
+  for (let i = 0; i < noise.length; i += 1) {
+    seed = (seed * 1103515245 + 12345) % 2147483648
+    noise[i] = (seed / 2147483648 - 0.5) * 0.5
+  }
+  assert.equal(detectPitchHz(noise, 22050), null)
+})
+
+test('pitchAt reads a window at a source position', () => {
+  const sr = 22050
+  const data = tone(330, 0.5, sr)
+  const reading = pitchAt([data], sr, Math.floor(0.2 * sr))
+  assert.ok(reading != null)
+  assert.equal(reading.note, 'E')
+  assert.equal(reading.octave, 4)
+  assert.equal(pitchAt([], sr, 0), null)
 })

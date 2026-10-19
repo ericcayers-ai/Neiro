@@ -69,6 +69,9 @@ gone — the worklet owns click generation and the count-in).
 - **Keyboard shortcuts** (`shortcuts.ts` + `PlayerShortcutPanel`): nine player
   actions, exact modifier matching, conflict displacement with a message, reset to
   defaults, persisted locally. Home/End and wait-gate Space/Enter stay fixed.
+- **Tuner preview** (`pitch.ts`): while playing, a 60 ms window of the decoded
+  source is autocorrelated every 300 ms and shown as note + cents ("heard A4 +2¢").
+  It is monophonic-biased and labelled a preview; silence/noise returns no reading.
 - **Pitch readout**: the surface shows the sounding A4 in Hz (`440 × 2^(st/12)`),
   driven by the same transpose/cents values the DSP uses.
 - **Low latency**: disables the formant stage and says so in the method label; it is

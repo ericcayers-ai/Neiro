@@ -45,6 +45,7 @@ const EN: Record<string, string> = {
   'player.nextMarker': 'Marker ›',
   'player.lowLatency': 'Low latency (formant off)',
   'player.readout': 'A4 {hz} Hz · {mode}',
+  'player.heard': 'heard {note} {cents}¢',
   'player.chords': 'Chords',
   'player.beats': 'Beats',
   'player.scenes': 'Scenes',

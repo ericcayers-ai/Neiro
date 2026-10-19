@@ -154,3 +154,10 @@ Vitest (node environment) renders `PlayerSurface` through `react-dom/server`:
 transport/controls/labels/A4 readout, A–B/markers/clips/scenes/MIDI/shortcut
 surfaces, the analysis overlay with a report, its absence without one, and the
 no-duration gate. `npm test` runs it; gate C22 runs it with `--full`.
+
+## Twelfth batch: preview tuner
+
+`pitch.ts` adds autocorrelation detection (first-strong-peak to avoid octave-below
+errors, parabolic refinement) and note/cents naming; the player samples a 60 ms
+window every 300 ms while playing and shows "heard A4 +2¢". Covered by Node tests
+for sines (A4/A3/C4), silence, noise and a positioned window. Player tests 36.

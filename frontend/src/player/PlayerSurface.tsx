@@ -31,6 +31,7 @@ import {
 import { PlayerMidiPanel } from './PlayerMidiPanel'
 import { PlayerShortcutPanel } from './PlayerShortcutPanel'
 import { ShortcutMap, loadShortcutMap, type ShortcutAction } from './shortcuts'
+import type { PitchReading } from './pitch'
 import { addScene, applyScene, loadScenes, makeScene, persistScenes, removeScene, type SceneSnapshot } from './scenes'
 import type { MidiAction } from './midi'
 import type { AnalysisReport } from '../api/types'
@@ -109,6 +110,7 @@ export function PlayerSurface({
   const [mode, setMode] = useState<EngineMode>('preview')
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const [detected, setDetected] = useState<PitchReading | null>(null)
   const [ready, setReady] = useState(false)
   const [durationState, setDurationState] = useState(duration ?? 0)
   const [loopA, setLoopA] = useState<number | null>(null)
@@ -213,6 +215,17 @@ export function PlayerSurface({
     if (bpm && Math.abs(bpm - params.metronomeBpm) > 0.5) update({ metronomeBpm: bpm })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bpm])
+
+  useEffect(() => {
+    if (!playing || mode !== 'preview') {
+      setDetected(null)
+      return
+    }
+    const timer = window.setInterval(() => {
+      setDetected(engineRef.current?.pitchAt(positionRef.current) ?? null)
+    }, 300)
+    return () => window.clearInterval(timer)
+  }, [playing, mode])
 
   useEffect(() => {
     // Low-latency mode intentionally drops the formant stage; the label says so.
@@ -621,6 +634,14 @@ export function PlayerSurface({
           hz: soundingA4(params).toFixed(2),
           mode: params.lowLatency ? 'low-latency (formant off)' : 'phase-vocoder preview',
         })}
+        {detected && (
+          <span className="player-detected">
+            {' '}· {t('player.heard', {
+              note: `${detected.note}${detected.octave}`,
+              cents: `${detected.cents >= 0 ? '+' : ''}${detected.cents}`,
+            })}
+          </span>
+        )}
       </p>
 
       {(analysis?.chords?.length || analysis?.beats?.length) && (
