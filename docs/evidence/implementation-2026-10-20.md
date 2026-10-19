@@ -126,3 +126,10 @@ and is covered by Node tests. New player/MIDI/scene strings moved into the
 
 The player gains Start, a persisted ±5/±10/±30 s seek step, ArrowLeft/ArrowRight
 seeking, Home/End, and a shared `clampSeek` helper with a Node test. Player tests 29.
+
+## Eighth batch: remappable player keyboard shortcuts
+
+`shortcuts.ts` defines nine actions with exact modifier matching, conflict
+displacement, reset and local persistence; `PlayerShortcutPanel` exposes Learn/Clear
+per action. Home/End and the wait-gate Space/Enter remain fixed by design. Player
+tests 32; gate 19/19.

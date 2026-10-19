@@ -21,6 +21,7 @@ import { formatProvenance } from '../provenance.ts'
 import { addScene, applyScene, makeScene, removeScene } from '../scenes.ts'
 import { MIDI_ACTIONS, MidiMapper, parseMidiMessage } from '../midi.ts'
 import { libraryWrites, playerStorageKey, readPlayerArtifacts } from '../librarySync.ts'
+import { ShortcutMap, bindingLabel, eventToBinding, conflictFor } from '../shortcuts.ts'
 
 test('transport plays, pauses and ends', () => {
   const transport = new Transport({ duration: 10 })
@@ -251,4 +252,47 @@ test('clampSeek keeps relative seeks inside the track', () => {
   assert.equal(clampSeek(28, 5, 30), 30)
   assert.equal(clampSeek(2, -5, 30), 0)
   assert.equal(clampSeek(30, 5, 0), 35, 'unknown duration is unbounded above')
+})
+
+test('shortcut defaults, matching and labels', () => {
+  const map = new ShortcutMap()
+  assert.equal(map.match({ key: ' ', code: 'Space' }), 'play-pause')
+  assert.equal(map.match({ key: 'ArrowLeft' }), 'seek-back')
+  assert.equal(map.match({ key: 'm' }), 'marker-add')
+  assert.equal(map.match({ key: 'M', shiftKey: true }), null, 'modifiers are exact')
+  assert.equal(map.match({ key: 'Shift' }), null)
+  assert.equal(bindingLabel(map.forAction('play-pause')), 'Space')
+  assert.equal(bindingLabel(map.forAction('seek-back')), 'ArrowLeft')
+  assert.equal(eventToBinding({ key: 'Control' }), null)
+})
+
+test('shortcut learn displaces conflicts, clears and resets', () => {
+  const map = new ShortcutMap()
+  const candidate = eventToBinding({ key: 'p' })
+  const displaced = map.learn('play-pause', candidate)
+  assert.deepEqual(displaced, [])
+  assert.equal(map.match({ key: 'p' }), 'play-pause')
+  const conflict = conflictFor(map.bindings, eventToBinding({ key: 'p' }))
+  assert.equal(conflict, 'play-pause')
+  const second = eventToBinding({ key: 'p' })
+  const replaced = map.learn('marker-add', second)
+  assert.deepEqual(replaced, ['play-pause'])
+  assert.equal(map.match({ key: 'p' }), 'marker-add')
+  assert.equal(map.forAction('play-pause'), undefined)
+
+  map.clear('marker-add')
+  assert.equal(map.match({ key: 'p' }), null)
+  map.reset()
+  assert.equal(map.match({ key: ' ' }), 'play-pause')
+  assert.equal(map.bindings.length, 9)
+})
+
+test('shortcut persistence tolerates corrupt and partial data', () => {
+  const map = new ShortcutMap()
+  map.load('not json')
+  assert.equal(map.bindings.length, 9)
+  map.load(JSON.stringify([{ action: 'play-pause', key: 'k', ctrl: true, shift: false, alt: false, meta: false }]))
+  assert.equal(map.match({ key: 'k', ctrlKey: true }), 'play-pause')
+  map.load(JSON.stringify([{ action: 'unknown', key: 'x' }]))
+  assert.equal(map.match({ key: 'k', ctrlKey: true }), 'play-pause', 'invalid rows ignored')
 })

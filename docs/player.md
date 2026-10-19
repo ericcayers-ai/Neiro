@@ -66,6 +66,9 @@ gone — the worklet owns click generation and the count-in).
   mapping service, not a MIDI file player; no MIDI data leaves the browser.
 - **Analysis overlay**: pass an `AnalysisReport` and the surface draws chord blocks
   and beat ticks under the transport, so practice and analysis share one timeline.
+- **Keyboard shortcuts** (`shortcuts.ts` + `PlayerShortcutPanel`): nine player
+  actions, exact modifier matching, conflict displacement with a message, reset to
+  defaults, persisted locally. Home/End and wait-gate Space/Enter stay fixed.
 - **Pitch readout**: the surface shows the sounding A4 in Hz (`440 × 2^(st/12)`),
   driven by the same transpose/cents values the DSP uses.
 - **Low latency**: disables the formant stage and says so in the method label; it is

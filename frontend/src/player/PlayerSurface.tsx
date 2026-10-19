@@ -29,6 +29,8 @@ import {
   type RampScale,
 } from './markers'
 import { PlayerMidiPanel } from './PlayerMidiPanel'
+import { PlayerShortcutPanel } from './PlayerShortcutPanel'
+import { ShortcutMap, loadShortcutMap, type ShortcutAction } from './shortcuts'
 import { addScene, applyScene, loadScenes, makeScene, persistScenes, removeScene, type SceneSnapshot } from './scenes'
 import type { MidiAction } from './midi'
 import type { AnalysisReport } from '../api/types'
@@ -136,6 +138,8 @@ export function PlayerSurface({
   const effectiveDuration = durationState || duration || 0
   const durationRef = useRef(0)
   durationRef.current = effectiveDuration
+  const shortcutRef = useRef<ShortcutMap>(loadShortcutMap())
+  const actionRef = useRef<(action: ShortcutAction) => void>(() => undefined)
 
   // Engine lifecycle: one context per surface, closed on unmount.
   useEffect(() => {
@@ -292,32 +296,40 @@ export function PlayerSurface({
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null
       if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return
-      if (event.code === 'Space' || event.key === 'Enter') {
+      // Wait gating always wins and is deliberately not remappable.
+      if (waiting && (event.code === 'Space' || event.key === 'Enter')) {
         event.preventDefault()
-        if (waiting) resumeWait()
-        else togglePlay()
+        resumeWait()
         return
       }
-      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-        event.preventDefault()
-        const delta = (event.key === 'ArrowLeft' ? -1 : 1) * seekStep
-        const target = clampSeek(positionRef.current, delta, durationRef.current)
-        engineRef.current?.seek(target)
-        setPosition(target)
-      } else if (event.key === 'Home') {
+      if (event.key === 'Home') {
         event.preventDefault()
         engineRef.current?.seek(0)
         setPosition(0)
-      } else if (event.key === 'End') {
+        return
+      }
+      if (event.key === 'End') {
         event.preventDefault()
         const end = Math.max(0, durationRef.current - 0.05)
         engineRef.current?.seek(end)
         setPosition(end)
+        return
       }
+      const action = shortcutRef.current.match(event)
+      if (!action) return
+      event.preventDefault()
+      if (action === 'seek-back' || action === 'seek-forward') {
+        const delta = (action === 'seek-back' ? -1 : 1) * seekStep
+        const target = clampSeek(positionRef.current, delta, durationRef.current)
+        engineRef.current?.seek(target)
+        setPosition(target)
+        return
+      }
+      actionRef.current(action)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [resumeWait, togglePlay, waiting, seekStep])
+  }, [resumeWait, waiting, seekStep])
 
   // WebMIDI wait gate: only a matching pitch resumes; other notes are ignored.
   useEffect(() => {
@@ -357,6 +369,7 @@ export function PlayerSurface({
   }, [notes, params.waitMode, position, resumeWait])
 
   const method = describeMethod(params, params.bypass ? 'preview' : mode)
+  // (assigned after onMidiAction below; declared early so the key effect can call it)
   const loopEnabled = params.loopEnabled && loopA != null && loopB != null && loopB > loopA
 
   const snapshotState = () => ({
@@ -439,6 +452,7 @@ export function PlayerSurface({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [params, loopA, loopB, position, playing, waiting, effectiveDuration],
   )
+  actionRef.current = onMidiAction
 
   const addMarkerAtPlayhead = () => setMarkers((current) => addMarker(current, position))
   const jumpToMarker = (marker: Marker) => {
@@ -782,6 +796,8 @@ export function PlayerSurface({
       </div>
 
       <PlayerMidiPanel onAction={onMidiAction} />
+
+      <PlayerShortcutPanel />
 
       {message && (
         <p className="muted" role="status">

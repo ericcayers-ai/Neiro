@@ -64,6 +64,13 @@ const EN: Record<string, string> = {
   'player.midiLearn': 'Learn',
   'player.midiListening': 'Listening…',
   'player.midiClear': 'Clear',
+  'player.keyboard': 'Keyboard shortcuts',
+  'player.keyboardBound': '{count} bound',
+  'player.pressKey': 'Press a key…',
+  'player.resetDefaults': 'Reset defaults',
+  'player.shortcutAssigned': 'Shortcut assigned.',
+  'player.shortcutDisplaced': 'Assigned; removed from {actions}.',
+  'player.waitFixed': 'Bindings are local; Space/Enter always resume a wait gate.',
   'player.midiHint':
     'Learn captures the next note or CC from any connected device. Mappings persist on this machine only; no MIDI data leaves the browser.',
 }

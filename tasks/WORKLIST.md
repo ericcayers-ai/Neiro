@@ -50,9 +50,9 @@ Gate: `python scripts/verify_goal.py --full` — **18/18 PASS** on 2026-10-20.
   player, export, remove.
 - [x] **P2-4 Practice ramp generator.** Chromatic / fifths / scale in the player.
 - [x] **P2-5 MIDI learn + mapping persistence.** `midi.ts` + `PlayerMidiPanel`:
-  note/CC learn for 11 actions, any device, clear per action, local persistence;
-  26 player tests include parse/learn/match/corrupt-storage cases. Keyboard
-  remapping (custom shortcuts) is still not implemented.
+  note/CC learn for 11 actions, any device, clear per action, local persistence.
+  Player keyboard shortcuts are remappable too (9 actions, conflict handling,
+  reset); app-wide rail shortcuts remain fixed. 32 player tests.
 - [~] **P2-6 Byte-bounded cache + disk preflight.** Upload preflight/507, a disk-aware
   effective cache budget (half of free space), update rejection above 90% free, and
   a startup disk note exist. Remaining: model-size preflight before downloads and a
