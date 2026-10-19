@@ -328,6 +328,30 @@ def test_edit_bounce_combines_tracks(server):
     assert code == 200 and body[:4] == b"RIFF"
 
 
+def test_render_job_over_http_serves_audio(server):
+    base, _ = server
+    fid = _upload(base, _tone_wav_bytes(seconds=0.5))["file_id"]
+    job = _post(
+        base + "/api/edit/job",
+        json.dumps({"file_id": fid, "op": "render", "rate": 0.5, "semitones": 12}).encode(),
+        {"Content-Type": "application/json"},
+    )
+    job_id = job["job_id"]
+    status = {}
+    for _ in range(200):
+        status = json.loads(_get(base + f"/api/job/{job_id}")[1])
+        if status["status"] in ("done", "error", "cancelled"):
+            break
+        time.sleep(0.1)
+    assert status["status"] == "done", status
+    result = status["result"]
+    assert 0.2 < result["duration"] < 0.4
+    assert "render(" in str(result["provenance"])
+    with urllib.request.urlopen(base + result["audio_url"], timeout=5) as response:
+        assert response.status == 200
+        assert len(response.read()) > 0
+
+
 def test_edit_split_returns_left_and_right(server):
     base, _ = server
     fid = _upload(base, _tone_wav_bytes(seconds=2.0))["file_id"]

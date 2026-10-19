@@ -421,3 +421,11 @@ Added `test_effective_cache_budget_is_clamped_to_free_disk`, which monkeypatches
 byte value (1,004,999,999 due to float truncation), the rounded display value, the
 cache's bytes, and the fact that the display field no longer equals exact bytes —
 the condition the old test silently depended on.
+
+## Forty-first batch: render job over HTTP
+
+`test_render_job_over_http_serves_audio` uploads a 0.5 s tone, posts
+`/api/edit/job` with `{op: render, rate: 0.5, semitones: 12}`, polls
+`/api/job/<id>` until done, checks the ~0.25 s duration and `render(...)`
+provenance, then downloads `audio_url` and asserts a non-empty 200 response. This
+exercises the token/API/worker/artifact path used by the player's Render button.
