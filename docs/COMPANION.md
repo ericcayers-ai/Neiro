@@ -7,8 +7,10 @@ it; no core feature requires it.
 
 - **Manifest** (`addon/manifest.json`): MV3, minimum Chrome 127, permissions
   `activeTab`, `offscreen`, `scripting`, `storage`, `sidePanel`, `contextMenus`;
-  `tabCapture` is optional and requested only when capture starts; host access is
-  optional and requested per site (never `<all_urls>` at install).
+  `tabCapture` is optional and requested from the panel on Start; install-time
+  host access is loopback only (`http://127.0.0.1/*`, `http://localhost/*`) so
+  pairing/health/queued upload work without a wildcard; broad site access stays
+  optional (never `<all_urls>` at install).
 - **Service worker** (`addon/src/service-worker.js`): side panel, one offscreen
   document, capture start/stop, permission request, pairing, queued uploads.
 - **Side panel** (`addon/src/sidepanel/`): transpose/fine-pitch sliders, bypass,

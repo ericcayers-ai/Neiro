@@ -4,9 +4,21 @@
   "version": "0.1.0",
   "description": "Optional real-time transpose companion for Neiro. Audio stays on this machine.",
   "minimum_chrome_version": "127",
-  "permissions": ["activeTab", "offscreen", "scripting", "storage", "sidePanel", "contextMenus"],
-  "optional_permissions": ["tabCapture"],
-  "optional_host_permissions": ["https://*/*", "http://*/*"],
+  "permissions": [
+    "activeTab",
+    "offscreen",
+    "scripting",
+    "storage",
+    "sidePanel",
+    "contextMenus"
+  ],
+  "optional_permissions": [
+    "tabCapture"
+  ],
+  "optional_host_permissions": [
+    "https://*/*",
+    "http://*/*"
+  ],
   "background": {
     "service_worker": "src/service-worker.js",
     "type": "module"
@@ -20,8 +32,16 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["src/audio/capture-worklet.js"],
-      "matches": ["<all_urls>"]
+      "resources": [
+        "src/audio/capture-worklet.js"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
+  ],
+  "host_permissions": [
+    "http://127.0.0.1/*",
+    "http://localhost/*"
   ]
 }

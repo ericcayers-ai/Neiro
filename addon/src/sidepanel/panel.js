@@ -60,6 +60,13 @@ $('bypass').addEventListener('change', async () => {
 
 $('capture-start').addEventListener('click', async () => {
   $('capture-start').disabled = true
+  // The permission request must run in this page, from the user's click.
+  const granted = await chrome.permissions.request({ permissions: ['tabCapture'] })
+  if (!granted) {
+    $('capture-start').disabled = false
+    $('media-state').textContent = 'tabCapture permission was not granted'
+    return
+  }
   const result = await send({ op: 'capture:start' })
   if (result.ok) {
     $('capture-stop').disabled = false
@@ -89,6 +96,14 @@ $('pair').addEventListener('click', async () => {
     ? 'Paired. Queued processing is available.'
     : result.error || 'pairing failed'
   $('pair-dot').classList.toggle('paired', Boolean(result.ok))
+})
+
+$('engine-check').addEventListener('click', async () => {
+  $('engine-status').textContent = 'Checking…'
+  const result = await send({ op: 'engine:health' })
+  $('engine-status').textContent = result.ok
+    ? `Neiro ${result.health?.version || '?'} · ${result.health?.status || 'unknown'}`
+    : `Engine unreachable: ${result.error || 'unknown error'}`
 })
 
 $('queued-file').addEventListener('change', async (event) => {

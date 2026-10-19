@@ -43,8 +43,13 @@ check(
 )
 check('no <all_urls> at install', !JSON.stringify(manifest.host_permissions || []).includes('<all_urls>'))
 check(
-  'host access is optional',
-  Boolean(manifest.optional_host_permissions?.length) && !manifest.host_permissions,
+  'install-time host access is loopback only',
+  (manifest.host_permissions || []).length > 0 &&
+    (manifest.host_permissions || []).every((pattern) => /^http:\/\/(127\.0\.0\.1|localhost)\//.test(pattern)),
+)
+check(
+  'broad site access is optional',
+  Boolean(manifest.optional_host_permissions?.length),
 )
 
 const requiredFiles = [

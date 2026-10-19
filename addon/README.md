@@ -29,7 +29,8 @@ paired hand-off to the local Neiro engine for queued work.
 | `sidePanel` | the main UI surface |
 | `offscreen` | keep the audio graph alive while the panel is closed |
 | `tabCapture` (optional) | request only when the user starts capture |
-| host access (optional) | requested per site, never `<all_urls>` at install |
+| loopback host access | talk to the local Neiro engine (pairing, health, upload) |
+| site host access (optional) | requested per site, never `<all_urls>` at install |
 
 ## Limitations (stated, not hidden)
 

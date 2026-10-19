@@ -190,3 +190,11 @@ Library songs store `settings.player` via `POST .../settings`; the Library playe
 passes them as `initialParams` and debounces parameter changes back (800 ms), so
 transpose/speed/tuning survive a restart. API test + SSR test (A4 880 Hz at +12).
 Library tests 12; vitest 6.
+
+## Sixteenth batch: companion host policy and diagnostics
+
+The addon declared no install-time host access, so its cross-origin calls to
+`127.0.0.1` could not work. It now declares loopback-only host permissions
+(`127.0.0.1`, `localhost`), requests `tabCapture` from the panel on the user's
+click, and offers a "Check Neiro engine" health probe. The validator rejects
+wildcard install access and checks the loopback policy (47 checks).

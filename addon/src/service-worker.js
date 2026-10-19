@@ -49,12 +49,6 @@ async function activeTabId() {
   return tab?.id ?? null
 }
 
-async function ensureCapturePermission() {
-  const granted = await chrome.permissions.contains({ permissions: ['tabCapture'] })
-  if (granted) return true
-  return chrome.permissions.request({ permissions: ['tabCapture'] })
-}
-
 async function saveSettings(patch) {
   const stored = await chrome.storage.local.get('settings')
   const settings = { ...(stored.settings || {}), ...patch }
@@ -104,8 +98,10 @@ async function uploadQueued(fileBuffer, filename) {
 async function startCapture() {
   const tabId = await activeTabId()
   if (tabId == null) throw new Error('No active tab.')
-  const permitted = await ensureCapturePermission()
-  if (!permitted) throw new Error('Tab capture permission was not granted.')
+  const permitted = await chrome.permissions.contains({ permissions: ['tabCapture'] })
+  if (!permitted) {
+    throw new Error('Tab capture permission was not granted — click Start again in the panel.')
+  }
   const streamId = await chrome.tabCapture.getMediaStreamId({ targetTabId: tabId })
   await ensureOffscreen()
   const stored = await chrome.storage.local.get('settings')
@@ -172,6 +168,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           break
         case 'settings:set':
           sendResponse({ ok: true, settings: await saveSettings(message.patch || {}) })
+          break
+        case 'engine:health':
+          sendResponse({
+            ok: true,
+            health: await fetch(`${NEIRO_BASE}/api/health`, { cache: 'no-store' }).then((r) => r.json()),
+          })
           break
         case 'settings:get':
           sendResponse({ ok: true, settings: (await chrome.storage.local.get('settings')).settings || {} })
