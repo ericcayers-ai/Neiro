@@ -6,6 +6,7 @@ import { SessionProvider } from '../../state/session'
 import { ImportModule } from '../ImportModule'
 import { LibraryModule } from '../LibraryModule'
 import { RestoreModule } from '../RestoreModule'
+import { SeparateModule } from '../SeparateModule'
 
 function render(node: React.ReactNode) {
   return renderToStaticMarkup(
@@ -22,6 +23,11 @@ describe('module shells render through the catalogue', () => {
     expect(html).toContain('No songs yet')
     expect(html).toContain('Add current file')
     expect(html).toContain('Resume last')
+  })
+
+  it('renders the Separate empty gate', () => {
+    const html = render(<SeparateModule />)
+    expect(html).toContain('pick a stem preset')
   })
 
   it('renders the Restore empty gate', () => {

@@ -370,3 +370,9 @@ a rendering check without a browser.
 Restore's gate, header, recommendation, results and actions resolve through the
 catalogue; module SSR now renders the Restore empty gate too. Remaining bodies:
 Studio, Separate, MIDI, Preferences (plus preset data).
+
+## Thirty-fourth batch: Separate module catalogue
+
+Separate's gate, header, preset/tier/bleed controls, queue hint and stem-result
+actions resolve through the catalogue; module SSR renders the Separate empty gate
+too. Remaining bodies: Studio, MIDI, Preferences.

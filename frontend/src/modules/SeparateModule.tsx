@@ -15,6 +15,7 @@ import {
 } from '../constants/options'
 import { stemIcon } from '../constants/stemIdentity'
 import { useSession } from '../state/session'
+import { useT } from '../i18n'
 import './modules.css'
 
 function packIntentFromResult(
@@ -40,6 +41,7 @@ function packIntentFromResult(
 }
 
 export function SeparateModule() {
+  const t = useT()
   const {
     file,
     setFile,
@@ -151,20 +153,18 @@ export function SeparateModule() {
 
   if (!file) {
     return (
-      <EmptyGate title="Separate">
-        Import a track first — or capture from a DAW injector — then pick a stem preset.
-      </EmptyGate>
+      <EmptyGate title={t('separate.title')}>{t('separate.gate')}</EmptyGate>
     )
   }
 
   return (
     <div className="module-panel module-enter">
       <ModuleHeader
-        title="Separate"
+        title={t('separate.title')}
         lede={
           <>
-            Stem job on <strong>{file.name}</strong>. Send results to Studio as a mix or mashup pack.
-            {hasCorrections ? ' Analysis corrections will influence routing.' : ''}
+            {t('separate.lede', { name: file.name })}
+            {hasCorrections ? ` ${t('separate.corrections')}` : ''}
           </>
         }
         actions={
@@ -173,25 +173,25 @@ export function SeparateModule() {
               type="button"
               disabled={running || batchBusy || importQueue.length < 2}
               onClick={() => void runQueueToPacks()}
-              title="Separate every queued import and add each as a Studio mashup pack"
+              title={t('separate.queueHint')}
             >
-              Separate queue → packs
+              {t('separate.queueToPacks')}
             </button>
             <button
               type="button"
               className="primary"
               disabled={running || batchBusy}
               onClick={() => void run()}
-              title="Start separation"
+              title={t('separate.start')}
             >
-              Separate
+              {t('separate.action')}
             </button>
           </>
         }
       />
 
       <div className="row">
-        <IntentField label="Preset" intent={selected.intent} htmlFor="sep-preset">
+        <IntentField label={t('separate.preset')} intent={selected.intent} htmlFor="sep-preset">
           <select
             id="sep-preset"
             value={preset}
@@ -209,7 +209,7 @@ export function SeparateModule() {
             ))}
           </select>
         </IntentField>
-        <IntentField label="Quality tier" intent={selectedTier.intent} htmlFor="sep-tier">
+        <IntentField label={t('separate.tier')} intent={selectedTier.intent} htmlFor="sep-tier">
           <select
             id="sep-tier"
             value={tier}
@@ -226,11 +226,11 @@ export function SeparateModule() {
       </div>
 
       <details className="advanced-block">
-        <summary>Advanced</summary>
+        <summary>{t('separate.advanced')}</summary>
         <div className="advanced-block-body">
           <IntentField
-            label="Bleed suppression"
-            intent="Post-pass rival-stem leakage control. Off in Draft unless forced."
+            label={t('separate.bleed')}
+            intent={t('separate.bleedHint')}
             htmlFor="sep-bleed"
           >
             <select
@@ -239,9 +239,9 @@ export function SeparateModule() {
               disabled={running}
               onChange={(e) => setBleed(e.target.value)}
             >
-              <option value="auto">Auto (tier policy)</option>
-              <option value="on">On</option>
-              <option value="off">Off</option>
+              <option value="auto">{t('separate.auto')}</option>
+              <option value="on">{t('separate.on')}</option>
+              <option value="off">{t('separate.off')}</option>
             </select>
           </IntentField>
         </div>
@@ -263,8 +263,7 @@ export function SeparateModule() {
       )}
       {importQueue.length > 0 && (
         <p className="intent">
-          Queue: {importQueue.length} file{importQueue.length === 1 ? '' : 's'} — use{' '}
-          <strong>Separate queue → packs</strong> for multi-song mashups.
+          {t('separate.queue', { count: importQueue.length })}
         </p>
       )}
 
@@ -273,7 +272,7 @@ export function SeparateModule() {
         <p>{selected.detail}</p>
         <p className="intent">{selected.connections}</p>
         <div className="option-detail-title" style={{ marginTop: '0.65rem' }}>
-          {selectedTier.label} tier
+          {t('separate.tierSuffix', { label: selectedTier.label })}
         </div>
         <p>{selectedTier.detail}</p>
       </div>
@@ -286,7 +285,7 @@ export function SeparateModule() {
 
       {doneResult && stemNames.length > 0 && !running && (
         <div className="sep-result-panel" role="status">
-          <div className="option-detail-title">Stems ready</div>
+          <div className="option-detail-title">{t('separate.stemsReady')}</div>
           <ul className="sep-stem-badges">
             {stemEntries.map((e) => (
               <li key={e.raw}>
@@ -304,16 +303,16 @@ export function SeparateModule() {
               type="button"
               className="primary"
               onClick={() => sendToStudio('replace')}
-              title="Replace the Studio timeline with these stems"
+              title={t('separate.sendHint')}
             >
-              Send stems to Studio
+              {t('separate.sendStudio')}
             </button>
             <button
               type="button"
               onClick={() => sendToStudio('add')}
-              title="Append as a new mashup pack (BPM-align when a target pack exists)"
+              title={t('separate.addHint')}
             >
-              Add as mashup pack
+              {t('separate.addPack')}
             </button>
           </div>
         </div>
