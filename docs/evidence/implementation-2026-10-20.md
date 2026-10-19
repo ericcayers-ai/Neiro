@@ -413,3 +413,11 @@ with ~9 GB free the budget is clamped (~4.81 GB) and the test's equality check
 failed. The API now also returns `cache_budget_effective_bytes`, the cache uses that
 exact value, and the test compares bytes (with a display-rounding tolerance for the
 GB field). Full gate: 23/23.
+
+## Fortieth batch: deterministic low-disk regression
+
+Added `test_effective_cache_budget_is_clamped_to_free_disk`, which monkeypatches
+`shutil.disk_usage` to 2.01 GB free and requests a 1.5 GB budget. It pins the exact
+byte value (1,004,999,999 due to float truncation), the rounded display value, the
+cache's bytes, and the fact that the display field no longer equals exact bytes —
+the condition the old test silently depended on.

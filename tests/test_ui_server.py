@@ -342,6 +342,36 @@ def test_edit_split_returns_left_and_right(server):
     assert abs(res["right"]["duration"] - 1.2) < 0.05
 
 
+def test_effective_cache_budget_is_clamped_to_free_disk(server, monkeypatch):
+    """Regression: low disk must clamp the cache and report exact bytes.
+
+    The earlier bug compared the cache's exact byte budget with a rounded GB
+    field; it only failed when the budget was disk-clamped.
+    """
+    base, state = server
+    import neiro.ui.server as server_mod
+
+    fake = type(
+        "Usage", (), {"total": 10_000_000_000, "used": 7_990_000_000, "free": 2_010_000_000}
+    )()
+    monkeypatch.setattr(server_mod.shutil, "disk_usage", lambda _path: fake)
+
+    res = _post(
+        base + "/api/prefs",
+        json.dumps({"cache_budget_gb": 1.5, "warm_pool_ttl_s": 60}).encode(),
+        {"Content-Type": "application/json"},
+    )
+    # 2.01 GB free -> half = 1.005 GB, under the requested 1.5 GB.
+    expected = int(min(1.5, 2.01 / 2) * 1_000_000_000)
+    assert expected == 1_004_999_999  # float truncation is the real value
+    assert res["cache_budget_effective_bytes"] == expected
+    assert res["cache_budget_effective_gb"] == round(expected / 1_000_000_000, 2)
+    assert res["disk_free_gb"] == 2.01
+    assert state.cache.disk_budget_bytes == expected
+    # The display field rounds; comparing it to exact bytes is the old bug.
+    assert res["cache_budget_effective_gb"] * 1_000_000_000 != expected
+
+
 def test_prefs_get_update_and_flush(server):
     base, state = server
     prefs = json.loads(_get(base + "/api/prefs")[1])
