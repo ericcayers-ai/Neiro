@@ -11,6 +11,9 @@ companion. The Python engine remains the queued, rendered-quality path.
 | `frontend/src/player/Transport.ts` | pure state machine: play/pause/seek, A–B loop, wait gate, count-in |
 | `frontend/src/player/params.ts` | parameter clamps, EQ/tuning presets, honest method labels |
 | `frontend/src/player/markers.ts` | markers, clips, sequence resolution, practice-ramp generator |
+| `frontend/src/player/scenes.ts` | named snapshots of params, loop, markers and clips |
+| `frontend/src/player/midi.ts` | MIDI parse, learn, mapping resolution and persistence |
+| `frontend/src/player/PlayerMidiPanel.tsx` | WebMIDI learn UI |
 | `frontend/src/player/PlayerSurface.tsx` | transport + controls + markers/clips UI |
 | `frontend/src/player/worklet/player-worklet.js` | clean-room DSP (plain ESM, Node-testable) |
 | `frontend/src/player/i18n.ts` | single English string catalogue for new player strings |
@@ -53,8 +56,20 @@ gone — the worklet owns click generation and the count-in).
   a matching DAW MIDI note from the VST injector also resumes via `resumeToken`.
 - **Markers and clips** are data: add at playhead, jump, loop from marker, create a
   clip from A–B, per-clip loop count, sequence playback, practice-ramp generator
-  (chromatic / circle of fifths / scale). They persist per file in `localStorage`
-  and can be stored durably in the library (`docs/library.md`).
+  (chromatic / circle of fifths / scale), and previous/next marker transport
+  buttons. They persist per file in `localStorage` and can be stored durably in the
+  library (`docs/library.md`).
+- **Scenes** snapshot parameters, loop, markers and clips under a name; saving the
+  same name replaces it, applying restores every field, and deletion is local.
+- **MIDI learn** (`midi.ts` + `PlayerMidiPanel`): any connected input, note or CC,
+  11 transport/parameter actions, clear per action, persisted locally. It is a
+  mapping service, not a MIDI file player; no MIDI data leaves the browser.
+- **Analysis overlay**: pass an `AnalysisReport` and the surface draws chord blocks
+  and beat ticks under the transport, so practice and analysis share one timeline.
+- **Pitch readout**: the surface shows the sounding A4 in Hz (`440 × 2^(st/12)`),
+  driven by the same transpose/cents values the DSP uses.
+- **Low latency**: disables the formant stage and says so in the method label; it is
+  a preview mode, not a premium-quality mode.
 
 ## Measured limits (this machine)
 

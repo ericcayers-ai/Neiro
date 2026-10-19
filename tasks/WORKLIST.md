@@ -49,8 +49,10 @@ Gate: `python scripts/verify_goal.py --full` — **18/18 PASS** on 2026-10-20.
 - [x] **P2-3 Library UI.** List, notes with counter, markers, clips, Favorites,
   player, export, remove.
 - [x] **P2-4 Practice ramp generator.** Chromatic / fifths / scale in the player.
-- [ ] **P2-5 MIDI learn + keyboard mapping persistence.** WebMIDI is wait-gated and
-  DAW MIDI works; there is no learn/CC/MMC mapping or persisted mapping UI.
+- [x] **P2-5 MIDI learn + mapping persistence.** `midi.ts` + `PlayerMidiPanel`:
+  note/CC learn for 11 actions, any device, clear per action, local persistence;
+  26 player tests include parse/learn/match/corrupt-storage cases. Keyboard
+  remapping (custom shortcuts) is still not implemented.
 - [~] **P2-6 Byte-bounded cache + disk preflight.** Upload preflight and 507 exist;
   playlist/library quota and artifact-cache byte enforcement remain.
 - [ ] **P2-7 Promote player markers/clips into the library automatically.**
@@ -62,7 +64,8 @@ Gate: `python scripts/verify_goal.py --full` — **18/18 PASS** on 2026-10-20.
 - [ ] **P3-3 Optional ONNX chord/beat adapters.** Manifests/reporting for
   ChordMini/BTC and Beat This-class are not implemented; no weights downloaded.
 - [x] **P3-4 Analysis UI.** Chord lane, beat lane, key/meter, no-result state.
-- [ ] **P3-5 Analysis timeline overlay inside the player.**
+- [x] **P3-5 Analysis timeline overlay inside the player.** Chord blocks and beat
+  ticks render from the `AnalysisReport` under the transport.
 
 ## Phase 4 — optional companion
 

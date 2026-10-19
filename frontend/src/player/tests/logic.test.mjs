@@ -16,8 +16,10 @@ import {
   sequenceDuration,
   sortMarkers,
 } from '../markers.ts'
-import { describeMethod, normalizeParams, tuningToCents } from '../params.ts'
+import { describeMethod, normalizeParams, soundingA4, tuningToCents } from '../params.ts'
 import { formatProvenance } from '../provenance.ts'
+import { addScene, applyScene, makeScene, removeScene } from '../scenes.ts'
+import { MIDI_ACTIONS, MidiMapper, parseMidiMessage } from '../midi.ts'
 
 test('transport plays, pauses and ends', () => {
   const transport = new Transport({ duration: 10 })
@@ -153,4 +155,59 @@ test('provenance formatting and fallback caveat', () => {
   assert.match(formatProvenance({ engine: 'neiro-engine', method: 'phase-vocoder' }), /neiro-engine/)
   assert.match(formatProvenance(['pv', 'resample']), /pv → resample/)
   assert.equal(formatProvenance(null), 'method not reported')
+})
+
+test('scenes snapshot, replace by name, apply and remove', () => {
+  const state = {
+    params: normalizeParams({ transpose: 3, speed: 0.8, lowLatency: true }),
+    loop: { enabled: true, start: 4, end: 12 },
+    markers: [{ id: 'm1', time: 4, label: 'A' }],
+    clips: [makeClip(4, 8)],
+  }
+  const scene = makeScene('Practice', state, 'clip-sequence')
+  assert.equal(scene.name, 'Practice')
+  assert.equal(scene.kind, 'clip-sequence')
+  let scenes = addScene([], scene)
+  scenes = addScene(scenes, makeScene('Warmup', state))
+  assert.equal(scenes.length, 2)
+  const replacement = makeScene('Practice', { ...state, loop: { enabled: false, start: null, end: null } })
+  scenes = addScene(scenes, replacement)
+  assert.equal(scenes.length, 2, 'same name replaces')
+  const applied = applyScene(scenes.find((item) => item.name === 'Practice'))
+  assert.equal(applied.params.transpose, 3)
+  assert.equal(applied.loop.enabled, false)
+  assert.equal(applied.markers.length, 1)
+  assert.notEqual(applied.markers, scene.markers, 'apply returns copies')
+  scenes = removeScene(scenes, replacement.id)
+  assert.equal(scenes.length, 1)
+})
+
+test('midi parsing, learn, matching and persistence format', () => {
+  assert.deepEqual(parseMidiMessage([0x90, 60, 100]), { type: 'note', channel: 0, number: 60, value: 100 })
+  assert.deepEqual(parseMidiMessage([0xb2, 7, 64]), { type: 'cc', channel: 2, number: 7, value: 64 })
+  assert.equal(parseMidiMessage([0x80, 60, 0]), null, 'note-off ignored')
+  assert.equal(parseMidiMessage([0xf8]), null)
+
+  const mapper = new MidiMapper()
+  mapper.learn({ action: 'play-pause', type: 'cc', number: 7, channel: null })
+  mapper.learn({ action: 'transpose-up', type: 'note', number: 61, channel: 1 })
+  assert.equal(mapper.handle({ type: 'cc', channel: 5, number: 7, value: 127 }), 'play-pause')
+  assert.equal(mapper.handle({ type: 'note', channel: 1, number: 61, value: 100 }), 'transpose-up')
+  assert.equal(mapper.handle({ type: 'note', channel: 0, number: 61, value: 100 }), null)
+  mapper.clear('play-pause')
+  assert.equal(mapper.handle({ type: 'cc', channel: 5, number: 7, value: 127 }), null)
+
+  const restored = new MidiMapper()
+  restored.load(mapper.toJSON())
+  assert.equal(restored.mappings.length, 1)
+  restored.load('not json')
+  assert.equal(restored.mappings.length, 1, 'corrupt storage ignored')
+  assert.ok(MIDI_ACTIONS.length >= 10)
+})
+
+test('A4 readout follows transpose and cents, and low-latency labels honestly', () => {
+  assert.ok(Math.abs(soundingA4(normalizeParams({})) - 440) < 1e-9)
+  assert.ok(Math.abs(soundingA4(normalizeParams({ transpose: 12 })) - 880) < 1e-9)
+  assert.ok(Math.abs(soundingA4(normalizeParams({ pitchCents: 100 })) - 466.16) < 0.1)
+  assert.match(describeMethod(normalizeParams({ lowLatency: true })).detail, /formant off/)
 })

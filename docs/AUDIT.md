@@ -1733,19 +1733,20 @@ The matrix above is the audit-time baseline. Post-pass status:
 | Rows | Audit | Now | Notes |
 |---|---|---|---|
 | T-01, T-03, T-04, T-05, T-06, T-07, T-08, T-15, T-16, T-24, T-26 | P/S/M | **RT native** | Shared player |
-| T-02, T-09 | M | **RT partial** | Fine pitch and cents readout exist; no Hz readout |
+| T-02, T-09 | M | **RT native** | Fine pitch, cents and a sounding-A4 Hz readout |
 | T-10, T-68 | M | **M** | Preview only; no low-latency/quality mode toggle |
 | T-11 | P | **N** | Method label reflects actual DSP |
-| T-17, T-18, T-19, T-22 | M | **RT native** | Markers, clips, ramp, sequence |
-| T-20 | M | **partial** | Library scenes schema/API exists; no Studio scenes UI |
+| T-17, T-18, T-19, T-22 | M | **RT native** | Markers (+ prev/next transport), clips, ramp, sequence |
+| T-20 | M | **partial** | Player scenes (params/loop/markers/clips) + library scenes API; no Studio widget-layout scenes |
 | T-21 | P | **P** | Stem Mix unchanged; player reducer is preview |
 | T-29, T-30 | P | **P (honest)** | Real timestamped heuristic + confidence, not transformer |
-| T-31, T-32, T-33 | P | **partial/N** | Sections labelled heuristic; lanes shown; model install states unchanged |
+| T-31, T-32, T-33 | P | **partial/N** | Sections labelled heuristic; lanes shown in Analysis and the player; model install states unchanged |
 | T-40–T-47 | P/M | **N/partial** | Library, notes, markers, clips; no recents/resume card/version UI |
 | T-49 | P | **N** | Local JSON export |
 | T-53–T-57, T-59 | M | **Addon source** | Adapters + capture + panel; live e2e owner-run |
 | T-63 | M | **partial** | Catalogue for player strings only |
-| T-66 | M | **partial** | WebMIDI wait; no learn/mapping |
+| T-65 | P | **partial** | MIDI learn/mapping done; keyboard shortcuts still fixed |
+| T-66 | M | **N** | MIDI learn (note/CC), 11 actions, clear, local persistence |
 | T-78 | P | **N** | Auto-enhance no-op fixed |
 | T-81 | P | **N** | Token/Host/Origin/type/caps/consent |
 

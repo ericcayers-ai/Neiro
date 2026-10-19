@@ -11,6 +11,7 @@ import {
   TUNING_PRESETS,
   describeMethod,
   normalizeParams,
+  soundingA4,
   tuningToCents,
   type PlayerParams,
 } from './params'
@@ -19,6 +20,7 @@ import {
   buildRamp,
   makeClip,
   nextMarker,
+  previousMarker,
   removeMarker,
   sequenceDuration,
   type Clip,
@@ -26,6 +28,10 @@ import {
   type RampMode,
   type RampScale,
 } from './markers'
+import { PlayerMidiPanel } from './PlayerMidiPanel'
+import { addScene, applyScene, loadScenes, makeScene, persistScenes, removeScene, type SceneSnapshot } from './scenes'
+import type { MidiAction } from './midi'
+import type { AnalysisReport } from '../api/types'
 import { t } from './i18n'
 import './player.css'
 
@@ -46,6 +52,8 @@ export interface PlayerSurfaceProps {
   resumeToken?: number
   /** Reports wait state and the pitch the player is waiting for. */
   onWaitChange?: (waiting: boolean, expectedPitch: number | null) => void
+  /** Optional analysis report; renders chord/beat lanes under the transport. */
+  analysis?: AnalysisReport | null
 }
 
 interface StoredState {
@@ -85,6 +93,7 @@ export function PlayerSurface({
   compact,
   resumeToken,
   onWaitChange,
+  analysis,
 }: PlayerSurfaceProps) {
   const stored = useMemo(() => loadStored(fileId), [fileId])
   const [params, setParams] = useState<PlayerParams>(() => normalizeParams(stored.params ?? {}))
@@ -96,12 +105,14 @@ export function PlayerSurface({
   const [latency, setLatency] = useState(0)
   const [mode, setMode] = useState<EngineMode>('preview')
   const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
   const [ready, setReady] = useState(false)
   const [durationState, setDurationState] = useState(duration ?? 0)
   const [loopA, setLoopA] = useState<number | null>(null)
   const [loopB, setLoopB] = useState<number | null>(null)
   const [showEq, setShowEq] = useState(false)
   const [showRamp, setShowRamp] = useState(false)
+  const [scenes, setScenes] = useState<SceneSnapshot[]>(() => loadScenes(fileId))
   const [ramp, setRamp] = useState({
     mode: 'scale' as RampMode,
     scale: 'major' as RampScale,
@@ -194,9 +205,14 @@ export function PlayerSurface({
   }, [bpm])
 
   useEffect(() => {
-    engineRef.current?.setParams(params)
+    // Low-latency mode intentionally drops the formant stage; the label says so.
+    engineRef.current?.setParams({ ...params, formant: params.lowLatency ? 1 : params.formant })
     if (engineRef.current) setMode(engineRef.current.mode)
   }, [params])
+
+  useEffect(() => {
+    persistScenes(fileId, scenes)
+  }, [fileId, scenes])
 
   useEffect(() => {
     const loopEnabled = params.loopEnabled && loopA != null && loopB != null && loopB > loopA
@@ -320,6 +336,87 @@ export function PlayerSurface({
   const method = describeMethod(params, params.bypass ? 'preview' : mode)
   const loopEnabled = params.loopEnabled && loopA != null && loopB != null && loopB > loopA
 
+  const snapshotState = () => ({
+    params,
+    loop: { enabled: params.loopEnabled, start: loopA, end: loopB },
+    markers,
+    clips,
+  })
+
+  const saveSceneNow = () => {
+    const name = window.prompt('Scene name', `Scene ${scenes.length + 1}`)
+    if (!name) return
+    setScenes((current) => addScene(current, makeScene(name, snapshotState())))
+    setMessage('Scene saved.')
+  }
+
+  const useSceneNow = (scene: SceneSnapshot) => {
+    const state = applyScene(scene)
+    setParams(normalizeParams(state.params))
+    setLoopA(state.loop.start)
+    setLoopB(state.loop.end)
+    setMarkers(state.markers)
+    setClips(state.clips)
+    setMessage(`Scene “${scene.name}” applied.`)
+  }
+
+  const seekBy = (delta: number) => {
+    const target = Math.max(0, Math.min((effectiveDuration || 0), position + delta))
+    engineRef.current?.seek(target)
+    setPosition(target)
+  }
+
+  const onMidiAction = useCallback(
+    (action: MidiAction) => {
+      switch (action) {
+        case 'play-pause':
+          togglePlay()
+          break
+        case 'transpose-up':
+          update({ transpose: Math.min(TRANSPOSE_RANGE.max, params.transpose + 1) })
+          break
+        case 'transpose-down':
+          update({ transpose: Math.max(TRANSPOSE_RANGE.min, params.transpose - 1) })
+          break
+        case 'speed-up':
+          update({ speed: Math.min(SPEED_RANGE.max, params.speed + 0.05) })
+          break
+        case 'speed-down':
+          update({ speed: Math.max(SPEED_RANGE.min, params.speed - 0.05) })
+          break
+        case 'loop-toggle':
+          if (loopA == null || loopB == null) {
+            setLoopA(position)
+            setLoopB(Math.min(position + 8, effectiveDuration || position + 8))
+            update({ loopEnabled: true })
+          } else {
+            update({ loopEnabled: !params.loopEnabled })
+          }
+          break
+        case 'marker-add':
+          addMarkerAtPlayhead()
+          break
+        case 'reducer-toggle':
+          update({ reducer: params.reducer > 0 ? 0 : 0.7 })
+          break
+        case 'eq-toggle':
+          setShowEq((value) => !value)
+          break
+        case 'seek-back':
+          seekBy(-5)
+          break
+        case 'seek-forward':
+          seekBy(5)
+          break
+        default:
+          break
+      }
+    },
+    // The handler is recreated with the state it reads; the panel keeps it in a ref.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [params, loopA, loopB, position, playing, waiting, effectiveDuration],
+  )
+
   const addMarkerAtPlayhead = () => setMarkers((current) => addMarker(current, position))
   const jumpToMarker = (marker: Marker) => {
     engineRef.current?.seek(marker.time)
@@ -438,7 +535,65 @@ export function PlayerSurface({
         >
           {t('player.clearLoop')}
         </button>
+        <button
+          type="button"
+          onClick={() => {
+            const marker = previousMarker(markers, position)
+            if (marker) jumpToMarker(marker)
+          }}
+          disabled={!markers.length}
+          title="Previous marker"
+        >
+          ‹ Marker
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            const marker = nextMarker(markers, position)
+            if (marker) jumpToMarker(marker)
+          }}
+          disabled={!markers.length}
+          title="Next marker"
+        >
+          Marker ›
+        </button>
       </div>
+
+      <p className="player-readout" role="status" aria-live="polite">
+        A4 {soundingA4(params).toFixed(2)} Hz · {params.lowLatency ? 'low-latency (formant off)' : 'phase-vocoder preview'}
+      </p>
+
+      {(analysis?.chords?.length || analysis?.beats?.length) && (
+        <div className="player-analysis" aria-label="Chord and beat overlay">
+          {analysis?.chords && analysis.chords.length > 0 && (
+            <div className="player-analysis-chords" role="img" aria-label={analysis.chords.map((c) => c.chord).join(' ')}>
+              {analysis.chords.map((chord, index) => {
+                const total = Math.max(0.001, analysis.duration_seconds || effectiveDuration || 1)
+                const left = (Math.max(0, chord.start) / total) * 100
+                const width = Math.max(0.6, ((chord.end - chord.start) / total) * 100)
+                return (
+                  <span key={`${chord.chord}-${index}`} style={{ left: `${left}%`, width: `${width}%` }}>
+                    {chord.chord}
+                  </span>
+                )
+              })}
+            </div>
+          )}
+          {analysis?.beats && analysis.beats.length > 0 && (
+            <div className="player-analysis-beats" role="img" aria-label={`${analysis.beats.length} beats`}>
+              {analysis.beats.map((beat, index) => (
+                <i
+                  key={`${beat.time}-${index}`}
+                  className={beat.downbeat ? 'is-downbeat' : ''}
+                  style={{
+                    left: `${(beat.time / Math.max(0.001, analysis.duration_seconds || effectiveDuration || 1)) * 100}%`,
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {waiting && (
         <p className="player-wait" role="status" aria-live="assertive">
@@ -567,10 +722,26 @@ export function PlayerSurface({
         <button type="button" onClick={() => setShowEq((value) => !value)} aria-expanded={showEq}>
           {t('player.eq')}
         </button>
+        <label className="field-inline">
+          <input
+            type="checkbox"
+            checked={params.lowLatency}
+            onChange={(event) => update({ lowLatency: event.target.checked })}
+          />
+          Low latency (formant off)
+        </label>
         <button type="button" onClick={() => update({ bypass: !params.bypass })} className={params.bypass ? 'active' : ''}>
           Bypass DSP
         </button>
       </div>
+
+      <PlayerMidiPanel onAction={onMidiAction} />
+
+      {message && (
+        <p className="muted" role="status">
+          {message}
+        </p>
+      )}
 
       {showEq && (
         <div className="player-eq">
@@ -729,6 +900,38 @@ export function PlayerSurface({
               </button>
             </div>
           )}
+        </div>
+
+        <div className="player-panel">
+          <div className="player-panel-head">
+            <h4>Scenes</h4>
+            <button type="button" onClick={saveSceneNow}>
+              Save scene
+            </button>
+          </div>
+          {scenes.length === 0 ? (
+            <p className="intent">Save the current settings, loop, markers and clips as a scene.</p>
+          ) : (
+            <ul className="player-list">
+              {scenes.map((scene) => (
+                <li key={scene.id}>
+                  <button type="button" className="link" onClick={() => useSceneNow(scene)}>
+                    {scene.name}
+                  </button>
+                  <span className="intent">{scene.kind}</span>
+                  <button
+                    type="button"
+                    onClick={() => setScenes((current) => removeScene(current, scene.id))}
+                  >
+                    Delete
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="intent">
+            Scenes are local snapshots; the library can store the same data durably for a saved song.
+          </p>
         </div>
       </div>
     </section>

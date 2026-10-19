@@ -6,7 +6,7 @@ must not be assumed*. Updated whenever a phase changes state. The gate
 FAIL but may not overrule it.
 
 **Current state (2026-10-20, implementation pass):** `GATE PASS — 18/18 criteria`.
-Python suite 262 passed / 3 skipped; player tests 23 passed; addon validator 46/46;
+Python suite 262 passed / 3 skipped; player tests 26 passed; addon validator 46/46;
 frontend tsc + build pass. Commit `cf6c35b` contains the implementation (including
 the preserved `pitch_correct` fix and its regression test). Receipts:
 `docs/evidence/{implementation,security,player-latency}-2026-10-20.md`.
@@ -17,7 +17,7 @@ the preserved `pitch_correct` fix and its regression test). Receipts:
 |---|---|---|
 | 0. Truth & safety | **done** | gate C1–C9, C15, C17; security receipt |
 | 1. Shared real-time player | **done** (Studio transport partial) | gate C10–C11; latency receipt |
-| 2. Practice & library | **partial** (MIDI learn, quota, marker promotion open) | gate C12; `docs/library.md` |
+| 2. Practice & library | **partial** (quota + marker promotion open; MIDI learn done) | gate C12; `docs/library.md` |
 | 3. Analysis | **partial** (heuristic only; ONNX adapters absent) | gate C13; `tests/test_analysis_timeline.py` |
 | 4. Optional companion | **source done**, live e2e owner-run | gate C14; `docs/COMPANION.md` |
 | 5. i18n / a11y / packaging | **partial** | gate C18; `docs/accessibility.md` |

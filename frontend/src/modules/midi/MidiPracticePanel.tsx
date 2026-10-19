@@ -133,6 +133,7 @@ export function MidiPracticePanel({ focus }: { focus: boolean }) {
           duration={file.report?.duration_seconds}
           bpm={bpm}
           notes={notes}
+          analysis={file.report}
           resumeToken={resumeToken}
           onWaitChange={(isWaiting, nextPitch) => {
             setWaiting(isWaiting)

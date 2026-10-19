@@ -39,7 +39,7 @@ GATE PASS — 18/18 criteria
 |---|---|
 | `python -m pytest -q -m "not slow" --basetemp C:\np` | 262 passed, 3 skipped |
 | `python -m pytest -q tests/test_pitch_correct_report.py` | 2 passed (regression for the job-progress bug) |
-| `node --test frontend/src/player/tests/*.test.mjs` | 23 passed |
+| `node --test frontend/src/player/tests/*.test.mjs` | 26 passed |
 | `node --test addon/tests/capture.test.mjs` | 5 passed |
 | `node addon/scripts/validate.mjs` | 46 passed, 0 failed |
 | `node frontend/src/player/tests/bench.mjs` | worst render factor 5.23×, algorithmic latency 23.2 ms |
@@ -85,3 +85,10 @@ GATE PASS — 18/18 criteria
 - Analysis remains heuristic; no neural chord/beat model was installed or exercised.
 - i18n is English-only (catalogue in place); no axe/screen-reader audit.
 - Player-created markers are not auto-promoted into the library.
+
+## Second parity batch (same day)
+
+After the first gate pass: MIDI learn/mapping (note/CC, 11 actions, persistence),
+player scenes, chord/beat overlay in the player, sounding-A4 readout, previous/next
+marker transport, and an honest low-latency mode (formant off, labelled). Player
+tests grew to 26; the gate was re-run and remains **18/18 PASS**.

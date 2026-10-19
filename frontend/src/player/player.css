@@ -169,3 +169,83 @@
 .player-surface.is-compact .player-practice {
   display: none;
 }
+
+
+/* Readout + analysis overlay + MIDI learn */
+.player-readout {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--muted, #98a2b3);
+}
+
+.player-analysis {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.player-analysis-chords {
+  position: relative;
+  height: 20px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.04);
+  overflow: hidden;
+}
+
+.player-analysis-chords span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: #0b0d12;
+  background: #8fd3ff;
+  border-right: 1px solid rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.player-analysis-chords span:nth-child(3n + 2) {
+  background: #ffd08f;
+}
+
+.player-analysis-chords span:nth-child(3n + 3) {
+  background: #b6f0b6;
+}
+
+.player-analysis-beats {
+  position: relative;
+  height: 12px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.player-analysis-beats i {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.player-analysis-beats i.is-downbeat {
+  width: 2px;
+  background: #ffd08f;
+}
+
+.player-midi {
+  border: 1px dashed var(--line, #2a2f3a);
+  border-radius: 8px;
+  padding: 0.45rem 0.6rem;
+  font-size: 0.78rem;
+}
+
+.player-midi summary {
+  cursor: pointer;
+}
+
+.player-midi .player-list {
+  max-height: 230px;
+}

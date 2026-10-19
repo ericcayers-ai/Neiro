@@ -15,6 +15,7 @@ export interface PlayerParams {
   reducer: number
   gainDb: number
   bypass: boolean
+  lowLatency: boolean
   metronome: boolean
   metronomeBpm: number
   countInBeats: number
@@ -34,6 +35,7 @@ export const DEFAULT_PARAMS: PlayerParams = {
   reducer: 0,
   gainDb: 0,
   bypass: false,
+  lowLatency: false,
   metronome: false,
   metronomeBpm: 100,
   countInBeats: 4,
@@ -60,6 +62,7 @@ export function normalizeParams(input: Partial<PlayerParams>): PlayerParams {
     eq: EQ_FREQS.map((_, i) => clamp(Number(input.eq?.[i] ?? 0), -15, 15)),
     reducer: clamp(Number(input.reducer ?? 0), 0, 1),
     gainDb: clamp(Number(input.gainDb ?? 0), -24, 12),
+    lowLatency: Boolean(input.lowLatency ?? false),
     metronome: Boolean(input.metronome ?? false),
     metronomeBpm: clamp(Number(input.metronomeBpm ?? 100), 30, 300),
   }
@@ -90,6 +93,11 @@ export const TUNING_PRESETS = [
 
 export function tuningToCents(hz: number): number {
   return 1200 * Math.log2(hz / 440)
+}
+
+/** The reference A4 the player is actually producing (Hz). */
+export function soundingA4(params: PlayerParams): number {
+  return 440 * Math.pow(2, (params.transpose + params.pitchCents / 100) / 12)
 }
 
 export type QualityMode = 'preview' | 'rendered' | 'fallback'
@@ -123,7 +131,8 @@ export function describeMethod(params: PlayerParams, mode: QualityMode = 'previe
   if (params.bypass) {
     return { mode, label: 'Preview (bypass)', detail: 'DSP bypassed; audio is unmodified.' }
   }
-  const parts = ['phase-vocoder preview']
+  const parts = [params.lowLatency ? 'low-latency phase-vocoder preview' : 'phase-vocoder preview']
+  if (params.lowLatency) parts.push('formant off')
   if (params.speed !== 1) parts.push(`speed ${Math.round(params.speed * 100)}%`)
   if (params.transpose !== 0 || params.pitchCents !== 0) {
     parts.push(`pitch ${params.transpose >= 0 ? '+' : ''}${params.transpose} st`)
