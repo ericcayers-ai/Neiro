@@ -23,6 +23,44 @@ class _Registry:
         return self.entries[model_id]
 
 
+def _real_entry(tmp_path, monkeypatch, model_id="demo"):
+    from neiro.engine import registry as registry_mod
+
+    monkeypatch.setattr(registry_mod, "default_models_dir", lambda: tmp_path / "models")
+    from neiro.engine.registry import ModelEntry
+
+    manifest = {
+        "id": model_id,
+        "task": "enhance",
+        "adapter": "neiro.adapters.dsp_separator:CenterExtractor",
+        "weights": [{"kind": "hf_hub", "repo": "x/y"}],
+        "license": {"spdx": "MIT"},
+    }
+    entry = ModelEntry(manifest, tmp_path / "manifest.json")
+    return entry
+
+
+def test_remove_download_only_touches_that_model(tmp_path, monkeypatch):
+    entry = _real_entry(tmp_path, monkeypatch)
+    models = tmp_path / "models"
+    model_dir = models / entry.id
+    model_dir.mkdir(parents=True)
+    (model_dir / "weights.onnx").write_bytes(b"x" * 1024)
+    marker = models / ".fetched" / f"{entry.id}.done"
+    marker.parent.mkdir(parents=True)
+    marker.write_text(entry.id, encoding="utf-8")
+    keep = models / "other-model"
+    keep.mkdir()
+    (keep / "keep.bin").write_bytes(b"keep")
+
+    result = entry.remove_download()
+    assert result["freed_bytes"] == 1024
+    assert not model_dir.exists()
+    assert not marker.exists()
+    assert (keep / "keep.bin").exists(), "unrelated model data must survive"
+    assert result["removed"]
+
+
 def _entry(size: int | None, needs_download: bool = True):
     weights = [{"kind": "hf_hub", "size_bytes": size}] if size is not None else [{"kind": "hf_hub"}]
     return SimpleNamespace(weights=weights, needs_download=needs_download)

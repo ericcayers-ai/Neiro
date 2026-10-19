@@ -91,6 +91,37 @@ class ModelEntry:
             return True
         return self._marker_path().exists()
 
+    def remove_download(self) -> dict[str, Any]:
+        """Delete this model's cached weights and marker, inside the models dir.
+
+        Only ``<models>/<id>`` and its marker are touched; nothing outside the
+        Neiro models directory can be removed by this call.
+        """
+        import shutil
+
+        root = default_models_dir().resolve()
+        target = (root / self.id).resolve()
+        try:
+            target.relative_to(root)
+        except ValueError as exc:
+            raise ValueError(f"model path escapes the models directory: {self.id}") from exc
+        if target == root:
+            raise ValueError("refusing to remove the models directory itself")
+
+        removed: list[str] = []
+        freed = 0
+        if target.is_dir():
+            for path in target.rglob("*"):
+                if path.is_file():
+                    freed += path.stat().st_size
+                    removed.append(str(path))
+            shutil.rmtree(target)
+        marker = self._marker_path()
+        if marker.is_file():
+            marker.unlink()
+            removed.append(str(marker))
+        return {"removed": removed, "freed_bytes": freed}
+
     def ensure_downloaded(self, progress: ProgressFn | None = None) -> bool:
         """Fetch this model's weights if not already present. Returns True on success."""
         if self.downloaded():

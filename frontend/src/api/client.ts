@@ -244,6 +244,17 @@ export async function fetchModelsFull(): Promise<{
   return { models: data.models, packs: data.packs || {} }
 }
 
+export async function removeModel(
+  modelId: string,
+): Promise<{ ok: boolean; model_id: string; freed_bytes: number }> {
+  const res = await fetch('/api/models/remove', {
+    method: 'POST',
+    headers: await apiHeaders(),
+    body: JSON.stringify({ model_id: modelId, confirm: true }),
+  })
+  return readJson(res)
+}
+
 export async function startModelDownload(opts: {
   model_id?: string
   model_ids?: string[]

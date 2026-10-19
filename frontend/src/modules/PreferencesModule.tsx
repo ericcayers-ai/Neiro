@@ -8,6 +8,7 @@ import {
   getJob,
   installTool,
   setMuseScorePath,
+  removeModel,
   startModelDownload,
   updatePrefs,
   type ModelStatus,
@@ -190,6 +191,20 @@ export function PreferencesModule() {
       setStatus(`Couldn't flush warm pool: ${err instanceof Error ? err.message : err}`)
     } finally {
       setEngineBusy(false)
+    }
+  }
+
+  const removeOne = async (modelId: string) => {
+    if (!window.confirm(`Remove cached weights for ${modelId}? The model stays listed; you can download it again.`)) {
+      return
+    }
+    setStatus(`Removing ${modelId}…`)
+    try {
+      const result = await removeModel(modelId)
+      setStatus(`Removed ${modelId} (${Math.round(result.freed_bytes / 1e6)} MB freed).`)
+      await refreshModels()
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : String(err))
     }
   }
 
@@ -396,6 +411,15 @@ export function PreferencesModule() {
                 <td>{m.status}</td>
                 <td>{m.size_hint || '—'}</td>
                 <td>
+                  {m.needs_download && m.downloaded && (
+                    <button
+                      type="button"
+                      disabled={Boolean(downloadJobId)}
+                      onClick={() => void removeOne(m.id)}
+                    >
+                      Remove
+                    </button>
+                  )}{' '}
                   {m.status === 'ready' ? (
                     <span className="muted">Ready</span>
                   ) : m.status === 'needs-install' ? (

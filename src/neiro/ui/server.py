@@ -1569,6 +1569,8 @@ def _make_handler(state: _State):
                     self._handle_notes_post(self.path)
                 elif self.path == "/api/models/download":
                     self._handle_models_download()
+                elif self.path == "/api/models/remove":
+                    self._handle_models_remove()
                 elif self.path == "/api/tools/install":
                     self._handle_tools_install()
                 elif self.path == "/api/tools/musescore":
@@ -2033,6 +2035,24 @@ def _make_handler(state: _State):
                 return
             job_id = start_model_download(state, model_ids=uniq)
             self._json({"job_id": job_id, "model_ids": uniq})
+
+        def _handle_models_remove(self) -> None:
+            body = self._read_json()
+            if body.get("confirm") is not True:
+                self._error(400, "model removal requires {'confirm': true} from a local UI")
+                return
+            model_id = str(body.get("model_id") or "")
+            try:
+                entry = state.registry.get(model_id)
+            except KeyError:
+                self._error(404, f"unknown model {model_id!r}")
+                return
+            try:
+                result = entry.remove_download()
+            except ValueError as exc:
+                self._error(400, str(exc))
+                return
+            self._json({"ok": True, "model_id": model_id, **result})
 
         def _handle_tools_install(self) -> None:
             body = self._read_json()

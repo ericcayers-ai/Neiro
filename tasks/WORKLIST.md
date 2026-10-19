@@ -112,8 +112,9 @@ Gate: `python scripts/verify_goal.py --full` — **18/18 PASS** on 2026-10-20.
   --port-file` is implemented and tested (`tests/test_dynamic_port.py`,
   `docs/packaging.md`); Tauri still spawns system Python and has no sidecar,
   signing or updater.
-- [ ] **P5-4 Model manager status.** Sizes/licences/needs-install exist in Prefs;
-  disk-impact and install/remove flow are incomplete.
+- [~] **P5-4 Model manager status.** Sizes/licences/needs-install and a
+  confirm-gated remove-weights action exist in Prefs; disk-impact preview and
+  batch install remain.
 
 ## Phase 6 — release evidence
 

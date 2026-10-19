@@ -998,7 +998,7 @@ player, **Q** queued Neiro engine, **RT+Q** hybrid, **Addon** extension surface,
 | T-30 | Beats/tempo/downbeats | Tempo estimate; fixed 4/4 downbeats; no beat grid/UI | P | Beat This-class tracker; meter/phase; confidence; UI | Q | P1 |
 | T-31 | Section boundaries | Energy-block heuristic; no UI/practice use | P | Real segmentation or clearly label heuristic | Q | P2 |
 | T-32 | Analysis timeline (waveform/chords/beats) | Waveform/spectrogram yes; no chord/beat lane | P | Shared analysis timeline | Q+RT | P1 |
-| T-33 | Install/status/no-result for analysis models | Model registry exists; no chord/beat models; Prefs model view | P | Model manifests, install, no-result state | Q | P1 |
+| T-33 | Install/status/no-result for analysis models | Model registry exists; no chord/beat models; Prefs model view | P | Model manifests, install/remove, no-result state | Q | P1 |
 | T-34 | 4-stem UMX-HQ | Neiro has 4/6-stem models (optional); different model zoo | P | Keep Neiro models; add UMX-HQ only if licensing/quality demands | Q | P2 |
 | T-35 | WebGPU in-browser stems | N/A for Neiro; CPU/optional GPU Python | N/A | Prefer Q; optional Addon WebGPU only if justified | Q/Addon | P3 |
 | T-36 | Stem target/backing crossfade | Studio has gain/pan/solo/mute; no target crossfade | P | Add crossfade to Mix | RT+Q | P2 |

@@ -212,3 +212,10 @@ checks the control is present.
 Studio adds a "Chords" action that fetches the heuristic analysis for the first
 track and draws the chord segments inside the visible timeline window; `chordLane`
 is a pure helper with clamping/visibility tests. Player tests 38.
+
+## Nineteenth batch: model weight removal
+
+`ModelEntry.remove_download()` deletes only `<models>/<id>` and its fetched marker,
+with a path-escape guard; `POST /api/models/remove` requires a token and
+`confirm:true`; Prefs shows Remove for downloaded models and reports freed bytes.
+A scoped test proves unrelated model data survives. Download-preflight tests 4.
