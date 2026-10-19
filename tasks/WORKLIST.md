@@ -110,10 +110,10 @@ Gate: `python scripts/verify_goal.py --full` — **18/18 PASS** on 2026-10-20.
 - [~] **P5-2 Accessibility.** Baseline labels/live regions/keyboard + a clean
   static audit (`scripts/a11y_static.py`, gate C21). Axe, screen-reader and
   colour-contrast passes remain owner-run.
-- [~] **P5-3 Dynamic port + bundled sidecar/signing.** `neiro ui --port 0
-  --port-file` is implemented and tested (`tests/test_dynamic_port.py`,
-  `docs/packaging.md`); Tauri still spawns system Python and has no sidecar,
-  signing or updater.
+- [~] **P5-3 Dynamic port + bundled sidecar/signing.** Dynamic port is implemented
+  on both sides (Python test + Tauri reserve/spawn/probe/navigate; cargo fmt/clippy/
+  check pass). Tauri still spawns system Python and has no sidecar, signing or
+  updater.
 - [~] **P5-4 Model manager status.** Sizes/licences/needs-install and a
   confirm-gated remove-weights action exist in Prefs; disk-impact preview and
   batch install remain.
@@ -124,7 +124,9 @@ Gate: `python scripts/verify_goal.py --full` — **18/18 PASS** on 2026-10-20.
 - [x] **P6-2 Audit + handoff addenda.** `docs/AUDIT.md` §13, `HANDOFF.md` §14.
 - [x] **P6-3 Owner decisions recorded.** Local-first scope, clean-room DSP, hybrid
   addon, sidecar packaging direction, pitch fix committed.
-- [ ] **P6-4 Rust build/clippy and signed installer** (owner/machine capacity).
+- [x] **P6-4 Rust fmt/clippy/check.** `cargo fmt --check`, `cargo clippy -- -D
+  warnings`, `cargo check` pass on the dynamic-port shell (gate C23). Signed
+  installer remains owner-gated.
 - [x] **P6-5 Disk preflight.** `tests/test_disk_preflight.py`; low-disk states cap the
   live cache budget and reject unsafe preferences.
 

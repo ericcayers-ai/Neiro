@@ -11,9 +11,24 @@ use std::time::{Duration, Instant};
 
 use tauri::{AppHandle, Manager, RunEvent, State};
 
-const PORT: u16 = 8377;
-const ENGINE_URL: &str = "http://127.0.0.1:8377/";
 const HEALTH_PATH: &str = "/api/health";
+
+/// Ask the OS for a free loopback port. Reuses it across restarts so the window
+/// never has to navigate again mid-session.
+fn choose_port() -> Result<u16, String> {
+    let listener = std::net::TcpListener::bind(("127.0.0.1", 0))
+        .map_err(|e| format!("could not reserve a local port: {e}"))?;
+    let port = listener
+        .local_addr()
+        .map_err(|e| format!("could not read the reserved port: {e}"))?
+        .port();
+    drop(listener);
+    Ok(port)
+}
+
+fn engine_url(port: u16) -> String {
+    format!("http://127.0.0.1:{port}/")
+}
 
 /// Hide the console window when spawning the Python sidecar on Windows.
 #[cfg(windows)]
@@ -23,6 +38,7 @@ struct EngineProcess(Mutex<EngineState>);
 
 struct EngineState {
     child: Option<Child>,
+    port: u16,
     restarts: u32,
     last_ok: Option<Instant>,
     last_error: Option<String>,
@@ -75,7 +91,7 @@ fn chrono_like_stamp() -> String {
     format!("{:?}", Instant::now())
 }
 
-fn spawn_engine() -> Result<Child, String> {
+fn spawn_engine(port: u16) -> Result<Child, String> {
     let mut last_err = String::from("no Python interpreter found");
     for bin in python_candidates() {
         let mut cmd = Command::new(bin);
@@ -85,7 +101,7 @@ fn spawn_engine() -> Result<Child, String> {
             "ui",
             "--no-browser",
             "--port",
-            &PORT.to_string(),
+            &port.to_string(),
         ])
         .stdout(Stdio::null())
         .stderr(Stdio::piped());
@@ -104,10 +120,13 @@ fn spawn_engine() -> Result<Child, String> {
     Err(last_err)
 }
 
-fn http_probe(path: &str, timeout: Duration) -> bool {
+fn http_probe(port: u16, path: &str, timeout: Duration) -> bool {
+    if port == 0 {
+        return false;
+    }
     let start = Instant::now();
     while start.elapsed() < timeout {
-        if let Ok(mut stream) = TcpStream::connect(("127.0.0.1", PORT)) {
+        if let Ok(mut stream) = TcpStream::connect(("127.0.0.1", port)) {
             let _ = stream.set_read_timeout(Some(Duration::from_millis(400)));
             let _ = stream.set_write_timeout(Some(Duration::from_millis(400)));
             let req =
@@ -127,8 +146,8 @@ fn http_probe(path: &str, timeout: Duration) -> bool {
     false
 }
 
-fn wait_for_engine(timeout: Duration) -> bool {
-    http_probe(HEALTH_PATH, timeout) || http_probe("/", timeout)
+fn wait_for_engine(port: u16, timeout: Duration) -> bool {
+    http_probe(port, HEALTH_PATH, timeout) || http_probe(port, "/", timeout)
 }
 
 fn stop_engine(child: &mut Child) {
@@ -140,10 +159,13 @@ fn restart_engine(state: &mut EngineState) -> Result<(), String> {
     if let Some(mut child) = state.child.take() {
         stop_engine(&mut child);
     }
-    let child = spawn_engine()?;
+    if state.port == 0 {
+        state.port = choose_port()?;
+    }
+    let child = spawn_engine(state.port)?;
     state.child = Some(child);
     state.restarts += 1;
-    if !wait_for_engine(Duration::from_secs(30)) {
+    if !wait_for_engine(state.port, Duration::from_secs(30)) {
         let msg = "engine did not become ready after restart".to_string();
         state.last_error = Some(msg.clone());
         return Err(msg);
@@ -157,13 +179,13 @@ fn spawn_health_supervisor(app: AppHandle) {
     thread::spawn(move || {
         loop {
             thread::sleep(Duration::from_secs(5));
-            let healthy = http_probe(HEALTH_PATH, Duration::from_millis(800));
             let Some(state) = app.try_state::<EngineProcess>() else {
                 break;
             };
             let Ok(mut guard) = state.0.lock() else {
                 continue;
             };
+            let healthy = http_probe(guard.port, HEALTH_PATH, Duration::from_millis(800));
             if healthy {
                 guard.last_ok = Some(Instant::now());
                 guard.last_error = None;
@@ -188,8 +210,13 @@ fn spawn_health_supervisor(app: AppHandle) {
 #[tauri::command]
 fn engine_status(state: State<'_, EngineProcess>) -> serde_json::Value {
     let guard = state.0.lock().expect("engine lock");
+    let url = if guard.port == 0 {
+        String::new()
+    } else {
+        engine_url(guard.port)
+    };
     serde_json::json!({
-      "url": ENGINE_URL,
+      "url": url,
       "restarts": guard.restarts,
       "last_ok_secs_ago": guard.last_ok.map(|t| t.elapsed().as_secs()),
       "last_error": guard.last_error,
@@ -209,6 +236,7 @@ fn restart_engine_cmd(state: State<'_, EngineProcess>) -> Result<String, String>
 pub fn run() {
     let engine = EngineProcess(Mutex::new(EngineState {
         child: None,
+        port: 0,
         restarts: 0,
         last_ok: None,
         last_error: None,
@@ -219,7 +247,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![engine_status, restart_engine_cmd])
         .setup(|app| {
             let handle = app.handle().clone();
-            {
+            let url = {
                 let state = handle.state::<EngineProcess>();
                 let mut guard = state.0.lock().expect("engine lock");
                 restart_engine(&mut guard).map_err(|e| {
@@ -227,6 +255,15 @@ pub fn run() {
                         "Could not start Neiro engine ({e}). Is Neiro installed in this Python?"
                     )
                 })?;
+                engine_url(guard.port)
+            };
+            // The window starts on about:blank; navigate once the engine is ready.
+            if let Some(window) = handle.get_webview_window("main") {
+                let parsed = tauri::Url::parse(&url)
+                    .map_err(|e| format!("invalid engine URL {url}: {e}"))?;
+                window
+                    .navigate(parsed)
+                    .map_err(|e| format!("could not open the engine UI: {e}"))?;
             }
             if cfg!(debug_assertions) {
                 handle.plugin(
@@ -236,7 +273,6 @@ pub fn run() {
                 )?;
             }
             spawn_health_supervisor(handle.clone());
-            let _ = ENGINE_URL;
             Ok(())
         })
         .build(tauri::generate_context!())

@@ -225,3 +225,18 @@ A scoped test proves unrelated model data survives. Download-preflight tests 4.
 The player header toggles a compact mode that hides markers/clips/scenes/MIDI
 panels in the markup (not only via CSS), persists per file, and is covered by an
 SSR test. Vitest 7.
+
+## Twenty-first batch: Tauri dynamic port (compiled)
+
+The shell reserves a free loopback port, spawns the engine on it, reuses it across
+restarts, probes health, then navigates the main window from `about:blank` to the
+live URL; CSP allows loopback on any port and `engine_status` reports the live URL.
+
+```
+cargo fmt --check                         exit 0
+cargo clippy -- -D warnings               exit 0
+cargo check                               exit 0  (1m14s first run, cached after)
+```
+
+Not verified: GUI launch, restart behaviour under a real window, fresh-machine
+sidecar. Those remain owner steps; `docs/packaging.md` says so.

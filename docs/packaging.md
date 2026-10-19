@@ -4,22 +4,26 @@ The current Tauri shell is **not** a standalone app: it spawns system Python and
 expects a fixed port (8377). This page records the contract the shell should use
 and what is still missing.
 
-## Dynamic port (implemented, Python side)
+## Dynamic port (implemented end to end)
 
 `neiro ui --port 0 --port-file <path>` binds an OS-chosen loopback port, serves the
-API and UI there, and writes the real port number to `<path>` after binding. The
-port file is created atomically (write) and the printed URL uses the actual port,
-not 0. Covered by `tests/test_dynamic_port.py`.
+API and UI there, writes the real port to `<path>`, and prints the actual URL.
+Covered by `tests/test_dynamic_port.py`.
 
-The Tauri side should:
+The Tauri shell (`src-tauri/src/lib.rs`) now:
 
-1. choose a free port (or pass `--port 0`),
-2. spawn the bundled engine with the same `--port-file`,
-3. poll the file + `/api/health`, then load `http://127.0.0.1:<port>/`,
-4. remove the file on exit and restart the engine if health fails.
+1. reserves a free loopback port with `TcpListener::bind(("127.0.0.1", 0))`,
+2. spawns `python -m neiro.cli ui --port <port>` and reuses that port across
+   restarts,
+3. probes `/api/health` before declaring the engine ready,
+4. navigates the main window to `http://127.0.0.1:<port>/` after it is ready
+   (the window starts on `about:blank`),
+5. reports the live URL from `engine_status`.
 
-Steps 1–4 in Rust are **not implemented or compiled** in this pass; the Python
-contract exists so the shell change is small and testable.
+The window CSP allows `http://127.0.0.1:*` / `ws://127.0.0.1:*` instead of a single
+fixed port. `cargo fmt --check`, `cargo clippy -- -D warnings` and `cargo check`
+pass. **Runtime launch is not verified here**: a GUI build/launch and a
+fresh-machine test are still owner steps.
 
 ## Sidecar
 

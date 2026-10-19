@@ -29,7 +29,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PY = sys.executable
 BASETEMP = Path(os.environ.get("NEIRO_GATE_BASETEMP", r"C:\np"))
 
-CRITERIA = [f"C{i}" for i in range(1, 23)]
+CRITERIA = [f"C{i}" for i in range(1, 24)]
 
 
 def _run(
@@ -315,6 +315,27 @@ def c20_download_preflight(fast: bool) -> tuple[bool, str]:
     return _pytest(["tests/test_download_preflight.py"], fast=True)
 
 
+def c23_rust(fast: bool, full: bool) -> tuple[bool, str]:
+    if not full:
+        return False, "not run (pass --full)"
+    cargo = shutil.which("cargo")
+    if not cargo:
+        return False, "cargo not found on PATH"
+    manifest = str(ROOT / "src-tauri" / "Cargo.toml")
+    fmt = _run([cargo, "fmt", "--manifest-path", manifest, "--", "--check"], timeout=300)
+    if fmt.returncode != 0:
+        return False, f"fmt: {_tail(fmt.stdout + fmt.stderr, 5)}"
+    clippy = _run(
+        [cargo, "clippy", "--manifest-path", manifest, "--", "-D", "warnings"], timeout=1200
+    )
+    if clippy.returncode != 0:
+        return False, f"clippy: {_tail(clippy.stdout + clippy.stderr, 6)}"
+    check = _run([cargo, "check", "--manifest-path", manifest], timeout=1200)
+    if check.returncode != 0:
+        return False, f"check: {_tail(check.stdout + check.stderr, 6)}"
+    return True, "cargo fmt + clippy + check pass"
+
+
 def c22_frontend_tests(fast: bool, full: bool) -> tuple[bool, str]:
     if not full:
         return False, "not run (pass --full)"
@@ -398,6 +419,7 @@ CHECKS = {
     "C20": c20_download_preflight,
     "C21": c21_a11y_static,
     "C22": c22_frontend_tests,
+    "C23": c23_rust,
 }
 
 
@@ -425,6 +447,8 @@ def main() -> int:
             passed, detail = c4_frontend(args.fast, args.full)
         elif cid == "C22":
             passed, detail = c22_frontend_tests(args.fast, args.full)
+        elif cid == "C23":
+            passed, detail = c23_rust(args.fast, args.full)
         else:
             passed, detail = CHECKS[cid](args.fast)
         results.append((cid, passed, detail))
