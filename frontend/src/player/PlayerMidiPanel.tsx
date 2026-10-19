@@ -9,6 +9,7 @@ import {
   type MidiAction,
   type MidiMapping,
 } from './midi'
+import { t } from './i18n'
 
 /**
  * MIDI learn panel. One mapping service, any connected device, persisted locally.
@@ -88,13 +89,15 @@ export function PlayerMidiPanel({ onAction }: { onAction: (action: MidiAction) =
 
   return (
     <details className="player-midi">
-      <summary>MIDI learn ({mappings.length} mapped)</summary>
+      <summary>
+        {t('player.midi')} ({t('player.midiMapped', { count: mappings.length })})
+      </summary>
       <div className="row" style={{ marginTop: '0.4rem' }}>
         <button type="button" onClick={() => void connect()}>
-          {connected ? 'Refresh devices' : 'Enable WebMIDI'}
+          {connected ? t('player.midiRefresh') : t('player.midiEnable')}
         </button>
         <span className="intent">
-          {connected ? `${devices.length} input${devices.length === 1 ? '' : 's'} connected` : 'no input yet'}
+          {connected ? t('player.midiConnected', { count: devices.length }) : t('player.midiNone')}
         </span>
       </div>
       {error && <p className="player-error">{error}</p>}
@@ -114,7 +117,7 @@ export function PlayerMidiPanel({ onAction }: { onAction: (action: MidiAction) =
                 className={learning === item.action ? 'active' : ''}
                 onClick={() => setLearning(learning === item.action ? null : item.action)}
               >
-                {learning === item.action ? 'Listening…' : 'Learn'}
+                {learning === item.action ? t('player.midiListening') : t('player.midiLearn')}
               </button>
               <button
                 type="button"
@@ -124,16 +127,13 @@ export function PlayerMidiPanel({ onAction }: { onAction: (action: MidiAction) =
                   setMappings([...mapperRef.current.mappings])
                 }}
               >
-                Clear
+                {t('player.midiClear')}
               </button>
             </li>
           )
         })}
       </ul>
-      <p className="intent">
-        Learn captures the next note or CC from any connected device. Mappings persist on this
-        machine only; no MIDI data leaves the browser.
-      </p>
+      <p className="intent">{t('player.midiHint')}</p>
     </details>
   )
 }

@@ -127,6 +127,12 @@ export class Transport {
   }
 }
 
+/** Clamp a relative seek to the track. Exported so the UI and tests share it. */
+export function clampSeek(position: number, delta: number, duration: number): number {
+  const limit = duration > 0 ? duration : Number.MAX_SAFE_INTEGER
+  return Math.min(limit, Math.max(0, position + delta))
+}
+
 export function formatTime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return '0:00'
   const total = Math.floor(seconds)

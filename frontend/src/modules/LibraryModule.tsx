@@ -16,6 +16,7 @@ import {
 } from '../api/client'
 import type { LibraryPlaylist, LibrarySong } from '../api/types'
 import { PlayerSurface } from '../player/PlayerSurface'
+import { libraryWrites, playerStorageKey, readPlayerArtifacts } from '../player/librarySync'
 import { useSession } from '../state/session'
 import { ModuleHeader } from '../components/ModuleHeader'
 
@@ -118,6 +119,34 @@ export function LibraryModule() {
       setMessage('Clip added.')
     } catch (err) {
       setMessage(err instanceof Error ? err.message : String(err))
+    }
+  }
+
+  const importPlayerData = async () => {
+    if (!selected) return
+    const artifacts = readPlayerArtifacts(localStorage.getItem(playerStorageKey(selected.id)))
+    const writes = libraryWrites(artifacts)
+    if (!writes.markers.length && !writes.clips.length) {
+      setMessage('No player markers or clips found for this song.')
+      return
+    }
+    setBusy(true)
+    try {
+      for (const marker of writes.markers) {
+        await addLibraryMarker(selected.id, marker.time, marker.label)
+      }
+      for (const clip of writes.clips) {
+        await addLibraryClip(selected.id, clip)
+      }
+      const detail = await getLibrarySong(selected.id)
+      setSelected(detail.song)
+      setMessage(
+        `Imported ${writes.markers.length} marker(s) and ${writes.clips.length} clip(s) from the player.`,
+      )
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -258,6 +287,9 @@ export function LibraryModule() {
                     Add to {favorites.name}
                   </button>
                 )}
+                <button type="button" onClick={() => void importPlayerData()} disabled={busy}>
+                  Import player markers/clips
+                </button>
               </div>
 
               {selected.path && (

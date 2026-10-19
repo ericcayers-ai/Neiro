@@ -3,7 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { Transport, formatTime } from '../Transport.ts'
+import { Transport, clampSeek, formatTime } from '../Transport.ts'
 import {
   addMarker,
   buildRamp,
@@ -20,6 +20,7 @@ import { describeMethod, normalizeParams, soundingA4, tuningToCents } from '../p
 import { formatProvenance } from '../provenance.ts'
 import { addScene, applyScene, makeScene, removeScene } from '../scenes.ts'
 import { MIDI_ACTIONS, MidiMapper, parseMidiMessage } from '../midi.ts'
+import { libraryWrites, playerStorageKey, readPlayerArtifacts } from '../librarySync.ts'
 
 test('transport plays, pauses and ends', () => {
   const transport = new Transport({ duration: 10 })
@@ -210,4 +211,44 @@ test('A4 readout follows transpose and cents, and low-latency labels honestly', 
   assert.ok(Math.abs(soundingA4(normalizeParams({ transpose: 12 })) - 880) < 1e-9)
   assert.ok(Math.abs(soundingA4(normalizeParams({ pitchCents: 100 })) - 466.16) < 0.1)
   assert.match(describeMethod(normalizeParams({ lowLatency: true })).detail, /formant off/)
+})
+
+test('promotes player markers and clips from stored JSON', () => {
+  const raw = JSON.stringify({
+    params: { transpose: 2 },
+    markers: [
+      { id: 'm2', time: 8.5, label: 'chorus' },
+      { id: 'm1', time: 1.25, label: '' },
+      { id: 'bad', time: 'nope' },
+    ],
+    clips: [
+      { id: 'c1', name: 'verse', start: 4, end: 12, loopCount: 2 },
+      { id: 'c2', name: '', start: 2, end: 2 },
+    ],
+  })
+  const artifacts = readPlayerArtifacts(raw)
+  assert.equal(artifacts.markers.length, 2)
+  assert.equal(artifacts.clips.length, 1)
+  const writes = libraryWrites(artifacts)
+  assert.deepEqual(writes.markers.map((marker) => marker.time), [1.25, 8.5])
+  assert.equal(writes.clips[0].name, 'verse')
+  assert.equal(writes.clips[0].loop_count, 2)
+  assert.equal(playerStorageKey('abc'), 'neiro.player.abc')
+})
+
+test('artifact promotion tolerates missing and corrupt storage', () => {
+  assert.deepEqual(readPlayerArtifacts(null), { markers: [], clips: [] })
+  assert.deepEqual(readPlayerArtifacts('{broken'), { markers: [], clips: [] })
+  assert.deepEqual(readPlayerArtifacts('{}'), { markers: [], clips: [] })
+  assert.deepEqual(readPlayerArtifacts(JSON.stringify({ markers: 'nope', clips: 4 })), {
+    markers: [],
+    clips: [],
+  })
+})
+
+test('clampSeek keeps relative seeks inside the track', () => {
+  assert.equal(clampSeek(10, 5, 30), 15)
+  assert.equal(clampSeek(28, 5, 30), 30)
+  assert.equal(clampSeek(2, -5, 30), 0)
+  assert.equal(clampSeek(30, 5, 0), 35, 'unknown duration is unbounded above')
 })

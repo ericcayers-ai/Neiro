@@ -114,3 +114,15 @@ HTTP 400. About now documents the player/library shortcuts.
 `GET /api/session/export?name=` returns the portable session document (notes
 included) and the Open-session dialog offers the same download. Covered by a
 contract test (200 + notes, 404 for a missing session).
+
+## Sixth batch: player → library promotion and catalogue completion
+
+The Library detail view can import the player's local markers/clips for a song;
+`librarySync.ts` parses and validates the snapshot (ordering, corrupt/missing data)
+and is covered by Node tests. New player/MIDI/scene strings moved into the
+`player/i18n.ts` catalogue. Player tests 28; gate 19/19.
+
+## Seventh batch: transport seek controls
+
+The player gains Start, a persisted ±5/±10/±30 s seek step, ArrowLeft/ArrowRight
+seeking, Home/End, and a shared `clampSeek` helper with a Node test. Player tests 29.

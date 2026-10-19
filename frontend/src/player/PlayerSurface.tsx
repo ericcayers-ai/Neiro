@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { PlayerEngine, type EngineMode } from './AudioEngine'
-import { formatTime, Transport } from './Transport'
+import { clampSeek, formatTime, Transport } from './Transport'
 import {
   EQ_FREQS,
   EQ_PRESETS,
@@ -60,6 +60,7 @@ interface StoredState {
   params?: Partial<PlayerParams>
   markers?: Marker[]
   clips?: Clip[]
+  seekStep?: number
 }
 
 function loadStored(fileId: string): StoredState {
@@ -113,6 +114,7 @@ export function PlayerSurface({
   const [showEq, setShowEq] = useState(false)
   const [showRamp, setShowRamp] = useState(false)
   const [scenes, setScenes] = useState<SceneSnapshot[]>(() => loadScenes(fileId))
+  const [seekStep, setSeekStep] = useState<number>(stored.seekStep ?? 5)
   const [ramp, setRamp] = useState({
     mode: 'scale' as RampMode,
     scale: 'major' as RampScale,
@@ -127,9 +129,13 @@ export function PlayerSurface({
   const clipRunRef = useRef<{ index: number; loops: number; sequence: boolean } | null>(null)
   const waitChangeRef = useRef(onWaitChange)
   waitChangeRef.current = onWaitChange
+  const positionRef = useRef(0)
+  positionRef.current = position
 
   const waitPoints = useMemo(() => waitPointsFromNotes(notes), [notes])
   const effectiveDuration = durationState || duration || 0
+  const durationRef = useRef(0)
+  durationRef.current = effectiveDuration
 
   // Engine lifecycle: one context per surface, closed on unmount.
   useEffect(() => {
@@ -231,13 +237,13 @@ export function PlayerSurface({
   // Persist per-file player state locally; the library is the durable store for
   // songs, this is the lightweight per-file scratchpad.
   useEffect(() => {
-    const payload: StoredState = { params, markers, clips }
+    const payload: StoredState = { params, markers, clips, seekStep }
     try {
       localStorage.setItem(`neiro.player.${fileId}`, JSON.stringify(payload))
     } catch {
       // storage full: keep playing rather than failing the surface
     }
-  }, [fileId, params, markers, clips])
+  }, [fileId, params, markers, clips, seekStep])
 
   const update = useCallback((patch: Partial<PlayerParams>) => {
     setParams((current) => normalizeParams({ ...current, ...patch }))
@@ -290,11 +296,28 @@ export function PlayerSurface({
         event.preventDefault()
         if (waiting) resumeWait()
         else togglePlay()
+        return
+      }
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        event.preventDefault()
+        const delta = (event.key === 'ArrowLeft' ? -1 : 1) * seekStep
+        const target = clampSeek(positionRef.current, delta, durationRef.current)
+        engineRef.current?.seek(target)
+        setPosition(target)
+      } else if (event.key === 'Home') {
+        event.preventDefault()
+        engineRef.current?.seek(0)
+        setPosition(0)
+      } else if (event.key === 'End') {
+        event.preventDefault()
+        const end = Math.max(0, durationRef.current - 0.05)
+        engineRef.current?.seek(end)
+        setPosition(end)
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [resumeWait, togglePlay, waiting])
+  }, [resumeWait, togglePlay, waiting, seekStep])
 
   // WebMIDI wait gate: only a matching pitch resumes; other notes are ignored.
   useEffect(() => {
@@ -344,10 +367,10 @@ export function PlayerSurface({
   })
 
   const saveSceneNow = () => {
-    const name = window.prompt('Scene name', `Scene ${scenes.length + 1}`)
+    const name = window.prompt(t('player.scenePrompt'), `Scene ${scenes.length + 1}`)
     if (!name) return
     setScenes((current) => addScene(current, makeScene(name, snapshotState())))
-    setMessage('Scene saved.')
+    setMessage(t('player.sceneSaved'))
   }
 
   const useSceneNow = (scene: SceneSnapshot) => {
@@ -357,11 +380,11 @@ export function PlayerSurface({
     setLoopB(state.loop.end)
     setMarkers(state.markers)
     setClips(state.clips)
-    setMessage(`Scene “${scene.name}” applied.`)
+    setMessage(t('player.sceneApplied', { name: scene.name }))
   }
 
   const seekBy = (delta: number) => {
-    const target = Math.max(0, Math.min((effectiveDuration || 0), position + delta))
+    const target = clampSeek(position, delta, effectiveDuration)
     engineRef.current?.seek(target)
     setPosition(target)
   }
@@ -497,6 +520,26 @@ export function PlayerSurface({
         <button type="button" className="primary" onClick={togglePlay} disabled={!ready} aria-label={playing ? t('player.pause') : t('player.play')}>
           {playing ? t('player.pause') : t('player.play')}
         </button>
+        <button
+          type="button"
+          onClick={() => {
+            engineRef.current?.seek(0)
+            setPosition(0)
+          }}
+          title="Back to start"
+        >
+          {t('player.start')}
+        </button>
+        <select
+          value={seekStep}
+          onChange={(event) => setSeekStep(Number(event.target.value))}
+          aria-label={t('player.seekStep')}
+          title={t('player.seekStep')}
+        >
+          <option value={5}>±5 s</option>
+          <option value={10}>±10 s</option>
+          <option value={30}>±30 s</option>
+        </select>
         <input
           type="range"
           min={0}
@@ -544,7 +587,7 @@ export function PlayerSurface({
           disabled={!markers.length}
           title="Previous marker"
         >
-          ‹ Marker
+          {t('player.prevMarker')}
         </button>
         <button
           type="button"
@@ -555,12 +598,15 @@ export function PlayerSurface({
           disabled={!markers.length}
           title="Next marker"
         >
-          Marker ›
+          {t('player.nextMarker')}
         </button>
       </div>
 
       <p className="player-readout" role="status" aria-live="polite">
-        A4 {soundingA4(params).toFixed(2)} Hz · {params.lowLatency ? 'low-latency (formant off)' : 'phase-vocoder preview'}
+        {t('player.readout', {
+          hz: soundingA4(params).toFixed(2),
+          mode: params.lowLatency ? 'low-latency (formant off)' : 'phase-vocoder preview',
+        })}
       </p>
 
       {(analysis?.chords?.length || analysis?.beats?.length) && (
@@ -728,7 +774,7 @@ export function PlayerSurface({
             checked={params.lowLatency}
             onChange={(event) => update({ lowLatency: event.target.checked })}
           />
-          Low latency (formant off)
+          {t('player.lowLatency')}
         </label>
         <button type="button" onClick={() => update({ bypass: !params.bypass })} className={params.bypass ? 'active' : ''}>
           Bypass DSP
@@ -904,13 +950,13 @@ export function PlayerSurface({
 
         <div className="player-panel">
           <div className="player-panel-head">
-            <h4>Scenes</h4>
+            <h4>{t('player.scenes')}</h4>
             <button type="button" onClick={saveSceneNow}>
-              Save scene
+              {t('player.saveScene')}
             </button>
           </div>
           {scenes.length === 0 ? (
-            <p className="intent">Save the current settings, loop, markers and clips as a scene.</p>
+            <p className="intent">{t('player.sceneEmpty')}</p>
           ) : (
             <ul className="player-list">
               {scenes.map((scene) => (
@@ -929,9 +975,7 @@ export function PlayerSurface({
               ))}
             </ul>
           )}
-          <p className="intent">
-            Scenes are local snapshots; the library can store the same data durably for a saved song.
-          </p>
+          <p className="intent">{t('player.sceneHint')}</p>
         </div>
       </div>
     </section>

@@ -1014,7 +1014,7 @@ player, **Q** queued Neiro engine, **RT+Q** hybrid, **Addon** extension surface,
 | T-41 | Saved songs / library | Session save/list only; no song library | P | SQLite library; import/export | Q | P1 |
 | T-42 | Playlists / favorites / list management | None | M | Library playlists | Q | P1 |
 | T-43 | Versions/update existing/save as new | Session save only; no version chain | P | Versioned library entries | Q | P2 |
-| T-44 | Per-song settings/loops/markers/clips | Session graph config; no per-song artifacts | P | Library schema + Player | Q+RT | P1 |
+| T-44 | Per-song settings/loops/markers/clips | Session graph config; no per-song artifacts | P | Library schema + Player + import | Q+RT | P1 |
 | T-45 | Notes (5,000 chars) | API field only; string becomes char list; no UI | S | Scalar text field + notes pane | Q | P1 |
 | T-46 | Song identity/title/source metadata | Filename + optional URL ingest; no library identity | P | Library metadata + source URL | Q | P1 |
 | T-47 | Storage quotas/eviction/recent-save errors | Entry-bounded artifact cache; 20 GB budget > disk; no library quota | P | Byte budget, preflight, eviction, clear errors | Q | P1 |

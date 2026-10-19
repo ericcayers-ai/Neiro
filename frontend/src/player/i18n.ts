@@ -39,6 +39,33 @@ const EN: Record<string, string> = {
   'player.noNotes': 'No transcription notes; wait mode uses time markers.',
   'player.clipSequence': 'Clip sequence',
   'player.playSequence': 'Play sequence',
+  'player.start': '⏮ Start',
+  'player.seekStep': 'Seek step',
+  'player.prevMarker': '‹ Marker',
+  'player.nextMarker': 'Marker ›',
+  'player.lowLatency': 'Low latency (formant off)',
+  'player.readout': 'A4 {hz} Hz · {mode}',
+  'player.chords': 'Chords',
+  'player.beats': 'Beats',
+  'player.scenes': 'Scenes',
+  'player.saveScene': 'Save scene',
+  'player.scenePrompt': 'Scene name',
+  'player.sceneSaved': 'Scene saved.',
+  'player.sceneApplied': 'Scene “{name}” applied.',
+  'player.sceneEmpty': 'Save the current settings, loop, markers and clips as a scene.',
+  'player.sceneHint':
+    'Scenes are local snapshots; the library can store the same data durably for a saved song.',
+  'player.midi': 'MIDI learn',
+  'player.midiMapped': '{count} mapped',
+  'player.midiEnable': 'Enable WebMIDI',
+  'player.midiRefresh': 'Refresh devices',
+  'player.midiConnected': '{count} input(s) connected',
+  'player.midiNone': 'no input yet',
+  'player.midiLearn': 'Learn',
+  'player.midiListening': 'Listening…',
+  'player.midiClear': 'Clear',
+  'player.midiHint':
+    'Learn captures the next note or CC from any connected device. Mappings persist on this machine only; no MIDI data leaves the browser.',
 }
 
 export function t(key: string, vars?: Vars): string {
