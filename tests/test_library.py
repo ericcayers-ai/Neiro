@@ -211,6 +211,34 @@ def test_api_notes_markers_clips(server):
     assert status == 200 and deleted["ok"] is True
 
 
+def test_api_saves_per_song_settings(server):
+    base, _ = server
+    token = _token(base)
+    _, payload = _request(
+        base, "/api/library/songs", method="POST", body={"title": "Settings"}, token=token
+    )
+    song_id = payload["song"]["id"]
+    status, saved = _request(
+        base,
+        f"/api/library/songs/{song_id}/settings",
+        method="POST",
+        body={"settings": {"player": {"transpose": 3, "speed": 0.75}}},
+        token=token,
+    )
+    assert status == 200
+    assert saved["settings"]["player"]["transpose"] == 3
+    _, detail = _request(base, f"/api/library/songs/{song_id}", token=token)
+    assert detail["song"]["settings"]["player"]["speed"] == 0.75
+    status, _ = _request(
+        base,
+        f"/api/library/songs/{song_id}/settings",
+        method="POST",
+        body={"settings": ["not", "an", "object"]},
+        token=token,
+    )
+    assert status == 400
+
+
 def test_api_saves_a_song_version(server):
     base, _ = server
     token = _token(base)

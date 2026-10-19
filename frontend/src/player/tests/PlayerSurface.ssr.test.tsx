@@ -93,6 +93,12 @@ describe('PlayerSurface markup', () => {
     expect(html).toContain('phase-vocoder preview')
   })
 
+  it('applies durable per-song settings', () => {
+    const html = render({ initialParams: { transpose: 12, speed: 0.75 } })
+    expect(html).toContain('A4 880.00 Hz')
+    expect(html).toContain('75%')
+  })
+
   it('renders without a duration or notes (gate state)', () => {
     const html = renderToStaticMarkup(
       <PlayerSurface src="/files/edits/demo/tone.wav" fileId="empty" />,

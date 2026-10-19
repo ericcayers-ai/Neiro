@@ -274,6 +274,18 @@ class LibraryStore:
                 raise KeyError(f"unknown song {song_id!r}")
         return {"id": song_id, "notes": notes, "limit": NOTES_LIMIT}
 
+    def set_settings(self, song_id: str, settings: dict[str, Any]) -> dict[str, Any]:
+        if not isinstance(settings, dict):
+            raise ValueError("settings must be an object")
+        with self._connect() as conn:
+            cursor = conn.execute(
+                "UPDATE songs SET settings_json = ?, updated = ? WHERE id = ?",
+                (json.dumps(settings), _now(), song_id),
+            )
+            if cursor.rowcount == 0:
+                raise KeyError(f"unknown song {song_id!r}")
+        return {"id": song_id, "settings": settings}
+
     def touch_song(self, song_id: str) -> None:
         with self._connect() as conn:
             conn.execute("UPDATE songs SET last_played = ? WHERE id = ?", (_now(), song_id))

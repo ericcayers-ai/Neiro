@@ -183,3 +183,10 @@ of RTL/plural support. Gate C18 now requires the shell catalogue.
 The Library detail gains Save version (label prompt) and a version list; the API
 endpoint is covered by an HTTP test. Versions are metadata/session pointers, not
 duplicated audio. Library tests 11.
+
+## Fifteenth batch: per-song player settings
+
+Library songs store `settings.player` via `POST .../settings`; the Library player
+passes them as `initialParams` and debounces parameter changes back (800 ms), so
+transpose/speed/tuning survive a restart. API test + SSR test (A4 880 Hz at +12).
+Library tests 12; vitest 6.

@@ -289,6 +289,7 @@ export interface LibrarySong {
   path?: string | null
   duration?: number | null
   notes: string
+  settings?: Record<string, unknown>
   created: number
   updated: number
   last_played?: number | null

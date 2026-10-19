@@ -57,6 +57,10 @@ export interface PlayerSurfaceProps {
   onWaitChange?: (waiting: boolean, expectedPitch: number | null) => void
   /** Optional analysis report; renders chord/beat lanes under the transport. */
   analysis?: AnalysisReport | null
+  /** Durable per-song settings (library) override local scratch values. */
+  initialParams?: Partial<PlayerParams>
+  /** Called on user parameter changes (the library debounces persistence). */
+  onParamsChange?: (params: PlayerParams) => void
 }
 
 interface StoredState {
@@ -98,9 +102,13 @@ export function PlayerSurface({
   resumeToken,
   onWaitChange,
   analysis,
+  initialParams,
+  onParamsChange,
 }: PlayerSurfaceProps) {
   const stored = useMemo(() => loadStored(fileId), [fileId])
-  const [params, setParams] = useState<PlayerParams>(() => normalizeParams(stored.params ?? {}))
+  const [params, setParams] = useState<PlayerParams>(() =>
+    normalizeParams({ ...(stored.params ?? {}), ...(initialParams ?? {}) }),
+  )
   const [markers, setMarkers] = useState<Marker[]>(stored.markers ?? [])
   const [clips, setClips] = useState<Clip[]>(stored.clips ?? [])
   const [position, setPosition] = useState(0)
@@ -133,6 +141,9 @@ export function PlayerSurface({
   const clipRunRef = useRef<{ index: number; loops: number; sequence: boolean } | null>(null)
   const waitChangeRef = useRef(onWaitChange)
   waitChangeRef.current = onWaitChange
+  const paramsChangeRef = useRef(onParamsChange)
+  paramsChangeRef.current = onParamsChange
+  const lastParamsRef = useRef('')
   const positionRef = useRef(0)
   positionRef.current = position
 
@@ -215,6 +226,14 @@ export function PlayerSurface({
     if (bpm && Math.abs(bpm - params.metronomeBpm) > 0.5) update({ metronomeBpm: bpm })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bpm])
+
+  useEffect(() => {
+    // Only notify on a real change (StrictMode runs effects twice on mount).
+    const signature = JSON.stringify(params)
+    if (signature === lastParamsRef.current) return
+    lastParamsRef.current = signature
+    paramsChangeRef.current?.(params)
+  }, [params])
 
   useEffect(() => {
     if (!playing || mode !== 'preview') {

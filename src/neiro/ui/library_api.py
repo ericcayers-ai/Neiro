@@ -102,6 +102,11 @@ def handle_library(
                         settings=body.get("settings"),
                     )
                     return 200, {"ok": True, "clip": clip}
+            if len(rest) == 2 and rest[1] == "settings" and method == "POST":
+                settings = body.get("settings")
+                if not isinstance(settings, dict):
+                    return 400, {"error": "settings must be an object"}
+                return 200, store.set_settings(song_id, settings)
             if len(rest) == 2 and rest[1] == "played" and method == "POST":
                 store.touch_song(song_id)
                 return 200, {"ok": True, "song_id": song_id}

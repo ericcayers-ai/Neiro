@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import {
   addLibraryClip,
@@ -13,11 +13,13 @@ import {
   listLibrarySongs,
   markSongPlayed,
   resetLibrary,
+  saveSongSettings,
   saveLibraryNotes,
 } from '../api/client'
 import type { LibraryPlaylist, LibrarySong } from '../api/types'
 import { PlayerSurface } from '../player/PlayerSurface'
 import { libraryWrites, playerStorageKey, readPlayerArtifacts } from '../player/librarySync'
+import type { PlayerParams } from '../player/params'
 import { useSession } from '../state/session'
 import { ModuleHeader } from '../components/ModuleHeader'
 
@@ -35,6 +37,7 @@ export function LibraryModule() {
   const [markerLabel, setMarkerLabel] = useState('')
   const [clipStart, setClipStart] = useState('0')
   const [clipEnd, setClipEnd] = useState('4')
+  const settingsTimer = useRef<number | null>(null)
 
   const refresh = useCallback(async () => {
     try {
@@ -121,6 +124,18 @@ export function LibraryModule() {
     } catch (err) {
       setMessage(err instanceof Error ? err.message : String(err))
     }
+  }
+
+  const persistPlayerSettings = (params: PlayerParams) => {
+    if (!selected) return
+    if (settingsTimer.current) window.clearTimeout(settingsTimer.current)
+    settingsTimer.current = window.setTimeout(() => {
+      void saveSongSettings(selected.id, { ...(selected.settings ?? {}), player: params })
+        .then(() => setMessage('Player settings saved to the library.'))
+        .catch((err: unknown) =>
+          setMessage(err instanceof Error ? err.message : String(err)),
+        )
+    }, 800)
   }
 
   const importPlayerData = async () => {
@@ -319,6 +334,8 @@ export function LibraryModule() {
                   fileId={selected.id}
                   title={selected.title}
                   duration={selected.duration ?? undefined}
+                  initialParams={selected.settings?.player as Partial<PlayerParams> | undefined}
+                  onParamsChange={persistPlayerSettings}
                 />
               )}
 

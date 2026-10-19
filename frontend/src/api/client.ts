@@ -593,6 +593,18 @@ export async function addToLibraryPlaylist(
   return readJson(res)
 }
 
+export async function saveSongSettings(
+  songId: string,
+  settings: Record<string, unknown>,
+): Promise<{ id: string; settings: Record<string, unknown> }> {
+  const res = await fetch(`/api/library/songs/${encodeURIComponent(songId)}/settings`, {
+    method: 'POST',
+    headers: await apiHeaders(),
+    body: JSON.stringify({ settings }),
+  })
+  return readJson(res)
+}
+
 export async function addLibraryVersion(
   songId: string,
   label: string,
