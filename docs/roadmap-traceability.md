@@ -4,6 +4,19 @@ Source of truth: `roadmap.md`. Every normative item below must link to
 implementation, tests, docs, and verification evidence before 1.0 acceptance.
 Status values: `open` | `partial` | `verified`.
 
+> **2026-10-20 status note.** `verified` below is assigned by
+> `scripts/update_traceability_status.py` from keyword/file matches. It is
+> **structural, not behavioural**: the column is not a quality or release claim.
+> The behavioural ledger is [`AUDIT.md`](AUDIT.md), and the implementation receipts
+> are under `docs/evidence/`.
+>
+> As of the 2026-10-20 implementation pass: R-0038/R-0039/R-0040 now map to a
+> labelled heuristic beat grid / chord timeline / energy-block sections (not a
+> transformer); R-0086/R-0087 map to the shared real-time player with a working
+> count-in, A–B loop and wait gate; R-0102 and R-0108 still overstate their
+> evidence (no WCAG audit; no plugin sandbox). Treat every row as a pointer to code,
+> not proof that the behaviour works.
+
 | ID | Kind | Section | Requirement | Implementation | Tests | Docs | Status |
 |---|---|---|---|---|---|---|---|
 | R-0001 | principle | 1. Product Principles | 1. **The result is the product.** Every architectural decision optimizes final audio/notation quality first, throughput second, features third. If an extra ensemble pass or a conditioning step measurably improves output, the pipeline should | src/neiro/ + frontend/ + src-tauri/ | tests/ | README.md + docs/ | verified |

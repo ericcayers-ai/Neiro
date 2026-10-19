@@ -2,53 +2,56 @@
 
 **Purpose:** the durable answer to *what is done, running, blocked, owner-needed, and
 must not be assumed*. Updated whenever a phase changes state. The gate
-(`python scripts/verify_goal.py`) is the authority; this file may explain a FAIL but
-may not overrule it.
+(`python scripts/verify_goal.py --full`) is the authority; this file may explain a
+FAIL but may not overrule it.
 
-**Current state (2026-10-20, session start):** implementation pass opened from
-`HANDOFF.md` + `docs/AUDIT.md`. Phase 0 in progress. Baseline at `c3cc5c0`, tag
-`v1.2.1`, dirty worktree preserved.
+**Current state (2026-10-20, implementation pass):** `GATE PASS — 18/18 criteria`.
+Python suite 262 passed / 3 skipped; player tests 23 passed; addon validator 46/46;
+frontend tsc + build pass. Commit `cf6c35b` contains the implementation (including
+the preserved `pitch_correct` fix and its regression test). Receipts:
+`docs/evidence/{implementation,security,player-latency}-2026-10-20.md`.
 
 ## Phase status
 
 | Phase | State | Evidence |
 |---|---|---|
-| 0. Truth & safety | in progress | gate rows C1–C9, C15, C17 |
-| 1. Shared real-time player | not started | gate rows C10, C11 |
-| 2. Practice & library | not started | gate row C12 |
-| 3. Analysis | not started | gate row C13 |
-| 4. Optional companion | not started | gate row C14 |
-| 5. i18n / a11y / packaging | not started | gate row C18 |
-| 6. Release evidence | not started | audit refresh |
+| 0. Truth & safety | **done** | gate C1–C9, C15, C17; security receipt |
+| 1. Shared real-time player | **done** (Studio transport partial) | gate C10–C11; latency receipt |
+| 2. Practice & library | **partial** (MIDI learn, quota, marker promotion open) | gate C12; `docs/library.md` |
+| 3. Analysis | **partial** (heuristic only; ONNX adapters absent) | gate C13; `tests/test_analysis_timeline.py` |
+| 4. Optional companion | **source done**, live e2e owner-run | gate C14; `docs/COMPANION.md` |
+| 5. i18n / a11y / packaging | **partial** | gate C18; `docs/accessibility.md` |
+| 6. Release evidence | **partial** (Rust build/signing open) | receipts + addenda |
 
 ## Confirmed vs not claimed
 
-**Confirmed by the opening audit (2026-10-20):** live engine `ok` at 1.2.1; 70 models
-registered / 16 ready; 219 passed + 1 skipped with a short basetemp; `ruff check`
-green; `ruff format` red on two doc fences; frontend `tsc`/`vite build` green; the
-`pitch_correct` job works only because of the uncommitted worktree fix; auto-enhance
-returns `done` with an empty chain; session notes round-trip as a character list;
-`verify_models.py` reports 70/70 absent because it calls `neiro` on PATH.
+**Confirmed by this pass:** gate 18/18; 262 tests; pitch-correct progress contract;
+auto-enhance no-op; scalar notes; security probes return 401/403/413/415 as designed;
+player DSP direction/null/finite tests; measured 23.2 ms algorithmic latency and
+5.23× worst render factor; library persistence across reopen; analysis confidence /
+no-result; addon manifest + no remote code + worklet tests.
 
-**Not verified, and not claimed:** live Transpose execution; any browser-site capture;
-WebGPU stems; model downloads; listening quality; packaged installer; macOS/Linux;
-screen-reader walkthrough; live-site addon e2e.
+**Not verified, and not claimed:** browser control-to-audio latency; live-site
+capture (YouTube/Spotify/SoundCloud); listening/ABX quality; tab-capture revocation;
+Rust build/clippy; signed installer/updater; screen-reader/WCAG audit; any neural
+chord/beat model; Spotify EME capture.
 
-## Owner decisions still open (from HANDOFF §13)
+## Owner decisions (recorded 2026-10-20)
 
-1. Scope: local-first parity vs literal commercial parity — default applied:
-   **local-first; accounts/cloud/subscription/share/3-slot limits are N/A.**
-2. DSP licence: **Signalsmith Stretch not vendored in this pass; DSP is a clean-room
-   implementation in the worklet**, so no third-party DSP licence is triggered. A
-   future WASM build must verify MIT/formant before bundling.
-3. Addon: **hybrid standalone RT + optional paired Neiro Q** applied.
-4. Packaging: **bundled sidecar + dynamic port + signing** — code-safe parts only in
-   this pass; a signed installer needs the owner's certificate.
-5. Dirty work: **preserve the rest; commit the pitch-correct fix with a test.**
+1. Scope: **local-first**; accounts/cloud/subscription/share/3-slot limits are N/A.
+2. DSP licence: **clean-room implementation in the worklet**, no third-party DSP
+   bundled. A future WASM build must verify MIT/formant before vendoring.
+3. Addon: **hybrid** standalone RT + optional paired Neiro queued processing.
+4. Packaging: bundled sidecar + dynamic port + signing remains the direction; not
+   implemented in this pass.
+5. Dirty work: the `pitch_correct` fix is committed with a regression test; the rest
+   of the owner's worktree changes were preserved untouched.
 
 ## Owner-only operations
 
-- Live-site addon e2e (requires a real browser profile and site logins).
-- Code signing / notarisation (requires certificates).
-- Model downloads > 1 GB (disk preflight required; owner consent).
-- Publishing/pushing (out of scope for this pass).
+- Live-site addon e2e (real browser profile + logins).
+- Listening panel / ABX quality judgement.
+- Code signing and notarisation (certificates).
+- Model downloads > 1 GB (disk preflight + consent).
+- Push/publish (not done in this pass).
+- Rust `cargo check`/clippy/full Tauri build (target cache and disk).

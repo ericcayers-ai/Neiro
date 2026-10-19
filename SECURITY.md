@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Neiro is pre-1.0; security fixes land on `main` and in the next tagged release.
+Neiro 1.2.x is current; security fixes land on `main` and in the next tagged release.
 The latest release is the only supported version across all three parts of the
 stack (Python engine, frontend, desktop shell) — they are versioned and released
 together.
@@ -10,6 +10,7 @@ together.
 | Version | Supported |
 |---------|-----------|
 | 1.0.x   | ✅        |
+| 1.2.x   | ✅        |
 | 0.4.x   | security fixes only until 2026-10-01 |
 | < 0.4   | ❌        |
 
@@ -18,8 +19,7 @@ together.
 **Do not open a public issue for security problems.**
 
 Use GitHub's private vulnerability reporting
-(**Security → Report a vulnerability** on the repository) or email
-**eric.c.ayers@gmail.com** with:
+(**Security → Report a vulnerability** on the repository) with:
 
 - a description of the issue and its impact,
 - which surface it affects (Python engine / CLI, the local HTTP UI, the frontend,
@@ -93,3 +93,34 @@ planned:
 If you find a way to make Neiro execute unexpected code from an audio file, a
 manifest, a downloaded model weight, or a rendered UI page, that is in scope and
 we want to hear about it.
+
+## Browser threat model (local API)
+
+The API binds to `127.0.0.1`, but loopback does not stop a malicious web page from
+sending *simple* cross-site requests, nor does it stop DNS rebinding. Since 1.2.x the
+server enforces, in `src/neiro/ui/security.py`:
+
+- **Host must be loopback** (`127.0.0.1`, `localhost`, `[::1]`) on any port. A
+  non-loopback `Host` is rejected with 403, which closes DNS rebinding.
+- **Origin allowlist**: loopback origins (including the Vite dev proxy),
+  `chrome-extension://` / `moz-extension://` (the optional companion), or explicit
+  `NEIRO_EXTRA_ORIGINS` entries. `null` and unknown origins are rejected; CORS is
+  echoed only for allowed origins and never uses `*`.
+- **Per-process token** (`X-Neiro-Token`) on every mutation. The token is issued to
+  the same-origin UI at `GET /api/auth/token` and refused for cross-site fetches.
+  The native DAW bridge (`/api/daw/*`) is exempt because its content types are not
+  CORS-safelisted and cannot be forged by a cross-site form.
+- **JSON content type required**: a `text/plain` body of JSON is rejected with 415
+  instead of being parsed (this was the browser-CSRF hole).
+- **Body and upload caps** (1 MiB JSON, 128 MiB upload by default, configurable via
+  `NEIRO_MAX_UPLOAD_MB`) plus a free-space preflight (507 when the disk is low).
+- **Explicit consent** for plugin grants and tool installs (`{"confirm": true}`).
+- **Pairing** for the companion: a short-lived 6-digit code, exchanged at
+  `POST /api/pair` for the API token and rotated after use.
+- **URL ingest policy**: HTTP(S) only, no credentials, private/loopback hosts
+  rejected. This is a policy guard, not a complete SSRF defence: a redirecting
+  downloader or DNS rebinding can still reach a private address, so ingest remains
+  an opt-in feature.
+
+Path-traversal checks for `/files/` and upload names are unchanged and covered by
+tests. Report vulnerabilities privately as described above.

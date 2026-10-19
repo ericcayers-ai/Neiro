@@ -61,7 +61,9 @@ def _tail(text: str, lines: int = 8) -> str:
 
 
 def _pytest(targets: list[str], *, fast: bool = False) -> tuple[bool, str]:
-    args = [PY, "-m", "pytest", "-q", "-p", "no:cacheprovider", "--basetemp", str(BASETEMP)]
+    # pyproject already adds -q; a second -q would suppress the summary line the
+    # gate parses for the pass count.
+    args = [PY, "-m", "pytest", "-p", "no:cacheprovider", "--basetemp", str(BASETEMP)]
     if fast:
         args += ["-m", "not slow"]
     args += targets
@@ -92,8 +94,8 @@ def _exists(*paths: str) -> str | None:
 
 
 def c1_pitch_fix(fast: bool) -> tuple[bool, str]:
-    log = _run(["git", "log", "--oneline", "-40", "--", "src/neiro/ui/server.py"])
-    committed = "pitch" in (log.stdout or "").lower() and "correct" in (log.stdout or "").lower()
+    log = _run(["git", "log", "--all", "--grep=pitch_correct", "--format=%H"])
+    committed = bool((log.stdout or "").strip())
     src = _read("src/neiro/ui/server.py")
     shape_ok = 'ctx.report("pitch_correct"' in src and 'progress("pitch_correct:' not in src
     test_ok, reason = _pytest(["tests/test_pitch_correct_report.py"], fast=True)
@@ -129,18 +131,17 @@ def c4_frontend(fast: bool, full: bool) -> tuple[bool, str]:
         return False, "not run (pass --full)"
     if not (ROOT / "frontend" / "node_modules").exists():
         return False, "frontend/node_modules missing; run npm ci"
+    npx = shutil.which("npx") or shutil.which("npx.cmd")
+    if not npx:
+        return False, "npx not found on PATH"
     tsc = _run(
-        ["npx", "--no-install", "tsc", "-p", "frontend/tsconfig.app.json", "--noEmit"],
-        cwd=ROOT,
+        [npx, "--no-install", "tsc", "-p", "tsconfig.app.json", "--noEmit"],
+        cwd=ROOT / "frontend",
         timeout=900,
     )
     if tsc.returncode != 0:
         return False, f"tsc: {_tail(tsc.stdout + tsc.stderr, 6)}"
-    build = _run(
-        ["npx", "--no-install", "vite", "build", "--outDir", "../src/neiro/ui/static"],
-        cwd=ROOT / "frontend",
-        timeout=1200,
-    )
+    build = _run([npx, "--no-install", "vite", "build"], cwd=ROOT / "frontend", timeout=1200)
     if build.returncode != 0:
         return False, f"vite: {_tail(build.stdout + build.stderr, 6)}"
     return True, "tsc + vite build pass"

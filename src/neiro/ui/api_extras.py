@@ -142,9 +142,19 @@ def save_session_doc(
     file_id: str | None,
     file_path: Path | None,
     graph_config: dict[str, Any],
-    notes: list[str] | None = None,
+    notes: str | None = None,
 ) -> dict[str, Any]:
-    from neiro.engine.session import SessionDocument, SessionStore, file_fingerprint
+    from neiro.engine.session import (
+        USER_NOTES_LIMIT,
+        SessionDocument,
+        SessionStore,
+        file_fingerprint,
+    )
+
+    if notes is not None and not isinstance(notes, str):
+        raise ValueError("notes must be a string (5,000-character free text)")
+    if notes is not None and len(notes) > USER_NOTES_LIMIT:
+        raise ValueError(f"notes exceed the {USER_NOTES_LIMIT}-character limit")
 
     store = SessionStore()
     doc = SessionDocument(name=name or "untitled", graph_config=dict(graph_config or {}))
@@ -152,7 +162,7 @@ def save_session_doc(
         doc.source = file_fingerprint(Path(file_path))
         doc.artifacts["source_file_id"] = file_id or ""
     if notes:
-        doc.notes = list(notes)
+        doc.user_notes = notes
     path = store.save(doc, name=name)
     return {"ok": True, "name": doc.name, "path": str(path), "session": doc.to_dict()}
 
