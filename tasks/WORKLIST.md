@@ -143,16 +143,16 @@ Gate: `python scripts/verify_goal.py --full` — **18/18 PASS** on 2026-10-20.
 
 ## Closure assessment (2026-10-20)
 
-The gate is green on 22 criteria, but the objective (literal Transpose parity) is
+The gate is green on 23 criteria, but the objective (literal Transpose parity) is
 not fully closed. The remaining gaps are owner/toolchain-gated:
 
 | Gap | Why it cannot close in this environment | Owner action |
 |---|---|---|
-| Studio per-stem real-time engine | Needs a multi-engine refactor of 2,600-line Studio playback; clock/loop/gain today are correct | Approve the refactor as its own phase |
+| Studio per-stem real-time engine | Needs a multi-engine refactor of Studio playback; clock/loop/gain and a Real-time dialog exist | Approve the refactor as its own phase |
 | Neural chord/beat (ONNX) | No runtime/weights installed; inference contract needs upstream verification | Choose models, install runtime, provide weights |
-| Sidecar + signing/updater | Requires Rust build target and signing certificates; dynamic-port contract is done | Build on a release machine with certs |
-| Full i18n / RTL | Translation programme; no copied locales allowed | Commission translations |
-| Live-site companion e2e, listening panel, axe audit | Need a real browser profile, ears and assistive tech | Run the documented owner checks |
+| Signing/updater/clean-VM | Installers build with the bundled engine and launch without Python, but signing keys, an update endpoint and a clean VM are owner-held | Sign, host updates, test install/uninstall on a clean VM |
+| Full i18n / RTL | Shell/player/Import/Library/Restore/Separate/Prefs/MIDI-shell are catalogued; Studio and module bodies plus RTL/plurals remain | Commission translations |
+| Live-site companion e2e, listening panel, manual a11y | Need a real browser profile, ears, screen reader and contrast tooling (axe smoke already passes) | Run the documented owner checks |
 
 Everything else in `HANDOFF.md` §7 (Phases 0–4 and most of 5) has a measured
 receipt in `docs/evidence/`.

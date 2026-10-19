@@ -1795,3 +1795,12 @@ analysis timeline, companion source, docs truth pass; gate 18/18; addenda to
 | `037eb63` | MSI/NSIS installers with engine payload | MSI extraction receipt |
 | `27569a9` | Bundled-engine launch without Python on PATH | launch receipt |
 | `49a33f6` | Studio Real-time dialog | build |
+| `534a49d` | Preferences catalogue | i18n doc + SSR |
+| `273e8a7` | Shell Resume card | `mostRecentSong` test |
+| `8a90f98` | Analysis lane toggles | SSR |
+| `b2631f5` | About quick start / what's new | SSR |
+| `7517a10` | Exact-byte cache budget (gate "flake" root cause) | prefs test |
+| `f7370e1` | Deterministic low-disk clamp regression | prefs test |
+| `a875776` | Render job end-to-end over HTTP | API test |
+| `fa1849c` | MIDI Studio shell catalogue | SSR |
+| `6ea3cef` | Studio compact mode | build/typecheck |

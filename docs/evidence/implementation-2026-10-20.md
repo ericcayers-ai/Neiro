@@ -442,3 +442,10 @@ A Compact toggle in Studio collapses lane heights (2.25 rem; 4.5 rem with
 spectrogram) and persists in `neiro.studio.compact`. This is the compact part of
 T-67; "wide" remains an extension limitation and is not promised. No automated UI
 test (Studio needs a full session); build + typecheck cover it.
+
+## Forty-fourth batch: final documentation sync
+
+HANDOFF §14, the worklist closure assessment and AUDIT §13.6 now match the tree:
+278 Python tests, 39 player tests, 16 vitest tests, 47 addon checks, clean Rust
+toolchain, installers with the bundled engine, and the catalogued surfaces. The
+closure assessment separates what is done from the five owner/toolchain-gated gaps.

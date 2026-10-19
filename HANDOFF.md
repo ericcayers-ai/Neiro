@@ -544,11 +544,11 @@ ledger, parity matrix, port plan, verification receipt.
 
 ## 14. Implementation pass — 2026-10-20 (latest state)
 
-The brief was executed across 23 goal rounds. The gate
+The brief was executed across 39 goal rounds. The gate
 `python scripts/verify_goal.py --full` reports **23/23 PASS**; the Python suite is
-**276 passed / 3 skipped**; player Node tests **38**; vitest SSR tests **7**; addon
+**278 passed / 3 skipped**; player Node tests **39**; vitest tests **16**; addon
 validator **47/47**; `cargo fmt/clippy/check` pass; the frontend type-checks and
-builds. Receipts: `docs/evidence/{implementation,security,player-latency,a11y-static}-2026-10-20.md`.
+builds; MSI/NSIS installers build with the bundled engine. Receipts: `docs/evidence/{implementation,security,player-latency,a11y-static}-2026-10-20.md`.
 
 ### What changed
 
@@ -577,9 +577,13 @@ builds. Receipts: `docs/evidence/{implementation,security,player-latency,a11y-st
   verified standalone); MSI (56.0 MB) and NSIS (38.3 MB) installers build with the
   engine inside; extracted app launched with Python removed from PATH and opened the
   Neiro window.
-- **i18n/a11y:** shell/navigation catalogue with provider + fallback; player
-  catalogue; static accessibility audit clean (36 files, 0 findings); docs for i18n,
+- **i18n/a11y:** shell/navigation, player, Import, Library, Restore, Separate,
+  Preferences and MIDI-shell catalogues with provider/fallback; static accessibility
+  audit clean (36 files, 0 findings) plus an axe smoke on the player; docs for i18n,
   accessibility, packaging; third-party notices.
+- **Last batches:** shell Resume card; per-lane analysis toggles; Studio compact
+  mode; About quick start/what's-new; exact-byte cache budget (fixing the apparent
+  gate "flake"); HTTP end-to-end render test; MIDI shell strings.
 
 ### What is still not proven
 
