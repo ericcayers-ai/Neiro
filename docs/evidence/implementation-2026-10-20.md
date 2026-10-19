@@ -313,3 +313,11 @@ Studio gains a Real-time action that pauses its multi-track transport and opens 
 selected/first track in `PlayerSurface` (full RT controls, method label, tuner,
 render). It is an integration, not a per-stem engine: the studio clock and the
 player clock never run at once.
+
+## Twenty-seventh batch: acceptance sweep
+
+Refreshed HANDOFF §14 and AUDIT §13.6 so the execution entry point matches the
+current gate and commits. Verified in this sweep: gate 23/23; 276 Python tests;
+38 player Node tests; 7 vitest SSR tests; 47 addon checks; `cargo fmt/clippy/check`;
+installers and bundled-engine launch receipts; no `rb.wasm`; owner worktree changes
+still untouched. Remaining gaps are the owner/toolchain-gated list in the worklist.

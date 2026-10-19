@@ -542,51 +542,59 @@ ledger, parity matrix, port plan, verification receipt.
 
 ---
 
-## 14. Implementation pass — 2026-10-20
+## 14. Implementation pass — 2026-10-20 (latest state)
 
-This brief was executed. The gate `python scripts/verify_goal.py --full` reports
-**18/18 PASS**; the Python suite is 262 passed / 3 skipped; the player tests are 23
-passed; the addon validator is 46/46; the frontend type-checks and builds. Receipts:
-`docs/evidence/{implementation,security,player-latency}-2026-10-20.md`.
+The brief was executed across 23 goal rounds. The gate
+`python scripts/verify_goal.py --full` reports **23/23 PASS**; the Python suite is
+**276 passed / 3 skipped**; player Node tests **38**; vitest SSR tests **7**; addon
+validator **47/47**; `cargo fmt/clippy/check` pass; the frontend type-checks and
+builds. Receipts: `docs/evidence/{implementation,security,player-latency,a11y-static}-2026-10-20.md`.
 
 ### What changed
 
-- **Phase 0 is closed:** the `pitch_correct` fix is committed with its regression
-  test (`cf6c35b`); auto-enhance is an explicit no-op; session notes are a scalar
-  with a 5,000-character cap; `verify_models` is interpreter-safe; the API has a
-  token, loopback Host, Origin allowlist, strict JSON content type, body/upload
-  caps, plugin/tool consent, SSRF policy and companion pairing. Ruff is green.
-- **Phase 1 is implemented:** one shared player (`frontend/src/player/`) with a
-  clean-room phase-vocoder stretcher, resample pitch, cepstral formant warp, 6-band
-  EQ, vocal reducer, A–B/count-in/metronome/wait, markers/clips/ramp and a surface
-  that labels the actual method. MIDI Practice uses it; Studio transport migration
-  is the one remaining P1 item.
-- **Phase 2 is partial:** SQLite library, API and Library UI exist (notes, markers,
-  clips, scenes, playlists, versions, export). MIDI learn, quota enforcement and
-  automatic marker promotion remain.
-- **Phase 3 is honest:** heuristic chord timeline + beat grid with confidence and
-  no-result states, rendered as lanes. No neural chord/beat model was installed.
-- **Phase 4 source exists:** optional MV3 companion (tab capture, adapters,
-  pairing, queued upload) with a static validator and worklet tests. Live-site e2e
-  is owner-run.
-- **Phase 5 is partial:** English string catalogue for new player strings; a11y
-  baseline and plan; packaging unchanged.
-- **Docs:** README/SECURITY/session/performance/traceability corrected; new player,
-  library, companion and accessibility docs; notices; audit §13.
+- **Phase 0 closed:** `pitch_correct` fix committed with a regression test; explicit
+  auto-enhance no-op; scalar notes (5,000 cap, legacy migration); interpreter-safe
+  `verify_models`; token/Host/Origin/JSON-type/body/upload/consent/SSRF/pairing
+  security; CORS allowlist; disk-aware cache budget; CORS/CSRF probes tested.
+- **Shared player:** clean-room phase-vocoder stretcher, resample pitch, cepstral
+  formant warp, 6-band EQ, vocal reducer; A–B, count-in, metronome, wait gate,
+  markers, clips, ramp, scenes; MIDI learn (note/CC) and remappable keyboard
+  shortcuts; analysis overlay; sounding-A4 + tuner readout; compact mode; queued
+  `render` of the current settings; honest method labels.
+- **Practice:** runs on the player (no whole-file `<audio>`, no offline stretch, no
+  dead count-in/false “pitch-preserving” claim).
+- **Library:** SQLite songs/notes/markers/clips/scenes/playlists/versions; player →
+  library marker/clip import; per-song player settings; resume/reset; local export;
+  confirm-gated removal of cached model weights.
+- **Analysis:** beat-synchronous chord timeline + onset-flux beat grid with
+  confidence/no-result states and lanes in Analysis, the player and Studio. Still
+  heuristic; no neural chord/beat model was installed.
+- **Companion:** optional MV3 addon with loopback-only host permission, panel-side
+  `tabCapture` request, engine health probe, site adapters, pairing and queued
+  upload; 47 static checks + 5 worklet tests. Live-site e2e is owner-run.
+- **Packaging:** `neiro ui --port 0 --port-file`; Tauri reserves a port, navigates
+  after health, prefers a bundled engine; model-free PyInstaller sidecar (11 MB,
+  verified standalone); MSI (56.0 MB) and NSIS (38.3 MB) installers build with the
+  engine inside; extracted app launched with Python removed from PATH and opened the
+  Neiro window.
+- **i18n/a11y:** shell/navigation catalogue with provider + fallback; player
+  catalogue; static accessibility audit clean (36 files, 0 findings); docs for i18n,
+  accessibility, packaging; third-party notices.
 
 ### What is still not proven
 
-Browser control-to-audio latency, listening quality, live-site capture, capture
-revocation, Rust build/clippy, signed installer/updater, WCAG/axe, neural analysis,
-and any "standalone without Python" claim.
+Browser control-to-audio latency; listening/ABX quality; live-site capture and
+revocation; **clean-VM** install (WebView2 preinstalled here); signed installers,
+updater and uninstall; WCAG/axe and screen-reader passes; any neural chord/beat
+model; a unified **per-stem** Studio engine; full i18n/RTL.
 
 ### Next actions (ordered)
 
-1. Migrate the Studio transport to `PlayerEngine` (P1-6), keeping stem Mix/A–B.
-2. Add MIDI learn/mapping persistence (P2-5) and promote player markers/clips into
-   the library (P2-7).
-3. Optional ONNX chord/beat adapters with manifest + no-result states (P3-3), then
-   the player timeline overlay (P3-5).
-4. Owner-run companion live-site check; then packaging (sidecar, dynamic port,
-   signing).
-5. Rust `cargo check`/clippy and a disk preflight before any model install.
+1. Studio per-stem engine unification (a Real-time dialog already opens a track in
+   the shared player and pauses the studio clock).
+2. Neural ONNX chord/beat adapters with verified contracts, weights and no-result
+   states.
+3. Signing/notarisation, updater keys, clean-VM install and uninstall verification.
+4. Extract module-body strings into the i18n catalogue; RTL/plural support;
+   owner-run axe/screen-reader/contrast.
+5. Companion live-site e2e and a listening panel.

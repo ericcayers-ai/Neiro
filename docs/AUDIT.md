@@ -1766,3 +1766,32 @@ The matrix above is the audit-time baseline. Post-pass status:
 2026-10-20 (later) — implementation pass: Phase 0 closed, shared player, library,
 analysis timeline, companion source, docs truth pass; gate 18/18; addenda to
 `HANDOFF.md` §14 and this section.
+
+### 13.6 Batches after the first pass
+
+| Commit | Delivered | Receipt |
+|---|---|---|
+| `636c23b` | MIDI learn, scenes, analysis overlay, A4 readout, marker nav, low-latency mode | player tests |
+| `34e1c81` | Library resume/reset, last-played, local data reset | library tests |
+| `3e52dea` | Disk-aware cache budget (gate C19) | `test_disk_preflight.py` |
+| `ebd7108` | Portable session export | contract test |
+| `c9e0519` | Player→library promotion, seek controls, catalogue | player tests |
+| `09be975` | Remappable player shortcuts | player tests |
+| `5fc298a` | Dynamic port contract (Python) | `test_dynamic_port.py` |
+| `6b6c369` | Studio target/backing focus | player tests |
+| `caccace` | Vitest SSR player tests (gate C22) | vitest |
+| `6bd187e` | Preview tuner (autocorrelation) | player tests |
+| `226955d` | Shell i18n scaffold | `docs/i18n.md` |
+| `175dbe1` | Library versions UI | library tests |
+| `615c389` | Per-song player settings | library + SSR tests |
+| `0c1d9a0` | Companion loopback host permission + engine health | addon validator |
+| `2d780d6` | Queued `render` of preview settings | contract test |
+| `e5c8451` | Studio chord lane | `chordLane` test |
+| `2399d4e` | Model weight removal (scoped) | preflight tests |
+| `41ed39d` | Compact player mode + closure assessment | SSR test |
+| `a8aabb3` | Tauri dynamic port (gate C23) | cargo fmt/clippy/check |
+| `bfc96a3` | Standalone PyInstaller sidecar | manual health receipt |
+| `f7d60e5` | `tauri build --no-bundle` release exe | build receipt |
+| `037eb63` | MSI/NSIS installers with engine payload | MSI extraction receipt |
+| `27569a9` | Bundled-engine launch without Python on PATH | launch receipt |
+| `49a33f6` | Studio Real-time dialog | build |
