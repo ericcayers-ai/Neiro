@@ -328,3 +328,10 @@ Library strings (songs, notes, markers, clips, versions, reset/import messages)
 now resolve through the shell catalogue with interpolation; the component imports
 `useT`. A completeness assertion checks representative `library.*` keys. Remaining
 i18n work is Studio/Restore/Separate/MIDI/Prefs bodies plus RTL/plurals.
+
+## Twenty-ninth batch: axe smoke on the player
+
+Added `jsdom` + `axe-core` dev dependencies and `PlayerSurface.axe.test.tsx`
+(jsdom environment): server-render → mount → axe. Latest: **8 vitest tests, 0
+serious/critical violations**. Contrast/target-size rules are not evaluable in
+jsdom and remain owner-run.

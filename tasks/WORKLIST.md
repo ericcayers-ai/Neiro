@@ -108,9 +108,9 @@ Gate: `python scripts/verify_goal.py --full` — **18/18 PASS** on 2026-10-20.
   `src/i18n/` (`I18nProvider`, `useT`, en catalogue, fallback, persistence) and
   player strings through `player/i18n.ts`; Studio/Restore/Separate/MIDI/Prefs
   bodies remain English JSX. No copied locales.
-- [~] **P5-2 Accessibility.** Baseline labels/live regions/keyboard + a clean
-  static audit (`scripts/a11y_static.py`, gate C21). Axe, screen-reader and
-  colour-contrast passes remain owner-run.
+- [~] **P5-2 Accessibility.** Clean static audit (gate C21) and an axe smoke on the
+  player (0 serious/critical in jsdom; contrast/target size not evaluable there).
+  Screen-reader and colour-contrast passes remain owner-run.
 - [~] **P5-3 Dynamic port + bundled sidecar/signing.** Dynamic port end-to-end;
   the model-free sidecar builds and runs standalone (`scripts/build_sidecar.py`,
   verified health), and the shell prefers a bundled engine before system Python.

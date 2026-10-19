@@ -1724,7 +1724,7 @@ below has a receipt in `docs/evidence/` and a criterion in `GOAL.md`.
 | F-43 i18n | partial | New player strings use a catalogue; app-wide i18n/RTL/plurals absent |
 | F-45 CLAP/VST3 | open | Still a stub; VST2 remains the bridge |
 | F-46/F-47 licences and sandbox | open | No legal review; grant map is still not a sandbox |
-| F-48 accessibility audit | **partial** | Clean static audit (34 files, 0 findings, gate C21); axe/screen-reader/contrast still owner-run |
+| F-48 accessibility audit | **partial** | Clean static audit (gate C21) + axe smoke on the player (0 serious/critical in jsdom); screen-reader/contrast still owner-run |
 
 ### 13.3 Parity matrix movement (selected)
 

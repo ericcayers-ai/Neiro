@@ -51,6 +51,14 @@ This is deliberately narrow. It cannot judge label association, contrast, focus
 order, announcements or screen-reader output; those still need the owner-run pass
 below.
 
+## Axe smoke (implemented)
+
+`frontend/src/player/tests/PlayerSurface.axe.test.tsx` renders the player surface
+through `react-dom/server`, mounts it in jsdom, and runs **axe-core**. The test
+fails on any `serious`/`critical` violation. Latest run: **0 serious/critical**
+(1 test). Layout-dependent rules (colour contrast, target size) cannot run in
+jsdom and are explicitly out of scope; the manual pass below covers them.
+
 ## How to verify (owner-run)
 
 1. Keyboard-only pass: import → play → transpose → set A/B → loop → add marker →
