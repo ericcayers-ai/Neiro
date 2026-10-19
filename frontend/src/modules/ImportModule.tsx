@@ -4,9 +4,11 @@ import { JobProgress } from '../components/JobProgress'
 import { IntentField } from '../components/IntentField'
 import { ModuleHeader } from '../components/ModuleHeader'
 import { useSession } from '../state/session'
+import { useT } from '../i18n'
 import './modules.css'
 
 export function ImportModule() {
+  const t = useT()
   const {
     setFile,
     setModule,
@@ -107,28 +109,28 @@ export function ImportModule() {
         report('decode', 0.6, 'Decode complete')
         report('analyze', 0.9, 'Analysis ready')
         await accept(data)
-        report('done', 1, `${data.name} loaded`)
+        report('done', 1, t('import.loaded', { name: data.name }))
       },
     })
     if (!result.ok) {
-      setMsg(`Couldn't fetch URL: ${result.error}`)
+      setMsg(t('import.urlFailed', { error: result.error }))
     }
   }
 
   return (
     <div className="module-panel module-enter">
       <ModuleHeader
-        title="Import"
-        lede="Open local files (multi-select for mashup packs) or fetch a URL."
+        title={t('import.title')}
+        lede={t('import.lede')}
         actions={
           <button
             type="button"
             className="primary"
             disabled={busy}
             onClick={() => inputRef.current?.click()}
-            title="Open files from disk"
+            title={t('import.browseTitle')}
           >
-            Browse
+            {t('import.browse')}
           </button>
         }
       />
@@ -137,7 +139,7 @@ export function ImportModule() {
         className={`dropzone${over ? ' over' : ''}`}
         role="button"
         tabIndex={0}
-        aria-label="Choose audio files"
+        aria-label={t('import.chooseAria')}
         onClick={() => inputRef.current?.click()}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
@@ -156,9 +158,9 @@ export function ImportModule() {
           if (e.dataTransfer.files?.length) void onFiles(e.dataTransfer.files)
         }}
       >
-        <div className="drop-title">{busy ? 'Working…' : 'Drop audio here'}</div>
+        <div className="drop-title">{busy ? t('import.working') : t('import.drop')}</div>
         <div className="intent" style={{ marginTop: '0.55rem' }}>
-          Multi-select for batch Separate → mashup packs. WAV/FLAC/OGG; MP3/M4A via ffmpeg.
+          {t('import.dropHint')}
         </div>
         <input
           ref={inputRef}
@@ -175,17 +177,17 @@ export function ImportModule() {
 
       {importQueue.length > 0 && (
         <div className="option-detail" style={{ marginTop: '1rem' }} role="status">
-          <div className="option-detail-title">Import queue ({importQueue.length})</div>
+          <div className="option-detail-title">{t('import.queue', { count: importQueue.length })}</div>
           <ul className="sep-stem-badges">
             {importQueue.map((f) => (
               <li key={f.fileId}>
                 <button
                   type="button"
                   className="stem-badge"
-                  title="Set as active file"
+                  title={t('import.setActive')}
                   onClick={() => {
                     setFile(f)
-                    setMsg(`${f.name} active`)
+                    setMsg(t('import.active', { name: f.name }))
                   }}
                 >
                   {f.name}
@@ -193,7 +195,7 @@ export function ImportModule() {
                 <button
                   type="button"
                   className="ghost"
-                  aria-label={`Remove ${f.name}`}
+                  aria-label={t('import.remove', { name: f.name })}
                   onClick={() => removeFromImportQueue(f.fileId)}
                 >
                   ×
@@ -203,10 +205,10 @@ export function ImportModule() {
           </ul>
           <div className="row" style={{ marginTop: '0.5rem', gap: '0.5rem' }}>
             <button type="button" onClick={() => setModule('separate')}>
-              Go to Separate
+              {t('import.goSeparate')}
             </button>
             <button type="button" className="ghost" onClick={() => clearImportQueue()}>
-              Clear queue
+              {t('import.clearQueue')}
             </button>
           </div>
         </div>
@@ -214,8 +216,8 @@ export function ImportModule() {
 
       <div className="row" style={{ marginTop: '1.25rem' }}>
         <IntentField
-          label="URL"
-          intent="Needs yt-dlp. Cached under the local Neiro home directory."
+          label={t('import.urlLabel')}
+          intent={t('import.urlIntent')}
           htmlFor="import-url"
         >
           <div className="row">
@@ -224,7 +226,7 @@ export function ImportModule() {
               type="url"
               value={url}
               disabled={busy}
-              placeholder="https://…"
+              placeholder={t('import.urlPlaceholder')}
               style={{ flex: 1, minWidth: '12rem' }}
               onChange={(e) => setUrl(e.target.value)}
               onKeyDown={(e) => {
@@ -235,7 +237,7 @@ export function ImportModule() {
               }}
             />
             <button type="button" disabled={busy || !url.trim()} onClick={() => void onFetch()}>
-              Fetch URL
+              {t('import.fetch')}
             </button>
           </div>
         </IntentField>

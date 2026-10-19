@@ -351,3 +351,9 @@ GATE PASS — 23/23 criteria (each run)
 This supersedes the earlier single-run stability caveat; the two mid-session
 22/23 observations coincided with concurrent builds and were not reproducible in
 isolation or in these three runs.
+
+## Thirty-first batch: Import module catalogue
+
+Import strings (browse, dropzone, queue, URL fetch, messages) resolve through the
+shell catalogue with interpolation. Catalogued surfaces are now shell, player,
+Import and Library; Studio/Restore/Separate/MIDI/Prefs remain JSX.
