@@ -55,7 +55,9 @@ Gate: `python scripts/verify_goal.py --full` — **18/18 PASS** on 2026-10-20.
   remapping (custom shortcuts) is still not implemented.
 - [~] **P2-6 Byte-bounded cache + disk preflight.** Upload preflight and 507 exist;
   playlist/library quota and artifact-cache byte enforcement remain.
-- [ ] **P2-7 Promote player markers/clips into the library automatically.**
+- [x] **P2-7 Library resume/reset and per-song last-played.** Resume last, reset with
+  confirmation, mark played on open; localStorage player reset lives in Prefs.
+- [ ] **P2-8 Promote player markers/clips into the library automatically.**
 
 ## Phase 3 — real analysis
 

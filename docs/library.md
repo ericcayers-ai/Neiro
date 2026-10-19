@@ -47,15 +47,19 @@ All mutations require `X-Neiro-Token`. JSON only (`application/json`).
 | `/api/library/scenes` | `GET`, `POST`; `/api/library/scenes/<id>` `DELETE` |
 | `/api/library/playlists` | `GET`, `POST {name}`; `/api/library/playlists/<id>/items` `POST {song_id}` |
 | `/api/library/songs/<id>/versions` | `POST {label,session_path}` |
+| `/api/library/songs/<id>/played` | `POST` mark last-played (Resume last) |
+| `/api/library/reset` | `POST {confirm:true}` remove all songs (audio files kept) |
 | `/api/library/export` | `GET` local JSON backup |
 | `/api/library/audio/<id>` | `GET` streams the stored local file (only the DB path) |
 
 ## UI
 
 `frontend/src/modules/LibraryModule.tsx` (rail key `0`): add the current file, list
-songs, edit notes with a live 5,000-character counter, add markers/clips, add to
-Favorites, play through the shared `PlayerSurface`, remove from the library, and
-export JSON.
+songs, resume the last-played song, edit notes with a live 5,000-character counter,
+add markers/clips, add to Favorites, play through the shared `PlayerSurface`,
+remove from the library, export JSON, and reset the library (with confirmation;
+audio files are never deleted). Player-level data reset lives in
+Prefs → Data and reset.
 
 ## Limits and honest gaps
 

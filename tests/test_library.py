@@ -211,6 +211,40 @@ def test_api_notes_markers_clips(server):
     assert status == 200 and deleted["ok"] is True
 
 
+def test_api_library_reset_requires_confirm_and_clears_songs(server):
+    base, _ = server
+    token = _token(base)
+    _, payload = _request(
+        base, "/api/library/songs", method="POST", body={"title": "Temp"}, token=token
+    )
+    assert payload["song"]["id"]
+    status, _ = _request(
+        base, "/api/library/reset", method="POST", body={"confirm": False}, token=token
+    )
+    assert status == 400
+    status, payload = _request(
+        base, "/api/library/reset", method="POST", body={"confirm": True}, token=token
+    )
+    assert status == 200 and payload["removed_songs"] == 1
+    _, listing = _request(base, "/api/library/songs", token=token)
+    assert listing["songs"] == []
+
+
+def test_api_marks_song_played(server):
+    base, _ = server
+    token = _token(base)
+    _, payload = _request(
+        base, "/api/library/songs", method="POST", body={"title": "Played"}, token=token
+    )
+    song_id = payload["song"]["id"]
+    status, _ = _request(
+        base, f"/api/library/songs/{song_id}/played", method="POST", body={}, token=token
+    )
+    assert status == 200
+    _, detail = _request(base, f"/api/library/songs/{song_id}", token=token)
+    assert detail["song"]["last_played"]
+
+
 def test_api_library_requires_token(server):
     base, _ = server
     code, body = _request(base, "/api/library/songs", method="POST", body={"title": "x"})

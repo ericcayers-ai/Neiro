@@ -102,6 +102,9 @@ def handle_library(
                         settings=body.get("settings"),
                     )
                     return 200, {"ok": True, "clip": clip}
+            if len(rest) == 2 and rest[1] == "played" and method == "POST":
+                store.touch_song(song_id)
+                return 200, {"ok": True, "song_id": song_id}
             if len(rest) == 2 and rest[1] == "versions" and method == "POST":
                 version = store.add_version(
                     song_id,
@@ -140,6 +143,15 @@ def handle_library(
                 }
             if method == "POST" and len(rest) == 2 and rest[1] == "items":
                 return 200, store.add_to_playlist(rest[0], str(body.get("song_id") or ""))
+        if resource == "reset" and method == "POST":
+            if body.get("confirm") is not True:
+                return 400, {"error": "library reset requires {'confirm': true}"}
+            with store._connect() as conn:
+                songs = conn.execute("SELECT COUNT(*) FROM songs").fetchone()[0]
+                conn.execute("DELETE FROM songs")
+                conn.execute("DELETE FROM playlist_items")
+                conn.execute("DELETE FROM scenes")
+            return 200, {"ok": True, "removed_songs": songs}
         if resource == "export" and method == "GET":
             return 200, {
                 "version": 1,

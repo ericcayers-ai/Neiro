@@ -291,6 +291,7 @@ export interface LibrarySong {
   notes: string
   created: number
   updated: number
+  last_played?: number | null
   markers?: LibraryMarker[]
   clips?: LibraryClip[]
   versions?: { id: string; label: string; created: number }[]

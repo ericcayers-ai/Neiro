@@ -10,6 +10,8 @@ import {
   libraryAudioUrl,
   listLibraryPlaylists,
   listLibrarySongs,
+  markSongPlayed,
+  resetLibrary,
   saveLibraryNotes,
 } from '../api/client'
 import type { LibraryPlaylist, LibrarySong } from '../api/types'
@@ -49,6 +51,7 @@ export function LibraryModule() {
   const openSong = async (song: LibrarySong) => {
     setSelected(song)
     setNotes(song.notes || '')
+    void markSongPlayed(song.id).catch(() => undefined)
     try {
       const detail = await getLibrarySong(song.id)
       setSelected(detail.song)
@@ -146,9 +149,40 @@ export function LibraryModule() {
             <button type="button" className="primary" onClick={() => void addCurrent()} disabled={busy || !file}>
               Add current file
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                const last = [...songs].sort(
+                  (a, b) => (b.last_played ?? b.updated) - (a.last_played ?? a.updated),
+                )[0]
+                if (last) void openSong(last)
+              }}
+              disabled={!songs.length}
+            >
+              Resume last
+            </button>
             <a className="btn-link" href="/api/library/export" download="neiro-library.json">
               Export JSON
             </a>
+            <button
+              type="button"
+              onClick={() => {
+                if (!window.confirm('Remove every song from the library? Audio files stay on disk.')) return
+                void (async () => {
+                  try {
+                    const result = await resetLibrary()
+                    setSelected(null)
+                    setNotes('')
+                    await refresh()
+                    setMessage(`Library reset (${result.removed_songs} songs removed).`)
+                  } catch (err) {
+                    setMessage(err instanceof Error ? err.message : String(err))
+                  }
+                })()
+              }}
+            >
+              Reset library
+            </button>
           </>
         }
       />

@@ -92,3 +92,10 @@ After the first gate pass: MIDI learn/mapping (note/CC, 11 actions, persistence)
 player scenes, chord/beat overlay in the player, sounding-A4 readout, previous/next
 marker transport, and an honest low-latency mode (formant off, labelled). Player
 tests grew to 26; the gate was re-run and remains **18/18 PASS**.
+
+## Third batch: library lifecycle and reset
+
+Library gains per-song last-played (`POST .../played`), a confirm-gated
+`POST /api/library/reset` that removes songs but never audio files, a Resume-last
+action, and a Prefs "Data and reset" card for player/MIDI local state. Library tests
+grew to 10; the gate remains **18/18 PASS**.

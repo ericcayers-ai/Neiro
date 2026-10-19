@@ -1741,7 +1741,7 @@ The matrix above is the audit-time baseline. Post-pass status:
 | T-21 | P | **P** | Stem Mix unchanged; player reducer is preview |
 | T-29, T-30 | P | **P (honest)** | Real timestamped heuristic + confidence, not transformer |
 | T-31, T-32, T-33 | P | **partial/N** | Sections labelled heuristic; lanes shown in Analysis and the player; model install states unchanged |
-| T-40–T-47 | P/M | **N/partial** | Library, notes, markers, clips; no recents/resume card/version UI |
+| T-40–T-47 | P/M | **N/partial** | Library, notes, markers, clips, resume/reset; versions API without UI |
 | T-49 | P | **N** | Local JSON export |
 | T-53–T-57, T-59 | M | **Addon source** | Adapters + capture + panel; live e2e owner-run |
 | T-63 | M | **partial** | Catalogue for player strings only |

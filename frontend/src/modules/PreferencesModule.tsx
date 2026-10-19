@@ -17,6 +17,7 @@ import { useLocalPref } from '../api/hooks'
 import { IntentField } from '../components/IntentField'
 import { ModuleHeader } from '../components/ModuleHeader'
 import { CompanionCard } from './CompanionCard'
+import { DataResetCard } from './DataResetCard'
 import './modules.css'
 
 const PACK_LABELS: Record<string, string> = {
@@ -558,6 +559,8 @@ export function PreferencesModule() {
       </p>
 
       <CompanionCard />
+
+      <DataResetCard />
 
       <h3>Privacy</h3>
       <p className="muted">
