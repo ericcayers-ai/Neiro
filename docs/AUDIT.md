@@ -963,7 +963,7 @@ player, **Q** queued Neiro engine, **RT+Q** hybrid, **Addon** extension surface,
 |---|---|---|---|---|---|---|
 | T-01 | Real-time transpose ±12 / extended ±36 | Offline `pitch_shift` only; no player control; no extended-range UI | P | Shared Neiro Player | RT+Q | P1 |
 | T-02 | Fine pitch in cents/Hz | None | M | Player pitch control | RT | P1 |
-| T-03 | Speed 25-400%, independent of pitch | Practice 25-200%; whole-file `/api/edit`; 6.91 s for 4 s | P | Player speed; async render for export | RT+Q | P1 |
+| T-03 | Speed 25-400%, independent of pitch | Practice 25-200%; whole-file `/api/edit`; 6.91 s for 4 s | P | Player speed 25-400% + queued render of current settings | RT+Q | P1 |
 | T-04 | Formant 0.2-2.0 | None | M | Player formant | RT | P1 |
 | T-05 | Varispeed link | None; browser `playbackRate` is only a failure fallback | M | Player varispeed toggle | RT | P2 |
 | T-06 | Vocal reducer (current/legacy/hybrid, center/range) | Offline karaoke separation; no live reducer | M | Player reducer; optional Q karaoke | RT+Q | P1 |

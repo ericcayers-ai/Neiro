@@ -289,3 +289,18 @@ def test_session_export_returns_the_document(server, monkeypatch, tmp_path):
     with pytest.raises(urllib.error.HTTPError) as exc:
         urllib.request.urlopen(base + "/api/session/export?name=missing")
     assert exc.value.code == 404
+
+
+def test_render_job_applies_speed_and_pitch(tmp_path):
+    state = _State()
+    fid = state.register_path(_tone(tmp_path / "tone.wav", seconds=0.5))
+    job_id = start_edit_job(state, fid, {"op": "render", "rate": 0.5, "semitones": 12})
+    job = _wait(state, job_id)
+    assert job["status"] == "done", job
+    result = job["result"]
+    assert result["file_id"] in state.files
+    # rate is a duration scale: 0.5 on a 0.5 s source -> ~0.25 s (speed 2x).
+    assert 0.2 < result["duration"] < 0.4
+    assert "render(" in str(result["provenance"])
+    rendered = state.load(result["file_id"])
+    assert 0.2 < rendered.duration_seconds < 0.4

@@ -71,6 +71,7 @@ describe('PlayerSurface markup', () => {
   it('renders A-B, markers, clips, scenes, MIDI and shortcut surfaces', () => {
     const html = render()
     expect(html).toMatch(/A.B loop/)
+    expect(html).toContain('Render with Neiro')
     expect(html).toContain('Set A')
     expect(html).toContain('Markers')
     expect(html).toContain('Clips')

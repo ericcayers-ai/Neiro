@@ -435,7 +435,7 @@ export async function timeStretchFile(fileId: string, rate: number): Promise<Edi
  */
 export async function startEditJob(body: {
   file_id: string
-  op: 'time_stretch' | 'pitch_shift' | 'pitch_correct'
+  op: 'time_stretch' | 'pitch_shift' | 'pitch_correct' | 'render'
   rate?: number
   semitones?: number
   key?: string

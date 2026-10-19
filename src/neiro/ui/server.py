@@ -591,7 +591,7 @@ def _run_pitch_correct(
             state.job_contexts.pop(job_id, None)
 
 
-EDIT_JOB_OPS = ("time_stretch", "pitch_shift", "pitch_correct")
+EDIT_JOB_OPS = ("time_stretch", "pitch_shift", "pitch_correct", "render")
 EDIT_CACHE_ENTRIES = 32
 
 
@@ -632,6 +632,16 @@ def start_edit_job(state: _State, file_id: str, body: dict) -> str:
         params = {"semitones": float(semis)}
         if not (-36.0 <= params["semitones"] <= 36.0):
             raise ValueError("semitones must be within -36..36")
+    elif op == "render":
+        # One queued render of the player's current preview settings:
+        # rate is a duration scale (1/speed), semitones includes fine cents.
+        rate = body.get("rate", 1.0)
+        semis = body.get("semitones", 0.0)
+        params = {"rate": float(rate), "semitones": float(semis)}
+        if not (0.25 <= params["rate"] <= 4.0):
+            raise ValueError("render rate must be within 0.25..4")
+        if not (-36.0 <= params["semitones"] <= 36.0):
+            raise ValueError("render semitones must be within -36..36")
     else:
         key = body.get("key")
         params = {"key": str(key) if key else None, "strength": float(body.get("strength", 1.0))}
@@ -690,6 +700,15 @@ def start_edit_job(state: _State, file_id: str, body: dict) -> str:
             elif op == "pitch_shift":
                 result = ed.pitch_shift(audio, params["semitones"])
                 suffix = ".pitch.wav"
+            elif op == "render":
+                result = ed.time_stretch(audio, params["rate"])
+                if abs(params["semitones"]) > 1e-6:
+                    result = ed.pitch_shift(result, params["semitones"])
+                inner = getattr(result, "provenance", None) or "engine"
+                result = result.with_provenance(
+                    f"render(rate={params['rate']:.3f},pitch={params['semitones']:+.2f};{inner})"
+                )
+                suffix = ".render.wav"
             else:
                 result = ed.pitch_correct(
                     audio,

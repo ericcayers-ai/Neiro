@@ -249,3 +249,14 @@
 .player-midi .player-list {
   max-height: 230px;
 }
+
+
+.player-render {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--muted, #98a2b3);
+}
+
+.player-render a {
+  color: var(--accent, #8fd3ff);
+}

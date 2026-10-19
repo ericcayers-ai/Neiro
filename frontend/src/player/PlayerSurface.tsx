@@ -35,6 +35,7 @@ import type { PitchReading } from './pitch'
 import { addScene, applyScene, loadScenes, makeScene, persistScenes, removeScene, type SceneSnapshot } from './scenes'
 import type { MidiAction } from './midi'
 import type { AnalysisReport } from '../api/types'
+import { getJob, startEditJob } from '../api/client'
 import { t } from './i18n'
 import './player.css'
 
@@ -119,6 +120,10 @@ export function PlayerSurface({
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [detected, setDetected] = useState<PitchReading | null>(null)
+  const [rendering, setRendering] = useState(false)
+  const [renderUrl, setRenderUrl] = useState<string | null>(null)
+  const [renderNote, setRenderNote] = useState('')
+  const [renderError, setRenderError] = useState('')
   const [ready, setReady] = useState(false)
   const [durationState, setDurationState] = useState(duration ?? 0)
   const [loopA, setLoopA] = useState<number | null>(null)
@@ -486,6 +491,52 @@ export function PlayerSurface({
   )
   actionRef.current = onMidiAction
 
+  const renderWithNeiro = async () => {
+    setRendering(true)
+    setRenderError('')
+    setRenderUrl(null)
+    setRenderNote(t('player.rendering'))
+    try {
+      const rate = 1 / params.speed
+      const semitones = params.transpose + params.pitchCents / 100
+      const { job_id } = await startEditJob({
+        file_id: fileId,
+        op: 'render',
+        rate,
+        semitones,
+      })
+      for (let attempt = 0; attempt < 1200; attempt += 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, 500))
+        const job = await getJob(job_id)
+        if (job.status === 'done') {
+          const result = job.result as
+            | { audio_url?: string; provenance?: string | string[] | null }
+            | undefined
+          setRenderUrl(result?.audio_url ?? null)
+          setRenderNote(
+            t('player.renderReady', {
+              method: String(result?.provenance ?? 'neiro-engine'),
+            }),
+          )
+          return
+        }
+        if (job.status === 'error' || job.status === 'cancelled') {
+          throw new Error(job.error || job.status)
+        }
+      }
+      throw new Error('render timed out')
+    } catch (error) {
+      setRenderError(
+        t('player.renderFailed', {
+          error: error instanceof Error ? error.message : String(error),
+        }),
+      )
+      setRenderNote('')
+    } finally {
+      setRendering(false)
+    }
+  }
+
   const addMarkerAtPlayhead = () => setMarkers((current) => addMarker(current, position))
   const jumpToMarker = (marker: Marker) => {
     engineRef.current?.seek(marker.time)
@@ -833,7 +884,29 @@ export function PlayerSurface({
         <button type="button" onClick={() => update({ bypass: !params.bypass })} className={params.bypass ? 'active' : ''}>
           Bypass DSP
         </button>
+        <button
+          type="button"
+          onClick={() => void renderWithNeiro()}
+          disabled={rendering || !ready}
+          title={t('player.renderHint')}
+        >
+          {rendering ? t('player.rendering') : t('player.render')}
+        </button>
       </div>
+
+      {(renderNote || renderError || renderUrl) && (
+        <p className="player-render" role="status" aria-live="polite">
+          {renderError || renderNote}
+          {renderUrl && (
+            <>
+              {' '}
+              <a href={renderUrl} download>
+                {t('player.download')}
+              </a>
+            </>
+          )}
+        </p>
+      )}
 
       <PlayerMidiPanel onAction={onMidiAction} />
 

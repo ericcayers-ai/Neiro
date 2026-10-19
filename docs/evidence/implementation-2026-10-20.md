@@ -198,3 +198,11 @@ The addon declared no install-time host access, so its cross-origin calls to
 (`127.0.0.1`, `localhost`), requests `tabCapture` from the panel on the user's
 click, and offers a "Check Neiro engine" health probe. The validator rejects
 wildcard install access and checks the loopback policy (47 checks).
+
+## Seventeenth batch: render preview settings (Q)
+
+`/api/edit/job` gains a `render` op that applies the player's current speed (as a
+duration scale) and pitch (semitones + cents) in one queued job, with combined
+provenance. The player exposes "Render with Neiro", polls the job, and offers the
+rendered WAV for download. Contract test checks duration and provenance; SSR test
+checks the control is present.

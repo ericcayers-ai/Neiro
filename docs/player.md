@@ -69,6 +69,10 @@ gone — the worklet owns click generation and the count-in).
 - **Keyboard shortcuts** (`shortcuts.ts` + `PlayerShortcutPanel`): nine player
   actions, exact modifier matching, conflict displacement with a message, reset to
   defaults, persisted locally. Home/End and wait-gate Space/Enter stay fixed.
+- **Render with Neiro (Q):** queues one engine job that applies the current speed
+  and pitch to the file (`/api/edit/job`, op `render`), polls it, and offers the
+  rendered WAV with its provenance. This is the bridge between the preview and the
+  rendered path; it never pretends the preview is the final quality.
 - **Tuner preview** (`pitch.ts`): while playing, a 60 ms window of the decoded
   source is autocorrelated every 300 ms and shown as note + cents ("heard A4 +2¢").
   It is monophonic-biased and labelled a preview; silence/noise returns no reading.

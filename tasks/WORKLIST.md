@@ -42,7 +42,9 @@ Gate: `python scripts/verify_goal.py --full` — **18/18 PASS** on 2026-10-20.
 - [~] **P1-6 Studio transport migration.** Studio still owns its timeline `<audio>`
   for stem playback; Mix gain/pan and A–B are unchanged. Remaining: route Studio
   transport through `PlayerEngine`.
-- [x] **P1-7 Tests + latency receipt.** 23 Node tests; `docs/evidence/player-latency-2026-10-20.md`.
+- [x] **P1-7 Tests + latency receipt.** 37 Node tests; `docs/evidence/player-latency-2026-10-20.md`.
+- [x] **P1-8 Render preview settings (Q).** `render` edit job applies speed+pitch and
+  returns a downloadable WAV with provenance; contract test covers duration.
 
 ## Phase 2 — practice and library
 
