@@ -1020,7 +1020,7 @@ player, **Q** queued Neiro engine, **RT+Q** hybrid, **Addon** extension surface,
 | T-47 | Storage quotas/eviction/recent-save errors | Entry-bounded artifact cache; 20 GB budget > disk; no library quota | P | Byte budget, preflight, eviction, clear errors | Q | P1 |
 | T-48 | Session save/open | Native UI/CLI/API; docs stale | N | Keep; add notes/migration | Q | P3 |
 | T-49 | Session share/export | Session JSON; no share link | P | Local `.neiro.json` export; optional peer share | Q | P2 |
-| T-50 | Resume card | None | M | Library recent/resume | Q | P3 |
+| T-50 | Resume card | None | M | Shell Resume card + Library recent/resume | Q | P3 |
 | T-51 | Cloud-saved versions/account sync | None (deliberate) | N/A | Do not port; local export/backup | N/A | P3 |
 | T-52 | Local file Player | Native Studio/Import; no compact bar | N | Shared Player + compact bar | RT | P2 |
 | T-53 | Supported-site playback | yt-dlp ingest optional/absent; no streaming/player integration | M | Addon direct adapters; fallback capture | Addon | P1 |

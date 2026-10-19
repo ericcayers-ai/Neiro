@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { listSessions, openSession, saveSession } from '../api/client'
-import type { ModuleId } from '../api/types'
+import { listLibrarySongs, listSessions, openSession, saveSession } from '../api/client'
+import type { LibrarySong, ModuleId } from '../api/types'
 import { CommandPalette } from '../components/CommandPalette'
 import { JobTray } from '../components/JobTray'
 import {
@@ -11,6 +11,7 @@ import {
 } from '../icons'
 import { useSession } from '../state/session'
 import { useT } from '../i18n'
+import { mostRecentSong } from '../library/recent'
 import {
   buildSessionGraphConfig,
   parseSessionGraphConfig,
@@ -55,6 +56,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     jobLabel,
     requestCancel,
     clearSession,
+    resumeSong,
     engineStatus,
     stemPacks,
     setStemPacks,
@@ -68,6 +70,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const { dawConnected, status: dawStatus } = useDawBridge()
   const [sessionMsg, setSessionMsg] = useState('')
+  const [recentSong, setRecentSong] = useState<LibrarySong | null>(null)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [railCollapsed, setRailCollapsed] = useState(readRailCollapsed)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -80,6 +83,21 @@ export function AppShell({ children }: { children: ReactNode }) {
   const dialogInputRef = useRef<HTMLInputElement>(null)
 
   const recording = Boolean(dawStatus?.instances?.some((i) => i.recording))
+
+  useEffect(() => {
+    if (file) return
+    let alive = true
+    void listLibrarySongs()
+      .then(({ songs }) => {
+        if (alive) setRecentSong(mostRecentSong(songs))
+      })
+      .catch(() => {
+        /* no library yet */
+      })
+    return () => {
+      alive = false
+    }
+  }, [file])
 
   useEffect(() => {
     const root = document.documentElement
@@ -333,6 +351,19 @@ export function AppShell({ children }: { children: ReactNode }) {
             )}
           </div>
           <div className="session-actions">
+            {!file && recentSong && (
+              <button
+                type="button"
+                className="ghost"
+                title={t('shell.resumeHint')}
+                onClick={() => {
+                  resumeSong(recentSong.id)
+                  setModule('library')
+                }}
+              >
+                {t('shell.resume', { title: recentSong.title })}
+              </button>
+            )}
             {dawConnected && (
               <span
                 className={`job-pill${recording ? ' recording' : ''}`}

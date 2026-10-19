@@ -57,7 +57,8 @@ All mutations require `X-Neiro-Token`. JSON only (`application/json`).
 
 `frontend/src/modules/LibraryModule.tsx` (rail key `0`): add the current file, list
 songs, resume the last-played song, edit notes with a live 5,000-character counter,
-add markers/clips, import the player's local markers/clips for that song, save
+open the most recently played song from the shell's **Resume** card, add
+markers/clips, import the player's local markers/clips for that song, save
 labelled versions, add to Favorites, play through the shared `PlayerSurface`, and
 save the player's per-song settings back to the library (debounced) so transpose /
 speed / tuning survive a restart. Remove/export/reset are also there. Player-level data reset lives in

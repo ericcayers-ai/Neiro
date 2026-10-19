@@ -180,6 +180,8 @@ export const EN: Catalogue = {
   'nav.about': 'About',
   'nav.about.hint': 'Version, privacy, Studio shortcuts',
   'shell.rail': 'Modules',
+  'shell.resume': 'Resume: {title}',
+  'shell.resumeHint': 'Open the most recently played library song',
   'shell.session': 'Session',
   'shell.saveSession': 'Save session…',
   'shell.openSession': 'Open session…',

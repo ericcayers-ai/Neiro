@@ -383,3 +383,10 @@ Preferences sections, controls, model-table headers, tool actions, compute field
 and privacy text resolve through the catalogue; some dynamic status messages remain
 English. Module SSR renders Preferences too (vitest 13). Remaining bodies: Studio,
 MIDI (plus preset data and dynamic messages).
+
+## Thirty-sixth batch: shell resume card
+
+The session bar shows **Resume: <title>** for the most recently played library song
+when no file is active. Clicking it asks the session for that song and focuses the
+Library, which opens it and clears the pending id. `mostRecentSong()` is a pure
+helper with tests (player Node tests 39).

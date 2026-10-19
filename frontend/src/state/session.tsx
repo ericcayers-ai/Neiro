@@ -75,6 +75,10 @@ interface SessionState {
   setModule: (m: ModuleId) => void
   file: SessionFile | null
   setFile: (f: SessionFile | null) => void
+  /** Ask the Library to open a song (shell resume card). */
+  pendingSongId: string | null
+  resumeSong: (id: string) => void
+  clearPendingSong: () => void
   /** Multi-import queue for batch Separate → mashup packs. */
   importQueue: SessionFile[]
   addToImportQueue: (f: SessionFile) => void
@@ -188,6 +192,7 @@ function persistStemPacks(packs: StemPack[]) {
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [module, setModuleState] = useState<ModuleId>(readStoredModule)
   const [file, setFileState] = useState<SessionFile | null>(null)
+  const [pendingSongId, setPendingSongId] = useState<string | null>(null)
   const [studioTarget, setStudioTarget] = useState<{
     fileId: string
     audioUrl: string
@@ -504,6 +509,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const jobRunning = runningJobs.length > 0
   const jobLabel = runningJobs[0]?.label ?? null
 
+  const resumeSong = useCallback((id: string) => setPendingSongId(id), [])
+  const clearPendingSong = useCallback(() => setPendingSongId(null), [])
+
   const requestCancel = useCallback(() => {
     const first = jobsRef.current.find((j) => j.status === 'running')
     if (first) void cancelSessionJob(first.id)
@@ -541,6 +549,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setModule,
       file,
       setFile,
+      pendingSongId,
+      resumeSong,
+      clearPendingSong,
       importQueue,
       addToImportQueue,
       removeFromImportQueue,
@@ -588,6 +599,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setModule,
       file,
       setFile,
+      pendingSongId,
+      resumeSong,
+      clearPendingSong,
       importQueue,
       addToImportQueue,
       removeFromImportQueue,

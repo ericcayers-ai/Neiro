@@ -66,6 +66,9 @@ Gate: `python scripts/verify_goal.py --full` — **18/18 PASS** on 2026-10-20.
   effective cache budget (half of free space), update rejection above 90% free, and
   a startup disk note exist. Remaining: model-size preflight before downloads and a
   library-side quota.
+- [x] **P2-13 Shell resume card.** The session bar shows **Resume: <title>** for the
+  most recently played song when no file is active; it focuses the Library and opens
+  that song. Helper tested.
 - [x] **P2-7 Library resume/reset and per-song last-played.** Resume last, reset with
   confirmation, mark played on open; localStorage player reset lives in Prefs.
 - [x] **P2-8 Session export.** `GET /api/session/export?name=` + Open-dialog download; test

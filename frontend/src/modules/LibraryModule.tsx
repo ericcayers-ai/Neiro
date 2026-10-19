@@ -27,7 +27,7 @@ import { useT } from '../i18n'
 const NOTES_LIMIT = 5000
 
 export function LibraryModule() {
-  const { file } = useSession()
+  const { file, pendingSongId, clearPendingSong } = useSession()
   const t = useT()
   const [songs, setSongs] = useState<LibrarySong[]>([])
   const [playlists, setPlaylists] = useState<LibraryPlaylist[]>([])
@@ -54,6 +54,14 @@ export function LibraryModule() {
   useEffect(() => {
     void refresh()
   }, [refresh])
+
+  useEffect(() => {
+    if (!pendingSongId) return
+    const match = songs.find((song) => song.id === pendingSongId)
+    if (!match) return
+    void openSong(match)
+    clearPendingSong()
+  }, [pendingSongId, songs, clearPendingSong])
 
   const openSong = async (song: LibrarySong) => {
     setSelected(song)
