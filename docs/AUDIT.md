@@ -1805,3 +1805,29 @@ analysis timeline, companion source, docs truth pass; gate 18/18; addenda to
 | `a875776` | Render job end-to-end over HTTP | API test |
 | `fa1849c` | MIDI Studio shell catalogue | SSR |
 | `6ea3cef` | Studio compact mode | build/typecheck |
+
+### 13.7 Current parity status (2026-10-21)
+
+§13.3 is the audit-time snapshot; §13.6 is the batch ledger. Read together with this
+summary:
+
+- **Implemented (N) with evidence in §13.6:** T-03 (speed + queued render), T-11
+  (method labels), T-15–T-19 (A–B/ABX, count-in, markers, practice clips with
+  per-clip fields, ramp), T-22 (clip sequence), T-24–T-26 (wait gate, metronome,
+  loop set at playhead), T-32 (analysis lanes), T-38–T-44 (stem chord lane,
+  real-time overlay, library/markers/clips/settings/versions), T-50 (resume card),
+  T-57 compact part, T-60 (opt-in open player), T-69 toggle part.
+- **Partial:** T-13 (granular per-stem transpose/speed/EQ + Q bake; no phase-vocoder
+  per-stem engine), T-20 (layout scenes, not widget layouts), T-21 (focus crossfade,
+  chords, EQ; no WebGPU), T-27 (DAW MIDI wait), T-29–T-31 (heuristics, no neural
+  models), T-33 (model status/remove; no chord/beat weights), T-53–T-56 (adapters,
+  capture, diagnostics, ad guard; live sites owner-run), T-63 (all surfaces
+  catalogued except Studio help/messages; no RTL/plurals), T-67 (compact, no wide),
+  T-71 (quick start/what's new; no tours/support).
+- **N/A by local-first decision:** T-35, T-49, T-61, T-74–T-77 (cloud/web/GPU-only
+  or non-goals).
+- **Owner-gated:** neural chord/beat weights and licensing; trusted Authenticode
+  certificate + publishing; clean-VM install/update; listening quality.
+
+No row above is marked complete without a commit or receipt.
+

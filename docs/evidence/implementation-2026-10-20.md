@@ -732,3 +732,10 @@ merged and the workflow parsed. Release now installs PyInstaller, stages the
 model-free sidecar, uses the signed release config only when signing secrets exist,
 emits `latest.json`, and uploads `.sig`/manifest assets. `build_sidecar.py` now
 renames `neiro` → `neiro-engine` on non-Windows too.
+
+## Seventy-sixth batch: current parity summary
+
+Added AUDIT §13.7: a conservative, evidence-linked summary of which matrix rows are
+implemented, partial, N/A or owner-gated as of 2026-10-21. HANDOFF §14 counts were
+refreshed (281 Python, 51 player, 17 vitest, 49 addon). No row is called complete
+without a commit or receipt.
