@@ -60,7 +60,7 @@ One pass over the gate and every browser/desktop check on the current tree:
 
 | Check | Exit |
 |---|---:|
-| Gate (281 Python, 52 player, 17 vitest, 49 addon) | 0 |
+| Gate (281 Python, 53 player, 17 vitest, 49 addon) | 0 |
 | Desktop smoke (9 modules) | 0 |
 | Desktop workflow (import → analysis → player) | 0 |
 | Desktop updater runtime (Tauri IPC) | 0 |
