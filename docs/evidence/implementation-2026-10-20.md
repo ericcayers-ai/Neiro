@@ -646,3 +646,11 @@ Validator 48/48 and the dynamic-port pairing/upload e2e still pass.
 debugging, connects over CDP, and visits all nine rail modules (Import, Analysis,
 Studio, Separate, Restore, MIDI, Library, Prefs, About). Result: every module
 renders its expected heading and **zero page errors**.
+
+## Sixty-fourth batch: desktop workflow end-to-end
+
+`npm run test:desktop-workflow` drives the packaged shell: it sets a generated WAV
+on the real Import file input, waits for the session to show `flow-tone.wav`, opens
+Analysis and confirms report text (BPM/key/LUFS), then opens MIDI/player. Result:
+**0 page errors**, “import → analysis → player” passes. This exercises the API,
+analysis and session together, not mocked components.

@@ -15,7 +15,8 @@
     "test:extension": "node tests/extension-e2e.mjs",
     "test:desktop-updater": "node tests/desktop-updater-runtime.mjs",
     "test:updater-available": "node tests/updater-available.mjs",
-    "test:desktop-smoke": "node tests/desktop-smoke.mjs"
+    "test:desktop-smoke": "node tests/desktop-smoke.mjs",
+    "test:desktop-workflow": "node tests/desktop-workflow.mjs"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.2.7",
