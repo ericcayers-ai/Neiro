@@ -674,3 +674,11 @@ The panel used to display “ad playing — capture waits for media” but Start
 captured. Start now queries the adapter media state and refuses while `ad` is true,
 showing “ad playing — wait for the show to resume.” Validator checks the guard;
 pairing/upload e2e is unaffected.
+
+## Sixty-eighth batch: release-candidate packaging run
+
+Rebuilt the sidecar clean, cleared `target/release/resources`, and produced MSI
+(58.1 MB) + NSIS (39.8 MB) with updater signatures and a valid `latest.json`.
+Administrative MSI extraction contains the bundled engine; launching the extracted
+app with **no Python on PATH** spawned `neiro-engine.exe` and opened the Neiro
+window. Details: `docs/evidence/release-candidate-2026-10-21.md`.

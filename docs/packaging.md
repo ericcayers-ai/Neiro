@@ -60,8 +60,8 @@ With the engine copied into `resources/engine/`, a full `tauri build` produced:
 
 | Artifact | Size |
 |---|---:|
-| `Neiro_1.2.1_x64_en-US.msi` | 56.0 MB |
-| `Neiro_1.2.1_x64-setup.exe` (NSIS) | 38.3 MB |
+| `Neiro_1.2.1_x64_en-US.msi` | 56.0 MB (58.1 MB on the later RC build) |
+| `Neiro_1.2.1_x64-setup.exe` (NSIS) | 38.3 MB (39.8 MB on the later RC build) |
 
 An administrative MSI extraction (`msiexec /a … TARGETDIR=…`) confirmed the payload
 layout: `PFiles\Neiro\neiro.exe` plus `resources\engine\neiro-engine.exe`
