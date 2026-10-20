@@ -123,6 +123,14 @@ phase-vocoder quality are not implemented in Studio — use Render with Neiro fo
 engine-quality path. A fractional ring-index bug that produced NaN/Inf in the
 granular taps was fixed in both copies and is covered by tests.
 
+## Studio: bake preview settings
+
+**Render stems** pauses the transport, then sends each track through the queued
+engine `render` op with the current transpose/speed. Each finished artifact replaces
+that track (original id kept for Reset) and the preview controls return to neutral.
+This is the engine-quality counterpart to the granular preview; it writes new
+artifacts and can take time proportional to the stems.
+
 ## Studio scenes
 
 Studio can save up to 20 named layout scenes (tracks and mix gain/pan/mute/solo,

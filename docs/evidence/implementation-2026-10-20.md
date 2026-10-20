@@ -625,3 +625,11 @@ local manifest endpoint) was driven over CDP: About → Check for updates shows
 the offer UI. The production config was restored (HTTPS, flag absent) and the
 runtime check still passes with the no-release error. The dangerous flag is
 documented as test-only and never committed to the config.
+
+## Sixty-first batch: bake preview settings into stems
+
+Studio gains **Render stems**: confirm, pause, then run each track through the
+engine `render` op with the current transpose/speed, poll the jobs, replace the
+track artifact (keeping the original id for Reset), and reset the preview controls.
+`studio/render.ts` maps/clamps rate and semitones and is unit-tested; player tests
+51.

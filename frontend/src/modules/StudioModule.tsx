@@ -5,6 +5,8 @@ import {
   exportUrl,
   fetchAnalysis,
   fetchSpectrogram,
+  getJob,
+  startEditJob,
   fetchWaveform,
   pitchCorrectFile,
   pitchShiftFile,
@@ -32,6 +34,7 @@ import {
 } from '../constants/options'
 import { focusGain, isTargetStem } from '../player/mix'
 import { chordLane } from '../player/timeline'
+import { renderRequest } from '../studio/render'
 import {
   applySceneToTracks,
   createScene,
@@ -337,6 +340,8 @@ export function StudioModule() {
   // 0.5 = neutral; >0.5 boosts vocals/singers and ducks backing, <0.5 the reverse.
   const [targetFocus, setTargetFocus] = useState(0.5)
   const [sceneName, setSceneName] = useState('')
+  const [renderBusy, setRenderBusy] = useState(false)
+  const [renderMsg, setRenderMsg] = useState('')
   const [studioScenes, setStudioScenes] = useState<StudioScene[]>(() => {
     try {
       return readScenes(localStorage.getItem('neiro.studio.scenes'))
@@ -582,6 +587,68 @@ export function StudioModule() {
   const deleteStudioScene = () => {
     setStudioScenes((current) => current.filter((item) => item.name !== sceneName))
     setSceneName('')
+  }
+
+  const renderStems = async () => {
+    if (!tracks.length || renderBusy) return
+    if (
+      !window.confirm(
+        `Render ${tracks.length} stem(s) with transpose ${transpose} st and speed ${speed}× in the Neiro engine? This writes new stem artifacts.`,
+      )
+    ) {
+      return
+    }
+    pauseAll()
+    setRenderBusy(true)
+    const { rate, semitones } = renderRequest(transpose, speed)
+    try {
+      for (let index = 0; index < tracks.length; index += 1) {
+        const track = tracks[index]
+        setRenderMsg(`Rendering ${index + 1}/${tracks.length}: ${track.name}…`)
+        const { job_id } = await startEditJob({
+          file_id: track.fileId,
+          op: 'render',
+          rate,
+          semitones,
+        })
+        type RenderedStem = { file_id?: string; audio_url?: string; duration?: number }
+        let result: RenderedStem | null = null
+        for (let attempt = 0; attempt < 1800; attempt += 1) {
+          await new Promise((resolve) => window.setTimeout(resolve, 400))
+          const job = await getJob(job_id)
+          if (job.status === 'done') {
+            result = (job.result ?? null) as unknown as RenderedStem | null
+            break
+          }
+          if (job.status === 'error' || job.status === 'cancelled') {
+            throw new Error(job.error || job.status)
+          }
+        }
+        if (!result?.file_id || !result.audio_url) {
+          throw new Error(`render of ${track.name} returned no artifact`)
+        }
+        setTracks((current) =>
+          current.map((item) =>
+            item.id === track.id
+              ? {
+                  ...item,
+                  fileId: result!.file_id!,
+                  audioUrl: result!.audio_url!,
+                  duration: result!.duration ?? item.duration,
+                  originalFileId: item.originalFileId ?? track.fileId,
+                }
+              : item,
+          ),
+        )
+      }
+      setTranspose(0)
+      setSpeed(1)
+      setRenderMsg('Stems rendered. Preview controls reset to neutral.')
+    } catch (error) {
+      setRenderMsg(`Stem render failed: ${error instanceof Error ? error.message : String(error)}`)
+    } finally {
+      setRenderBusy(false)
+    }
   }
 
   playheadRef.current = playhead
@@ -2342,6 +2409,14 @@ export function StudioModule() {
             </button>
             <button
               type="button"
+              disabled={!tracks.length || renderBusy}
+              onClick={() => void renderStems()}
+              title="Bake the preview transpose/speed into new engine-rendered stems"
+            >
+              {renderBusy ? 'Rendering stems…' : 'Render stems'}
+            </button>
+            <button
+              type="button"
               aria-pressed={compact}
               title="Compact track heights"
               onClick={() => setCompact((value) => !value)}
@@ -2362,6 +2437,12 @@ export function StudioModule() {
               Real-time
             </button>
           </div>
+
+          {renderMsg && (
+            <p className="status-line muted" role="status" aria-live="polite">
+              {renderMsg}
+            </p>
+          )}
 
           {studioReport?.chords && studioReport.chords.length > 0 && (
             <div className="studio-chords" aria-label="Chord timeline (heuristic)">

@@ -47,6 +47,9 @@ Gate: `python scripts/verify_goal.py --full` — **18/18 PASS** on 2026-10-20.
 - [x] **P1-7 Tests + latency receipt.** 37 Node tests; `docs/evidence/player-latency-2026-10-20.md`.
 - [x] **P1-9 Compact player mode.** Header toggle hides practice panels (markup, not
   just CSS), persists per file, and is SSR-tested.
+- [x] **P3-10 Bake preview settings into stems (Q).** Render stems through the
+  engine `render` op, replace artifacts, keep originals, reset controls; confirm
+  dialog and progress.
 - [x] **P3-9 Studio layout scenes.** Save/apply/delete up to 20 named scenes
   (mix, view, loop, transpose/speed); validated storage with tests.
 - [x] **P1-11 Always-open player preference.** Opt-in Prefs toggle routes a fresh

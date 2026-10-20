@@ -28,6 +28,7 @@ import { EN, missingKeys, translate } from '../../i18n/translate.ts'
 import { chordLane } from '../timeline.ts'
 import { mostRecentSong } from '../../library/recent.ts'
 import { checkDesktopUpdate, isTauri } from '../../api/updater.ts'
+import { renderRequest } from '../../studio/render.ts'
 
 test('transport plays, pauses and ends', () => {
   const transport = new Transport({ duration: 10 })
@@ -398,4 +399,11 @@ test('resume card picks the most recently played song', () => {
 test('desktop updater bridge is a no-op outside Tauri', async () => {
   assert.equal(isTauri(), false)
   assert.equal(await checkDesktopUpdate(), null)
+})
+
+test('studio render request maps speed/transpose and clamps', () => {
+  assert.deepEqual(renderRequest(12, 2), { rate: 0.5, semitones: 12 })
+  assert.deepEqual(renderRequest(0, 1), { rate: 1, semitones: 0 })
+  assert.deepEqual(renderRequest(-99, 0.01), { rate: 4, semitones: -36 })
+  assert.deepEqual(renderRequest(99, 4), { rate: 0.25, semitones: 36 })
 })
