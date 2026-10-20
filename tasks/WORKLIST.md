@@ -152,7 +152,8 @@ Gate: `python scripts/verify_goal.py --full` — **18/18 PASS** on 2026-10-20.
   Neiro window. Signing pipeline verified with a dev cert (signatures + timestamp
   present; untrusted root as expected). Updater plugin + keypair + signed
   artifacts + `latest.json` generation verified; fresh RC build (MSI 58.1 MB,
-  NSIS 39.8 MB) launched with no Python on PATH. Remaining: publish releases,
+  NSIS 39.8/39.9 MB) launched with no Python on PATH; final RC signature verified.
+  Remaining: publish releases,
   trusted cert, clean-VM install/update, uninstall.
 - [~] **P5-4 Model manager status.** Sizes/licences/needs-install and a
   confirm-gated remove-weights action exist in Prefs; disk-impact preview and

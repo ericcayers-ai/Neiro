@@ -759,3 +759,9 @@ The Studio help sheet (kbd labels preserved), lead text, timeline note, About
 shortcut link and the render confirm/progress/done/failure messages now resolve
 through `studio.*` / plural selection. Studio is fully catalogued in English;
 non-English catalogues and mirrored RTL CSS remain the open i18n work.
+
+## Eightieth batch: final release-candidate rebuild
+
+Rebuilt the current tree (post-i18n/CSP/CI): MSI 58.3 MB + NSIS 39.9 MB with
+updater signatures, manifest generated, signature verified by `cargo test --lib`,
+and the extracted app launched with no Python on PATH spawning the bundled engine.

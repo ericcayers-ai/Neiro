@@ -34,3 +34,13 @@ release URL.
 This validates the current code through the full release path. Not covered: a
 publicly trusted Authenticode certificate, publishing the assets, a clean-VM
 install/update, uninstall, or a real listening/quality pass.
+
+## Final rebuild (after i18n/CSP/CI work)
+
+- MSI **58.3 MB**, NSIS **39.9 MB**, both with updater `.sig` files.
+- `cargo test --lib` verifies the NSIS signature against the committed public key.
+- `updater_manifest.py` produced `latest.json` for the final bundle.
+- Fresh sidecar staged with `--install`, `target/release/resources` cleared; MSI
+  extraction launched with **PATH reduced to system dirs (no Python)**: spawned
+  `neiro-engine.exe` and opened the **Neiro** window, then terminated.
+
