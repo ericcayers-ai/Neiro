@@ -497,3 +497,17 @@ pitch while tempo changes. The master clock is multiplied by the same speed and
 rebased at the current playhead on change, so the playhead, A–B and lock stay
 coherent. Combined-ratio test: +12 st with speed 2× → ratio 1. Preview-grade and
 documented; phase-vocoder quality/formant/EQ in Studio remain open.
+
+## Forty-ninth batch: real-browser worklet verification
+
+Added a Playwright/Chromium check (`frontend/tests/browser-worklet.mjs`,
+`npm run test:browser`) that renders through a real `OfflineAudioContext`:
+
+- stem shifter at +12 st: 880 Hz dominates 440 Hz by ~16.7×;
+- player at 2× speed: 440 Hz dominates 880 Hz by ~22× (pitch preserved);
+- player at +12 st: 880 Hz dominates 440 Hz by ~26×.
+
+To make the player test deterministic, the processor now accepts an initial
+buffer/params via `processorOptions`, avoiding a message race before the first
+`process()` call. Node kernel tests remain; this adds the missing real-runtime
+evidence. Quality/listening and device latency remain owner-run.

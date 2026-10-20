@@ -69,8 +69,13 @@ const ProcessorBase =
   typeof AudioWorkletProcessor !== 'undefined' ? AudioWorkletProcessor : class {}
 
 class StemShiftProcessor extends ProcessorBase {
-  constructor() {
+  constructor(options) {
     super()
+    const initial = (options && options.processorOptions) || {}
+    this.initialPitch = {
+      semitones: Number(initial.semitones) || 0,
+      cents: Number(initial.cents) || 0,
+    }
     this.shifterL = null
     this.shifterR = null
     this.bypass = false
@@ -102,6 +107,12 @@ class StemShiftProcessor extends ProcessorBase {
       this.shifterR = new GrainShifter(sr)
       this.shifterL.bypass = this.bypass
       this.shifterR.bypass = this.bypass
+      const ratio = pitchRatioForSemitones(
+        this.initialPitch.semitones,
+        this.initialPitch.cents,
+      )
+      this.shifterL.setPitch(ratio)
+      this.shifterR.setPitch(ratio)
     }
     const left = input[0]
     const right = input[1] || input[0]

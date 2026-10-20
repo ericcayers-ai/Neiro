@@ -1725,6 +1725,7 @@ below has a receipt in `docs/evidence/` and a criterion in `GOAL.md`.
 | F-45 CLAP/VST3 | open | Still a stub; VST2 remains the bridge |
 | F-46/F-47 licences and sandbox | open | No legal review; grant map is still not a sandbox |
 | F-48 accessibility audit | **partial** | Clean static audit (gate C21) + axe smoke on the player (0 serious/critical in jsdom); screen-reader/contrast still owner-run |
+| F-52 player browser runtime | **closed for DSP path** | Chromium OfflineAudioContext: stem shifter 440→880 Hz; player preserves 440 at 2× and 880 at +12 (`docs/evidence/browser-worklet-2026-10-21.md`) |
 
 ### 13.3 Parity matrix movement (selected)
 

@@ -775,27 +775,43 @@ export class PlayerDsp {
 const ProcessorBase = typeof AudioWorkletProcessor !== 'undefined' ? AudioWorkletProcessor : class {}
 
 class NeiroPlayerProcessor extends ProcessorBase {
-  constructor() {
+  constructor(options) {
     super()
     this.dsp = null
     this.playing = false
     this.port.onmessage = (event) => this._onMessage(event.data)
     this.blockCount = 0
+    // Atomic initialization for offline rendering (and callers that want to
+    // avoid a message race before the first process() call).
+    const initial = (options && options.processorOptions) || {}
+    if (initial.channels) {
+      this._load(initial)
+      if (initial.params) this.dsp.setParams(initial.params)
+      if (initial.play) {
+        if (initial.from != null) this.dsp.seek(initial.from)
+        this.dsp.waiting = false
+        this.playing = true
+      }
+    }
+  }
+
+  _load(message) {
+    const rate = message.sampleRate || (typeof sampleRate !== 'undefined' ? sampleRate : 48000)
+    const channels = message.channels.map((c) =>
+      c instanceof Float32Array ? c : new Float32Array(c),
+    )
+    this.dsp = new PlayerDsp(channels, rate)
+    this.port.postMessage({
+      type: 'loaded',
+      duration: (channels[0]?.length || 0) / rate,
+      latencySeconds: this.dsp.latencySeconds,
+    })
   }
 
   _onMessage(message) {
     const { type } = message || {}
     if (type === 'load') {
-      const rate = message.sampleRate || (typeof sampleRate !== 'undefined' ? sampleRate : 48000)
-      const channels = message.channels.map((c) =>
-        c instanceof Float32Array ? c : new Float32Array(c),
-      )
-      this.dsp = new PlayerDsp(channels, rate)
-      this.port.postMessage({
-        type: 'loaded',
-        duration: (channels[0]?.length || 0) / rate,
-        latencySeconds: this.dsp.latencySeconds,
-      })
+      this._load(message)
       return
     }
     if (!this.dsp) return
