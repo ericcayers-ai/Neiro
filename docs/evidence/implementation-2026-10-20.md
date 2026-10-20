@@ -633,3 +633,9 @@ engine `render` op with the current transpose/speed, poll the jobs, replace the
 track artifact (keeping the original id for Reset), and reset the preview controls.
 `studio/render.ts` maps/clamps rate and semitones and is unit-tested; player tests
 51.
+
+## Sixty-second batch: companion site-access diagnostics
+
+The panel shows the active http(s) origin and optional host-permission state, with a
+click-driven **Grant this site** request (required by adapters on streaming sites).
+Validator 48/48 and the dynamic-port pairing/upload e2e still pass.

@@ -38,6 +38,12 @@ async function refreshStatus() {
   $('pair-status').textContent = paired.paired
     ? 'Paired with the local Neiro engine.'
     : 'Not paired. Show the code in Neiro → Prefs → Companion.'
+  const site = await send({ op: 'site:info' })
+  $('site-access').textContent = site.origin
+    ? `site access: ${site.origin} · ${site.granted ? 'granted' : 'not granted'}`
+    : 'site access: open an http(s) page'
+  $('site-grant').disabled = !site.origin || site.granted
+
   const media = await send({ op: 'media', mediaOp: 'state' })
   if (media && media.ok && media.ok !== false && media.hasMedia) {
     $('site').textContent = `${media.label}: ${media.title || 'untitled'}`
@@ -63,6 +69,17 @@ async function pushPitch() {
   await send({ op: 'pitch', semitones: transpose, cents })
   await send({ op: 'settings:set', patch: { transpose, cents } })
 }
+
+$('site-grant').addEventListener('click', async () => {
+  const site = await send({ op: 'site:info' })
+  if (!site.origin) {
+    $('site-access').textContent = 'site access: open an http(s) page'
+    return
+  }
+  const granted = await chrome.permissions.request({ origins: [`${site.origin}/*`] })
+  $('site-access').textContent = `site access: ${site.origin} · ${granted ? 'granted' : 'denied'}`
+  $('site-grant').disabled = Boolean(granted)
+})
 
 $('engine-save').addEventListener('click', async () => {
   const url = normalizeEngineUrl($('engine-url').value)

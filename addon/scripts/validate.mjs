@@ -101,6 +101,10 @@ check('worklet is clean-room (no rb.wasm)', !/rb\.wasm|rubber ?band/i.test(workl
 const panel = read('src/sidepanel/index.html')
 check('panel labels the method', /clean-room/i.test(panel))
 check('panel states no DRM bypass', /no DRM bypass/i.test(panel))
+check(
+  'panel exposes site-access diagnostics',
+  panel.includes('site-access') && read('src/sidepanel/panel.js').includes('site:info'),
+)
 check('panel explains optional pairing', /pair/i.test(panel))
 
 for (const label of passes) console.log(`PASS ${label}`)

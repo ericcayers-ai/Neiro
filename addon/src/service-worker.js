@@ -180,6 +180,21 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         case 'settings:set':
           sendResponse({ ok: true, settings: await saveSettings(message.patch || {}) })
           break
+        case 'site:info': {
+          const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+          let origin = ''
+          try {
+            const parsed = new URL(tab?.url || '')
+            if (parsed.protocol === 'http:' || parsed.protocol === 'https:') origin = parsed.origin
+          } catch {
+            /* no url */
+          }
+          const granted = origin
+            ? await chrome.permissions.contains({ origins: [`${origin}/*`] })
+            : false
+          sendResponse({ ok: true, origin, granted, title: tab?.title || '' })
+          break
+        }
         case 'engine:health': {
           const base = await baseUrl()
           sendResponse({
