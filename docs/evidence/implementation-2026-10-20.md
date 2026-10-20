@@ -616,3 +616,12 @@ the CDP runtime check still passes (Tauri IPC, no-release error surfaced).
 Recorded in `docs/packaging.md`: the success path needs a real HTTPS release; no
 local http stub can validate it. The manifest format itself is covered by tests and
 the signature by Rust C23.
+
+## Sixtieth batch: updater success path verified (dev flag)
+
+A dev-only build (`dangerousInsecureTransportProtocol: true` in an override config,
+local manifest endpoint) was driven over CDP: About → Check for updates shows
+**“Update available: 1.2.2.”** This proves manifest parsing, version comparison and
+the offer UI. The production config was restored (HTTPS, flag absent) and the
+runtime check still passes with the no-release error. The dangerous flag is
+documented as test-only and never committed to the config.

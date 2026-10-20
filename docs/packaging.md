@@ -117,9 +117,13 @@ check.
 
 Tauri rejects updater endpoints that are not HTTPS (`the configured updater
 endpoint must use a secure protocol like https`), so a local `http://` manifest
-cannot be used to exercise the success path. The check/error path is verified;
-offering an actual update requires a real HTTPS release (or a trusted TLS dev
-server).
+cannot be used with the production configuration.
+
+The success path **was** verified with a dev-only build: an override config sets
+the local endpoint plus `dangerousInsecureTransportProtocol: true`, then
+`npm run test:updater-available` serves a 1.2.2 manifest and the real shell shows
+**“Update available: 1.2.2.”** That flag is dangerous and must never ship; the
+committed configuration keeps HTTPS and does not set it.
 
 Two shell details this exposed and fixed:
 
