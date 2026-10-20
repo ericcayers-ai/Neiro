@@ -35,7 +35,7 @@ import {
 import { focusGain, isTargetStem } from '../player/mix'
 import { chordLane } from '../player/timeline'
 import { renderRequest } from '../studio/render'
-import { useT } from '../i18n'
+import { usePlural, useT } from '../i18n'
 import {
   applySceneToTracks,
   createScene,
@@ -170,56 +170,49 @@ function StudioHelpSheet({
   onClose: () => void
   onAbout: () => void
 }) {
+  const tr = useT()
   return (
-    <div className="studio-help-sheet" role="dialog" aria-label="Studio shortcuts">
+    <div className="studio-help-sheet" role="dialog" aria-label={tr('studio.help')}>
       <div className="studio-help-sheet-head">
-        <strong>Studio shortcuts</strong>
-        <button type="button" onClick={onClose} aria-label="Close shortcuts">
-          Close
+        <strong>{tr('studio.help')}</strong>
+        <button type="button" onClick={onClose} aria-label={tr('studio.helpCloseAria')}>
+          {tr('studio.close')}
         </button>
       </div>
-      <p className="muted studio-help-lead">
-        Windows-first: <kbd>Ctrl</kbd> is primary (<kbd>⌘</kbd> also works on Mac). Ignored while typing in
-        a field.
-      </p>
+      <p className="muted studio-help-lead">{tr('studio.helpLead')}</p>
       <ul className="studio-help-list">
         <li>
-          <kbd>Space</kbd> play / pause
+          <kbd>Space</kbd> {tr('studio.help.space')}
         </li>
         <li>
-          <kbd>Stop</kbd> pauses and <em>leaves the playhead</em> (does not jump to 0 or selection start)
+          <kbd>Stop</kbd> {tr('studio.help.stop')}
+        </li>
+        <li>{tr('studio.help.loop')}</li>
+        <li>
+          <kbd>V</kbd> {tr('studio.help.select')} · <kbd>A</kbd> {tr('studio.help.scrub')} ·{' '}
+          <kbd>C</kbd> {tr('studio.help.split')} · <kbd>B</kbd> {tr('studio.help.move')}
+        </li>
+        <li>{tr('studio.help.beat')}</li>
+        <li>
+          <kbd>Del</kbd> {tr('studio.help.silence')} · <kbd>Shift+Del</kbd>{' '}
+          {tr('studio.help.splice')}
         </li>
         <li>
-          Loop + selection wraps <em>sel end → sel start</em> only — not the whole track
+          <kbd>Ctrl+Z</kbd> / <kbd>Ctrl+Y</kbd> {tr('studio.help.undo')}
         </li>
         <li>
-          <kbd>V</kbd> Select · <kbd>A</kbd> Scrub · <kbd>C</kbd> Split · <kbd>B</kbd> Move clip
+          <kbd>[</kbd> / <kbd>]</kbd> {tr('studio.help.nudge')} · <kbd>=</kbd> / <kbd>-</kbd>{' '}
+          {tr('studio.help.zoom')}
         </li>
+        <li>{tr('studio.help.rightClick')}</li>
         <li>
-          Beat snap (toolbar) snaps clip moves and nudges to the session BPM grid
-        </li>
-        <li>
-          <kbd>Del</kbd> silence · <kbd>Shift+Del</kbd> delete / splice
-        </li>
-        <li>
-          <kbd>Ctrl+Z</kbd> / <kbd>Ctrl+Y</kbd> undo / redo
-        </li>
-        <li>
-          <kbd>[</kbd> / <kbd>]</kbd> nudge ±50 ms · <kbd>=</kbd> / <kbd>-</kbd> zoom
-        </li>
-        <li>
-          Right-click a clip for split, mute/solo, rename, color, bounce, pitch correct, spectrogram
-        </li>
-        <li>
-          <kbd>M</kbd> Mix drawer · <kbd>?</kbd> this sheet · <kbd>Esc</kbd> close / clear selection
+          <kbd>M</kbd> {tr('studio.help.mix')} · <kbd>?</kbd> {tr('studio.help.sheet')} ·{' '}
+          <kbd>Esc</kbd> {tr('studio.help.esc')}
         </li>
       </ul>
-      <p className="muted">
-        Scrub or click the timeline to play from anywhere. Clip offset and source range map timeline time
-        to media time per track.
-      </p>
+      <p className="muted">{tr('studio.help.timeline')}</p>
       <button type="button" className="studio-help-about" onClick={onAbout}>
-        Full shortcut list in About
+        {tr('studio.help.about')}
       </button>
     </div>
   )
@@ -308,6 +301,7 @@ function drawLane(canvas: HTMLCanvasElement, wave: WaveformData, color: string) 
 
 export function StudioModule() {
   const tr = useT()
+  const plural = usePlural()
   const {
     file,
     studioTarget,
@@ -600,7 +594,7 @@ export function StudioModule() {
     if (!tracks.length || renderBusy) return
     if (
       !window.confirm(
-        `Render ${tracks.length} stem(s) with transpose ${transpose} st and speed ${speed}× in the Neiro engine? This writes new stem artifacts.`,
+        plural('studio.renderConfirm', tracks.length, { transpose, speed }),
       )
     ) {
       return
@@ -611,7 +605,7 @@ export function StudioModule() {
     try {
       for (let index = 0; index < tracks.length; index += 1) {
         const track = tracks[index]
-        setRenderMsg(`Rendering ${index + 1}/${tracks.length}: ${track.name}…`)
+        setRenderMsg(tr('studio.rendering', { done: index + 1, total: tracks.length, name: track.name }))
         const { job_id } = await startEditJob({
           file_id: track.fileId,
           op: 'render',
@@ -650,9 +644,9 @@ export function StudioModule() {
       }
       setTranspose(0)
       setSpeed(1)
-      setRenderMsg('Stems rendered. Preview controls reset to neutral.')
+      setRenderMsg(tr('studio.renderDone'))
     } catch (error) {
-      setRenderMsg(`Stem render failed: ${error instanceof Error ? error.message : String(error)}`)
+      setRenderMsg(tr('studio.renderFailed', { error: error instanceof Error ? error.message : String(error) }))
     } finally {
       setRenderBusy(false)
     }

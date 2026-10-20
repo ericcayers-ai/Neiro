@@ -1745,7 +1745,7 @@ The matrix above is the audit-time baseline. Post-pass status:
 | T-40–T-47 | P/M | **N/partial** | Library, notes, markers, clips, resume/reset, versions (save + list) |
 | T-49 | P | **N** | Local JSON export + per-session `.neiro.json` download |
 | T-53–T-57, T-59 | M | **Addon source** | Adapters + capture + panel; live e2e owner-run |
-| T-63 | M | **partial** | All module surfaces + Studio chrome/tooltips catalogued; RTL `dir` plumbing and plural selection added; Studio help/messages and mirrored CSS remain |
+| T-63 | M | **partial** | All module surfaces incl. Studio help/messages catalogued; RTL `dir` plumbing and plural selection added; non-English catalogues and mirrored CSS remain |
 | T-65 | P | **partial** | Player keyboard shortcuts remappable (9 actions); app-wide rail shortcuts still fixed |
 | T-66 | M | **N** | MIDI learn (note/CC), 11 actions, clear, local persistence |
 | T-78 | P | **N** | Auto-enhance no-op fixed |

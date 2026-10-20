@@ -752,3 +752,10 @@ is infrastructure, not an RTL-ready claim.
 `other` fallback; queue/song counts use it in Import, Library and Separate. Tests
 cover one/other/zero/fallback. Only English rules are exercised until another
 catalogue ships.
+
+## Seventy-ninth batch: Studio help and messages
+
+The Studio help sheet (kbd labels preserved), lead text, timeline note, About
+shortcut link and the render confirm/progress/done/failure messages now resolve
+through `studio.*` / plural selection. Studio is fully catalogued in English;
+non-English catalogues and mirrored RTL CSS remain the open i18n work.
