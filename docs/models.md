@@ -173,3 +173,19 @@ python scripts/verify_models.py # CI-equivalent manifest sanity check
 `scripts/verify_models.py` checks that every manifest parses, names a real
 adapter class, and declares the fields the registry and planner depend on — it's
 the fastest way to validate a new manifest before opening a PR.
+
+## Chord/beat model search (2026-10-21)
+
+A quick catalogue search did **not** produce a usable, permissively licensed ONNX
+chord/beat model:
+
+- `Ubisoft/ubisoft-laforge-chord` is a **research-only, copyleft** PBR texture
+  ("chord" diagram) model — not music chord recognition, and not license-compatible.
+- The remaining hits were speech/wav2vec fine-tunes or unlicensed experiment repos
+  without an ONNX contract or weights we can verify.
+
+Neiro therefore keeps the labelled chroma-template chord timeline and onset-flux
+beat grid. Adding a neural model remains an owner decision requiring a known
+license, weights and a verified input/output contract; do not bolt on a model just
+to claim parity.
+
