@@ -528,3 +528,11 @@ Bugs found and fixed:
    stored token.
 
 Tab capture/site adapters remain owner-run (side panel + permission gesture).
+
+## Fifty-first batch: fractional-tap interpolation
+
+The granular kernel's ring reads now linearly interpolate between taps. Integer
+pitch ratios (e.g. +12) were already sample-aligned; fractional ratios (+7,
+ratio 1.498) previously read the nearest sample. Chromium measurement for +7 st:
+target 659.3 Hz magnitude 0.00711 vs 440 Hz 0.00071 (~10×), finite output, and the
+existing +12/2× cases are unchanged. Companion and Studio copies share the fix.

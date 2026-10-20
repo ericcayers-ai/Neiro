@@ -43,8 +43,13 @@ export class GrainShifter {
   }
 
   _at(index) {
-    const wrapped = ((Math.floor(index) % this.ringSize) + this.ringSize) % this.ringSize
-    return this.ring[wrapped]
+    // Linear interpolation between ring taps: nearest-neighbour reads at
+    // fractional delays are audible as aliasing on the shifted signal.
+    const base = Math.floor(index)
+    const frac = index - base
+    const i0 = ((base % this.ringSize) + this.ringSize) % this.ringSize
+    const i1 = (i0 + 1) % this.ringSize
+    return this.ring[i0] * (1 - frac) + this.ring[i1] * frac
   }
 
   /** Pull one shifted sample from two delay taps, cross-faded with triangles. */

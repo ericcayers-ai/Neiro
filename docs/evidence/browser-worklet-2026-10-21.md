@@ -26,8 +26,11 @@ Player (`neiro-player`) with an atomically loaded 440 Hz buffer:
 |---|---:|---:|---|
 | speed 2× | 0.004317 | 0.000196 | pitch preserved (440 dominates by ~22×) |
 | +12 semitones | 0.000319 | 0.008352 | transposed (880 dominates by ~26×) |
+| +7 semitones (fractional ratio) | 0.000710 (440) | 0.007111 (target 659.3 Hz) | transposed (target dominates by ~10×) |
 
-This closes the gap between Node kernel tests and the actual AudioWorklet runtime:
+The +7 case exercises fractional delay taps; those now use linear interpolation
+instead of nearest-neighbour reads (integer ratios were already exact). This closes
+the gap between Node kernel tests and the actual AudioWorklet runtime:
 registration, module loading, processor options and the phase-vocoder path were
 exercised in Chromium. It is **not** a listening test: quality, formants and
 latency under a real device remain owner-run.

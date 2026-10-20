@@ -110,12 +110,17 @@ const player = await page.evaluate(async () => {
       }
       return Math.sqrt(s1 * s1 + s2 * s2 - coeff * s1 * s2) / (samples.length - start)
     }
-    return { a440: goertzel(440), a880: goertzel(880) }
+    return {
+      a440: goertzel(440),
+      a880: goertzel(880),
+      aTarget: goertzel(440 * Math.pow(2, (params.transpose || 0) / 12)),
+    }
   }
 
   const speed2 = await render({ speed: 2 })
   const up12 = await render({ speed: 1, transpose: 12 })
-  return { speed2, up12 }
+  const up7 = await render({ speed: 1, transpose: 7 })
+  return { speed2, up12, up7 }
 })
 
 await browser.close()
@@ -131,8 +136,12 @@ if (!(player.speed2.a440 > player.speed2.a880 * 2)) {
   console.error('FAIL: player at speed 2 did not preserve 440 Hz')
   process.exit(1)
 }
+if (!(player.up7.aTarget > player.up7.a440 * 2)) {
+  console.error('FAIL: player +7 st did not produce the expected fractional pitch')
+  process.exit(1)
+}
 if (!(player.up12.a880 > player.up12.a440 * 2)) {
   console.error('FAIL: player +12 st did not produce 880 Hz')
   process.exit(1)
 }
-console.log('PASS: player preserves pitch at speed 2 and transposes +12 st')
+console.log('PASS: player preserves pitch at speed 2 and transposes +12/+7 st')
