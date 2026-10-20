@@ -115,6 +115,12 @@ the remote)”** — i.e. the plugin was reached through Tauri IPC and the failu
 surfaced. A browser fallback would have said “Could not reach GitHub” and fails the
 check.
 
+Tauri rejects updater endpoints that are not HTTPS (`the configured updater
+endpoint must use a secure protocol like https`), so a local `http://` manifest
+cannot be used to exercise the success path. The check/error path is verified;
+offering an actual update requires a real HTTPS release (or a trusted TLS dev
+server).
+
 Two shell details this exposed and fixed:
 
 - the window is now created **directly on the engine origin** (`WebviewUrl::External`)

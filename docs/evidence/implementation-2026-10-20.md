@@ -604,3 +604,15 @@ Fixed while verifying:
 2. **Stale bundled engine.** `target/release/resources/engine` from an earlier
    build served an old UI. `build_sidecar.py --install` now cleans/re-stages, and
    the release notes require removing `target/release/resources` first.
+
+## Fifty-ninth batch: updater success path needs HTTPS
+
+Tried to exercise the “update available” path against a local manifest. Tauri's
+updater refuses non-HTTPS endpoints at startup
+(`PluginInitialization("updater", "… must use a secure protocol like https")`), and
+the test binary exited before creating a window. The normal build was restored and
+the CDP runtime check still passes (Tauri IPC, no-release error surfaced).
+
+Recorded in `docs/packaging.md`: the success path needs a real HTTPS release; no
+local http stub can validate it. The manifest format itself is covered by tests and
+the signature by Rust C23.
