@@ -54,3 +54,21 @@ EQ changes:
 
 Gate remained **23/23** on its last full run. No regressions from the UI/EQ work.
 
+## Final suite after RTL/CSP/CI work (2026-10-21)
+
+One pass over the gate and every browser/desktop check on the current tree:
+
+| Check | Exit |
+|---|---:|
+| Gate (281 Python, 52 player, 17 vitest, 49 addon) | 0 |
+| Desktop smoke (9 modules) | 0 |
+| Desktop workflow (import → analysis → player) | 0 |
+| Desktop updater runtime (Tauri IPC) | 0 |
+| Companion e2e (dynamic port) | 0 |
+| Chromium worklets (speed/+12/+7, shifter) | 0 |
+
+No regressions from the RTL plumbing, CSP/security headers or CI/release edits.
+The unproven list remains unchanged: listening quality, device latency, trusted
+signing/hosting, clean-VM install/update, live streaming sites, full RTL/plurals,
+neural models.
+
