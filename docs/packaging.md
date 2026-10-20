@@ -99,7 +99,10 @@ python scripts/updater_manifest.py --version 1.2.1 ^
 
 Measured 2026-10-21: the build produced `Neiro_1.2.1_x64-setup.exe.sig` and
 `Neiro_1.2.1_x64_en-US.msi.sig` (416 B each), and `updater_manifest.py` produced a
-`latest.json` with that signature and the release URL.
+`latest.json` with that signature and the release URL. A Rust test
+(`cargo test --lib`, part of gate C23) decodes the committed public key and the
+base64-wrapped `.sig`, then verifies the signature against the installer — so the
+key/signature/artifact chain is proven, not just present.
 
 Still missing: hosting/publishing the release assets, a publicly trusted signing
 certificate (Authenticode), and a clean-VM update test.

@@ -570,3 +570,11 @@ Ran the gate and every optional browser/companion check in one pass; results are
 `docs/evidence/acceptance-2026-10-21.md` (23/23, 280 Python, 49 player, 17 vitest,
 Chromium worklets, extension pairing/upload, 47 addon checks, updater manifest).
 The same run lists exactly what remains unproven.
+
+## Fifty-sixth batch: updater signature verified in Rust
+
+Added `minisign-verify` + `base64` dev dependencies and a Rust unit test that
+unwraps the base64-wrapped pubkey/`.sig`, verifies the NSIS installer against the
+committed public key, and skips when release artifacts are absent. `cargo test
+--lib` passes and is now part of gate C23, so future signed builds are checked
+cryptographically, not just for file existence.

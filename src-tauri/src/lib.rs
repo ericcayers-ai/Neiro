@@ -329,3 +329,52 @@ pub fn run() {
             }
         });
 }
+
+#[cfg(test)]
+mod updater_tests {
+    use std::path::Path;
+
+    /// Verify the signed NSIS artifact against the committed updater public key.
+    /// Skips when a local release build (and its `.sig`) is absent.
+    #[test]
+    fn release_updater_signature_verifies() {
+        let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let conf: serde_json::Value =
+            serde_json::from_str(include_str!("../tauri.conf.json")).expect("tauri.conf.json");
+        let pubkey = conf["plugins"]["updater"]["pubkey"]
+            .as_str()
+            .expect("plugins.updater.pubkey");
+        let version = env!("CARGO_PKG_VERSION");
+        let dir = manifest_dir.join("target/release/bundle/nsis");
+        let exe = dir.join(format!("Neiro_{version}_x64-setup.exe"));
+        let sig = dir.join(format!("Neiro_{version}_x64-setup.exe.sig"));
+        if !exe.is_file() || !sig.is_file() {
+            eprintln!("updater artifacts absent; skipping signature check");
+            return;
+        }
+        // Tauri stores both the public key and the .sig as base64 of the full
+        // minisign text file, so unwrap that first.
+        use base64::engine::general_purpose::STANDARD;
+        use base64::Engine as _;
+        let key_text = String::from_utf8(STANDARD.decode(pubkey).expect("pubkey base64"))
+            .expect("pubkey utf8");
+        let key_line = key_text
+            .lines()
+            .filter(|line| !line.trim().is_empty() && !line.starts_with("untrusted comment"))
+            .next_back()
+            .expect("minisign key line");
+        let key = minisign_verify::PublicKey::from_base64(key_line.trim())
+            .expect("decode minisign public key");
+        let sig_text = String::from_utf8(
+            STANDARD
+                .decode(std::fs::read(&sig).expect("sig"))
+                .expect("sig base64"),
+        )
+        .expect("sig utf8");
+        let signature =
+            minisign_verify::Signature::decode(&sig_text).expect("decode minisign signature");
+        let data = std::fs::read(&exe).expect("installer");
+        key.verify(&data, &signature, false)
+            .expect("updater signature must verify against the committed public key");
+    }
+}

@@ -336,7 +336,10 @@ def c23_rust(fast: bool, full: bool) -> tuple[bool, str]:
     check = _run([cargo, "check", "--manifest-path", manifest], timeout=1200)
     if check.returncode != 0:
         return False, f"check: {_tail(check.stdout + check.stderr, 6)}"
-    return True, "cargo fmt + clippy + check pass"
+    unit = _run([cargo, "test", "--manifest-path", manifest, "--lib"], timeout=1200)
+    if unit.returncode != 0:
+        return False, f"test: {_tail(unit.stdout + unit.stderr, 8)}"
+    return True, "cargo fmt + clippy + check + updater signature test pass"
 
 
 def c22_frontend_tests(fast: bool, full: bool) -> tuple[bool, str]:
