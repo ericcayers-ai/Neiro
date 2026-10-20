@@ -1203,6 +1203,15 @@ def _make_handler(state: _State):
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-store")
+            if ctype.startswith("text/html"):
+                # Same-origin UI; worklets self/blob, media same-origin, inline React styles.
+                self.send_header(
+                    "Content-Security-Policy",
+                    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+                    "img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self' data:; "
+                    "worker-src 'self' blob:; connect-src 'self' ws://127.0.0.1:*; "
+                    "object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+                )
             for key, value in state.security.cors_headers(self.headers.get("Origin")).items():
                 self.send_header(key, value)
             self.end_headers()

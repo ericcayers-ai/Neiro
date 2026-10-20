@@ -124,3 +124,20 @@ server enforces, in `src/neiro/ui/security.py`:
 
 Path-traversal checks for `/files/` and upload names are unchanged and covered by
 tests. Report vulnerabilities privately as described above.
+
+## Content-Security-Policy
+
+The local UI is served by the engine with a restrictive CSP on HTML documents:
+
+```text
+default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';
+img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self' data:;
+worker-src 'self' blob:; connect-src 'self' ws://127.0.0.1:*;
+object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
+```
+
+Inline styles are allowed because React uses them; scripts are same-origin only,
+worklets may load from `self`/`blob:`, and framing/objects are blocked. Covered by
+`test_index_sends_a_restrictive_csp`; the desktop workflow and Chromium worklet
+checks run under it.
+

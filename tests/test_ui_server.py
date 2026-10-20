@@ -88,6 +88,16 @@ def _run_job(base, kind, body):
     raise AssertionError("job did not finish in time")
 
 
+def test_index_sends_a_restrictive_csp(server):
+    base, _ = server
+    with urllib.request.urlopen(base + "/") as response:
+        csp = response.headers.get("Content-Security-Policy", "")
+    assert "default-src 'self'" in csp
+    assert "script-src 'self'" in csp
+    assert "frame-ancestors 'none'" in csp
+    assert "worker-src 'self' blob:" in csp
+
+
 def test_health_and_version_contract(server):
     base, _ = server
     health = json.loads(_get(base + "/api/health")[1])

@@ -709,3 +709,10 @@ analysis → player workflow all still pass, so the minimal set is sufficient.
 Stop/Fit/Pitch-correct/Loop/BPM/Reset/Mix-drawer tooltips (including em-dash and
 arrow strings) now resolve through `studio.*`. Studio tooltips/aria are complete;
 the help sheet and dynamic messages remain the only English chrome.
+
+## Seventy-third batch: CSP on the served UI
+
+HTML documents now carry a restrictive Content-Security-Policy (same-origin
+scripts, self/blob worklets, same-origin media, no objects/framing, inline styles
+allowed for React). A header test was added; the desktop workflow and Chromium
+worklet checks pass under it. `SECURITY.md` documents the directives.
