@@ -26,6 +26,8 @@ Gate: `python scripts/verify_goal.py --full` — **18/18 PASS** on 2026-10-20.
   corrected; banner updated.
 - [x] **P0-10 Frontend test runner.** Vitest + SSR `PlayerSurface` tests (5),
   wired to `npm test` and gate C22.
+- [x] **P0-12 CSP on the served UI.** Same-origin script/media/worklet directives,
+  no framing/objects; tested and exercised by desktop/worklet checks.
 - [ ] **P0-11 Short-basetemp note in test docs.** `pytest` still needs
   `--basetemp C:\np` on Windows; document it in the contributing guide.
 
