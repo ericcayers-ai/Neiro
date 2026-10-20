@@ -141,3 +141,7 @@ worklets may load from `self`/`blob:`, and framing/objects are blocked. Covered 
 `test_index_sends_a_restrictive_csp`; the desktop workflow and Chromium worklet
 checks run under it.
 
+Alongside CSP, every response carries `X-Content-Type-Options: nosniff`,
+`Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, and a `Permissions-Policy`
+that denies geolocation/camera/microphone/payment/USB for the engine UI.
+

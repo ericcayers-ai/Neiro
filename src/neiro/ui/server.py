@@ -1203,6 +1203,13 @@ def _make_handler(state: _State):
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Referrer-Policy", "no-referrer")
+            self.send_header("X-Frame-Options", "DENY")
+            self.send_header(
+                "Permissions-Policy",
+                "geolocation=(), camera=(), microphone=(), payment=(), usb=()",
+            )
             if ctype.startswith("text/html"):
                 # Same-origin UI; worklets self/blob, media same-origin, inline React styles.
                 self.send_header(

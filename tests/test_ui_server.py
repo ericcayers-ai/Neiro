@@ -97,6 +97,13 @@ def test_index_sends_a_restrictive_csp(server):
     assert "frame-ancestors 'none'" in csp
     assert "worker-src 'self' blob:" in csp
 
+    with urllib.request.urlopen(base + "/") as response:
+        headers = response.headers
+    assert headers.get("X-Content-Type-Options") == "nosniff"
+    assert headers.get("Referrer-Policy") == "no-referrer"
+    assert headers.get("X-Frame-Options") == "DENY"
+    assert "camera=()" in (headers.get("Permissions-Policy") or "")
+
 
 def test_health_and_version_contract(server):
     base, _ = server

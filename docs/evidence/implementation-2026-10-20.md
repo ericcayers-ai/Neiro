@@ -716,3 +716,10 @@ HTML documents now carry a restrictive Content-Security-Policy (same-origin
 scripts, self/blob worklets, same-origin media, no objects/framing, inline styles
 allowed for React). A header test was added; the desktop workflow and Chromium
 worklet checks pass under it. `SECURITY.md` documents the directives.
+
+## Seventy-fourth batch: security headers
+
+All responses now send `X-Content-Type-Options: nosniff`, `Referrer-Policy:
+no-referrer`, `X-Frame-Options: DENY` and a Permissions-Policy denying
+geolocation/camera/microphone/payment/USB. The CSP test asserts the headers; the
+desktop workflow still passes.
