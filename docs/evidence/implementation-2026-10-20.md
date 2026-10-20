@@ -474,3 +474,17 @@ fixed offset with 4 s excerpts, reveal, "can't tell", and accuracy over decided
 trials. Unit tests (3) cover balance, determinism, scoring and summary; SSR checks
 the controls. Player Node tests 42; this is a discrimination test, not an owner
 preference verdict.
+
+## Forty-seventh batch: Studio per-stem granular transpose
+
+Every Studio stem now passes through a per-track `AudioWorkletNode`
+(`neiro-stem-shift`, the tested clean-room granular kernel) before gain/pan, loaded
+once per context from a blob URL. A persisted Transpose control (-12…+12) applies
+to all stems; media elements stay at 1× so the master clock is untouched. Bypassed
+at 0. Preview-grade (formants follow pitch; no per-stem speed/formant/EQ) and
+labelled as such in `docs/player.md`.
+
+Fixing the kernel to pass tests found a real bug: the fractional ring index
+(`ring[float]`) returned `undefined` → NaN/Inf after the first shifted sample. The
+tap is floored now, in both the Studio and companion copies; a non-bypass
+finite-output test covers it. Player tests 44; companion worklet tests 6.

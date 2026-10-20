@@ -102,6 +102,17 @@ accuracy over decided trials (chance = 50%). This is a **discrimination** test, 
 a preference score, and it does not replace the owner's ears. Trial logic lives in
 `abx.ts` and is unit-tested.
 
+## Studio per-stem transpose
+
+Studio wires every stem through a per-track instance of the same clean-room
+granular shifter used by the companion capture worklet (loaded once per
+AudioContext from a blob URL; bypassed at 0). A **Transpose** control (-12…+12)
+applies to all stems without touching the master clock, because the media elements
+stay at 1× playbackRate. This is **preview-grade**: formants follow the pitch, and
+speed/formant/EQ per stem are not implemented in Studio — use Render with Neiro for
+the engine-quality path. A fractional ring-index bug that produced NaN/Inf in the
+granular taps was fixed in both copies and is covered by tests.
+
 ## Studio integration
 
 Studio's timeline keeps its multi-track transport (per-stem elements, gain/pan,

@@ -33,6 +33,7 @@ import {
 import { focusGain, isTargetStem } from '../player/mix'
 import { chordLane } from '../player/timeline'
 import { PlayerSurface } from '../player/PlayerSurface'
+import stemWorkletSource from '../player/worklet/stem-shift-worklet.js?raw'
 import {
   IconLoop,
   IconMute,
@@ -97,6 +98,7 @@ interface Track {
 type TrackGraph = {
   gain: GainNode
   pan: StereoPannerNode
+  shifter: AudioWorkletNode | null
 }
 
 interface Sel {
@@ -421,6 +423,16 @@ export function StudioModule() {
   const audioCtxRef = useRef<AudioContext | null>(null)
   const graphByElRef = useRef(new WeakMap<HTMLAudioElement, TrackGraph>())
   const graphByTrackRef = useRef<Record<string, TrackGraph>>({})
+  const shifterModuleRef = useRef<Promise<void> | null>(null)
+  const [transpose, setTranspose] = useState<number>(() => {
+    try {
+      return Math.max(-12, Math.min(12, Number(localStorage.getItem('neiro.studio.transpose') || 0)))
+    } catch {
+      return 0
+    }
+  })
+  const transposeRef = useRef(transpose)
+  transposeRef.current = transpose
   /** Master transport clock — independent of any single track ending. */
   const transportRef = useRef({ playing: false, originTimeline: 0, originPerf: 0 })
   const playheadRef = useRef(0)
@@ -542,12 +554,14 @@ export function StudioModule() {
         const ctx = ensureAudioCtx()
         try {
           const source = ctx.createMediaElementSource(el)
+          ;(el as HTMLAudioElement & { _neiroSource?: MediaElementAudioSourceNode })._neiroSource =
+            source
           const gain = ctx.createGain()
           const pan = ctx.createStereoPanner()
           source.connect(gain)
           gain.connect(pan)
           pan.connect(ctx.destination)
-          graph = { gain, pan }
+          graph = { gain, pan, shifter: null }
           graphByElRef.current.set(el, graph)
           el.volume = 1
         } catch {
@@ -555,7 +569,58 @@ export function StudioModule() {
           graph = graphByElRef.current.get(el)
         }
       }
-      if (graph) graphByTrackRef.current[trackId] = graph
+      if (graph) {
+        graphByTrackRef.current[trackId] = graph
+        // Insert the per-stem granular shifter once the worklet module is ready.
+        if (!graph.shifter) {
+          const ctx = ensureAudioCtx()
+          const elGraph = graph
+          void (shifterModuleRef.current ??= (() => {
+            const url = URL.createObjectURL(
+              new Blob([stemWorkletSource], { type: 'text/javascript' }),
+            )
+            return ctx.audioWorklet
+              .addModule(url)
+              .then(() => undefined)
+              .finally(() => URL.revokeObjectURL(url))
+          })())
+            .then(() => {
+              if (elGraph.shifter) return
+              try {
+                const shifter = new AudioWorkletNode(ctx, 'neiro-stem-shift', {
+                  channelCount: 2,
+                  channelCountMode: 'explicit',
+                })
+                shifter.port.postMessage({ type: 'pitch', semitones: transposeRef.current })
+                shifter.port.postMessage({ type: 'bypass', value: transposeRef.current === 0 })
+                // Rewire source -> shifter -> gain (source was only connected to gain).
+                const source = (el as HTMLAudioElement & { _neiroSource?: MediaElementAudioSourceNode })
+                  ._neiroSource
+                if (source) {
+                  try {
+                    source.disconnect()
+                  } catch {
+                    /* already disconnected */
+                  }
+                  source.connect(shifter)
+                  shifter.connect(elGraph.gain)
+                  elGraph.shifter = shifter
+                }
+              } catch {
+                /* shifter unavailable; restore the dry path */
+                try {
+                  ;(el as HTMLAudioElement & { _neiroSource?: MediaElementAudioSourceNode })
+                    ._neiroSource?.connect(elGraph.gain)
+                } catch {
+                  /* already connected */
+                }
+              }
+            })
+            .catch(() => {
+              shifterModuleRef.current = null
+            })
+        }
+      }
     },
     [ensureAudioCtx],
   )
@@ -567,6 +632,18 @@ export function StudioModule() {
       /* ignore */
     }
   }, [compact])
+
+  useEffect(() => {
+    for (const graph of Object.values(graphByTrackRef.current)) {
+      graph.shifter?.port.postMessage({ type: 'pitch', semitones: transpose })
+      graph.shifter?.port.postMessage({ type: 'bypass', value: transpose === 0 })
+    }
+    try {
+      localStorage.setItem('neiro.studio.transpose', String(transpose))
+    } catch {
+      /* ignore */
+    }
+  }, [transpose])
 
   const loadStudioAnalysis = useCallback(async () => {
     const track = tracks[0]
@@ -2104,6 +2181,21 @@ export function StudioModule() {
             >
               {analysisBusy ? 'Chords…' : 'Chords'}
             </button>
+            <label className="field" title="Preview transpose for every stem; speed stays 1× in Studio">
+              <span>Transpose</span>
+              <input
+                type="number"
+                min={-12}
+                max={12}
+                step={1}
+                value={transpose}
+                onChange={(event) => {
+                  const next = Number(event.target.value)
+                  setTranspose(Math.max(-12, Math.min(12, Number.isFinite(next) ? next : 0)))
+                }}
+                style={{ width: '4.2rem' }}
+              />
+            </label>
             <button
               type="button"
               aria-pressed={compact}

@@ -80,3 +80,15 @@ test('manifest is MV3 and the worklet is local', () => {
   assert.ok(worklet.includes("registerProcessor('neiro-capture'"))
   assert.ok(!/rb\.wasm/i.test(worklet))
 })
+
+test('grain shifter produces finite output when shifting', () => {
+  const shifter = new GrainShifter(48000)
+  shifter.setPitch(2)
+  const out = []
+  for (let i = 0; i < 4096; i += 1) {
+    shifter.push(Math.sin((2 * Math.PI * 220 * i) / 48000))
+    out.push(shifter.next())
+  }
+  assert.ok(out.every(Number.isFinite), 'no NaN/Inf from fractional taps')
+  assert.ok(out.slice(2048).some((value) => Math.abs(value) > 0.01), 'audible output')
+})

@@ -43,7 +43,8 @@ export class GrainShifter {
   }
 
   _at(index) {
-    return this.ring[((index % this.ringSize) + this.ringSize) % this.ringSize]
+    const wrapped = ((Math.floor(index) % this.ringSize) + this.ringSize) % this.ringSize
+    return this.ring[wrapped]
   }
 
   /** Pull one shifted sample from two delay taps, cross-faded with triangles. */
