@@ -544,7 +544,7 @@ ledger, parity matrix, port plan, verification receipt.
 
 ## 14. Implementation pass — 2026-10-20 (latest state)
 
-The brief was executed across 39 goal rounds. The gate
+The brief was executed across 72 goal rounds. The gate
 `python scripts/verify_goal.py --full` reports **23/23 PASS**; the Python suite is
 **281 passed / 3 skipped**; player Node tests **51**; vitest tests **17**; addon
 validator **49/49**; `cargo fmt/clippy/check` pass; the frontend type-checks and
@@ -581,9 +581,14 @@ builds; MSI/NSIS installers build with the bundled engine. Receipts: `docs/evide
   Preferences and MIDI-shell catalogues with provider/fallback; static accessibility
   audit clean (36 files, 0 findings) plus an axe smoke on the player; docs for i18n,
   accessibility, packaging; third-party notices.
-- **Last batches:** shell Resume card; per-lane analysis toggles; Studio compact
-  mode; About quick start/what's-new; exact-byte cache budget (fixing the apparent
-  gate "flake"); HTTP end-to-end render test; MIDI shell strings.
+- **Later batches:** shell Resume card; analysis toggles; Studio compact mode,
+  layout scenes, per-stem granular transpose/speed + 3-band EQ and queued stem
+  render; blind ABX panel; library versions/per-song settings; MIDI/Studio
+  catalogues; exact-byte cache budget (the apparent gate "flake" was real); HTTP
+  render test; Chromium worklet checks; companion pairing/upload e2e with dynamic
+  ports; site-access + ad-wait; updater plugin/UI + signed artifacts + latest.json;
+  remote-IPC scoping; CSP/security headers; desktop smoke/workflow tests; CI and
+  release automation.
 
 ### What is still not proven
 
