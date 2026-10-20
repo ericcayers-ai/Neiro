@@ -431,10 +431,21 @@ export function StudioModule() {
       return 0
     }
   })
+  const [speed, setSpeed] = useState<number>(() => {
+    try {
+      const stored = Number(localStorage.getItem('neiro.studio.speed') || 1)
+      return Math.max(0.5, Math.min(2, Number.isFinite(stored) ? stored : 1))
+    } catch {
+      return 1
+    }
+  })
   const transposeRef = useRef(transpose)
   transposeRef.current = transpose
+  const speedRef = useRef(speed)
+  speedRef.current = speed
+  const prevSpeedRef = useRef(speed)
   /** Master transport clock — independent of any single track ending. */
-  const transportRef = useRef({ playing: false, originTimeline: 0, originPerf: 0 })
+  const transportRef = useRef({ playing: false, originTimeline: 0, originPerf: 0, speed: 1 })
   const playheadRef = useRef(0)
   const dragRef = useRef<{
     kind: 'sel' | 'playhead' | 'clip-move' | null
@@ -564,6 +575,9 @@ export function StudioModule() {
           graph = { gain, pan, shifter: null }
           graphByElRef.current.set(el, graph)
           el.volume = 1
+          // We do the pitch correction; let playbackRate change pitch as well.
+          el.preservesPitch = false
+          ;(el as HTMLAudioElement & { webkitPreservesPitch?: boolean }).webkitPreservesPitch = false
         } catch {
           /* Element may already be wired if React remounted oddly */
           graph = graphByElRef.current.get(el)
@@ -591,8 +605,15 @@ export function StudioModule() {
                   channelCount: 2,
                   channelCountMode: 'explicit',
                 })
-                shifter.port.postMessage({ type: 'pitch', semitones: transposeRef.current })
-                shifter.port.postMessage({ type: 'bypass', value: transposeRef.current === 0 })
+                shifter.port.postMessage({
+                  type: 'pitch',
+                  semitones: transposeRef.current,
+                  cents: -1200 * Math.log2(speedRef.current),
+                })
+                shifter.port.postMessage({
+                  type: 'bypass',
+                  value: transposeRef.current === 0 && Math.abs(speedRef.current - 1) < 1e-6,
+                })
                 // Rewire source -> shifter -> gain (source was only connected to gain).
                 const source = (el as HTMLAudioElement & { _neiroSource?: MediaElementAudioSourceNode })
                   ._neiroSource
@@ -634,16 +655,35 @@ export function StudioModule() {
   }, [compact])
 
   useEffect(() => {
+    const cents = -1200 * Math.log2(speed)
+    const tr = transportRef.current
+    if (Math.abs(prevSpeedRef.current - speed) > 1e-9 && tr.playing) {
+      // Rebase the master clock at the current playhead so changing rate does not
+      // make the playhead jump or drift.
+      tr.originTimeline = playheadRef.current
+      tr.originPerf = performance.now()
+    }
+    tr.speed = speed
+    prevSpeedRef.current = speed
+    for (const el of Object.values(audioRefs.current)) {
+      if (!el) continue
+      // playbackRate changes tempo and pitch; the shifter restores pitch.
+      el.playbackRate = speed
+    }
     for (const graph of Object.values(graphByTrackRef.current)) {
-      graph.shifter?.port.postMessage({ type: 'pitch', semitones: transpose })
-      graph.shifter?.port.postMessage({ type: 'bypass', value: transpose === 0 })
+      graph.shifter?.port.postMessage({ type: 'pitch', semitones: transpose, cents })
+      graph.shifter?.port.postMessage({
+        type: 'bypass',
+        value: transpose === 0 && Math.abs(speed - 1) < 1e-6,
+      })
     }
     try {
       localStorage.setItem('neiro.studio.transpose', String(transpose))
+      localStorage.setItem('neiro.studio.speed', String(speed))
     } catch {
       /* ignore */
     }
-  }, [transpose])
+  }, [transpose, speed])
 
   const loadStudioAnalysis = useCallback(async () => {
     const track = tracks[0]
@@ -976,6 +1016,7 @@ export function StudioModule() {
       playing: true,
       originTimeline: timelineT,
       originPerf: performance.now(),
+      speed: speedRef.current,
     }
     playheadRef.current = timelineT
     setPlayhead(timelineT)
@@ -1023,7 +1064,7 @@ export function StudioModule() {
     const tick = () => {
       const tr = transportRef.current
       if (tr.playing) {
-        let t = tr.originTimeline + (performance.now() - tr.originPerf) / 1000
+        let t = tr.originTimeline + ((performance.now() - tr.originPerf) / 1000) * (tr.speed || 1)
         if (loopSel && hasSel && sel) {
           const span = Math.max(0.01, sel.end - sel.start)
           if (t >= sel.end) {
@@ -2181,7 +2222,17 @@ export function StudioModule() {
             >
               {analysisBusy ? 'Chords…' : 'Chords'}
             </button>
-            <label className="field" title="Preview transpose for every stem; speed stays 1× in Studio">
+            <label className="field" title="Preview speed for every stem; pitch is corrected by the granular shifter">
+              <span>Speed</span>
+              <select value={speed} onChange={(event) => setSpeed(Number(event.target.value))}>
+                {[0.5, 0.75, 1, 1.25, 1.5, 2].map((value) => (
+                  <option key={value} value={value}>
+                    {value}×
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field" title="Preview transpose for every stem">
               <span>Transpose</span>
               <input
                 type="number"

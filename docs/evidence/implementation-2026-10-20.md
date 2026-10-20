@@ -488,3 +488,12 @@ Fixing the kernel to pass tests found a real bug: the fractional ring index
 (`ring[float]`) returned `undefined` → NaN/Inf after the first shifted sample. The
 tap is floored now, in both the Studio and companion copies; a non-bypass
 finite-output test covers it. Player tests 44; companion worklet tests 6.
+
+## Forty-eighth batch: Studio preview speed with pitch correction
+
+Speed 0.5–2× sets each stem's `playbackRate` (browser `preservesPitch` disabled) and
+the granular shifter applies `-1200·log2(speed)` cents plus transpose, restoring
+pitch while tempo changes. The master clock is multiplied by the same speed and
+rebased at the current playhead on change, so the playhead, A–B and lock stay
+coherent. Combined-ratio test: +12 st with speed 2× → ratio 1. Preview-grade and
+documented; phase-vocoder quality/formant/EQ in Studio remain open.

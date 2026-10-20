@@ -41,7 +41,8 @@ Gate: `python scripts/verify_goal.py --full` — **18/18 PASS** on 2026-10-20.
 - [x] **P1-5 MIDI Practice migrated.** Uses `PlayerSurface`; DAW MIDI resumes a gate.
 - [~] **P1-6 Studio transport migration.** Studio keeps its multi-track transport;
   a Real-time action opens a track in the shared player, and every stem now runs
-  through a per-track granular transpose (preview-grade, speed stays 1×). Remaining:
+  through a per-track granular transpose plus 0.5–2× speed with pitch correction
+  (preview-grade). Remaining:
   full per-stem phase-vocoder engine (speed/formant/EQ).
 - [x] **P1-7 Tests + latency receipt.** 37 Node tests; `docs/evidence/player-latency-2026-10-20.md`.
 - [x] **P1-9 Compact player mode.** Header toggle hides practice panels (markup, not

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { GrainShifter } from '../worklet/stem-shift-worklet.js'
+import { GrainShifter, pitchRatioForSemitones } from '../worklet/stem-shift-worklet.js'
 
 function rms(values) {
   return Math.sqrt(values.reduce((sum, value) => sum + value * value, 0) / values.length)
@@ -35,4 +35,13 @@ test('stem shifter produces finite output and clamps the ratio', () => {
   }
   assert.ok(out.every(Number.isFinite), 'no NaN/Inf')
   assert.ok(rms(out.slice(2048)) > 0.05, 'audible output')
+})
+
+test('combined speed/transpose ratio keeps pitch while tempo changes', () => {
+  // speed 2x (cents -1200) with +12 semitones -> ratio 1 (pitch back to original).
+  assert.ok(Math.abs(pitchRatioForSemitones(12, -1200) - 1) < 1e-9)
+  // speed 1 with no transpose -> unchanged.
+  assert.ok(Math.abs(pitchRatioForSemitones(0, 0) - 1) < 1e-9)
+  // speed 0.5 (cents +1200) with no transpose -> ratio 2.
+  assert.ok(Math.abs(pitchRatioForSemitones(0, 1200) - 2) < 1e-9)
 })
