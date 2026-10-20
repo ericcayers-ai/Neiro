@@ -578,3 +578,11 @@ unwraps the base64-wrapped pubkey/`.sig`, verifies the NSIS installer against th
 committed public key, and skips when release artifacts are absent. `cargo test
 --lib` passes and is now part of gate C23, so future signed builds are checked
 cryptographically, not just for file existence.
+
+## Fifty-seventh batch: desktop updater UI
+
+About now calls the Tauri updater when running inside the shell: check, show the
+available version, download/install with progress, and relaunch via the process
+plugin; the browser path keeps the GitHub Releases check. Rust registers
+`tauri-plugin-process` and adds `process:allow-restart`. The non-Tauri bridge is
+unit-tested; desktop runtime remains owner-run, as does publishing/hosting.

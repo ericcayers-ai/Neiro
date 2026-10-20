@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react'
 import { fetchVersion } from '../api/client'
 import { ModuleHeader } from '../components/ModuleHeader'
+import { checkDesktopUpdate, installDesktopUpdate, isTauri, type DesktopUpdate } from '../api/updater'
 
 export function AboutModule() {
   const [version, setVersion] = useState<string>('…')
   const [updateMsg, setUpdateMsg] = useState('')
+  const [desktopUpdate, setDesktopUpdate] = useState<DesktopUpdate | null>(null)
+  const [installing, setInstalling] = useState(false)
 
   useEffect(() => {
     void fetchVersion()
@@ -13,6 +16,21 @@ export function AboutModule() {
   }, [])
 
   const checkUpdates = async () => {
+    if (isTauri()) {
+      setUpdateMsg('Checking the desktop updater…')
+      try {
+        const info = await checkDesktopUpdate()
+        setDesktopUpdate(info)
+        setUpdateMsg(
+          info ? `Update available: ${info.version}.` : 'You are on the latest desktop build.',
+        )
+      } catch (error) {
+        setUpdateMsg(
+          `Updater check failed (${error instanceof Error ? error.message : String(error)}).`,
+        )
+      }
+      return
+    }
     setUpdateMsg('Checking GitHub Releases…')
     try {
       const res = await fetch('https://api.github.com/repos/ericcayers-ai/Neiro/releases/latest', {
@@ -39,6 +57,20 @@ export function AboutModule() {
     }
   }
 
+  const installUpdate = async () => {
+    setInstalling(true)
+    try {
+      const started = await installDesktopUpdate((message) => setUpdateMsg(message))
+      if (!started) setUpdateMsg('No update to install.')
+    } catch (error) {
+      setUpdateMsg(
+        `Update failed (${error instanceof Error ? error.message : String(error)}).`,
+      )
+    } finally {
+      setInstalling(false)
+    }
+  }
+
   return (
     <div className="module-panel module-enter">
       <ModuleHeader
@@ -50,9 +82,16 @@ export function AboutModule() {
           </>
         }
         actions={
-          <button type="button" onClick={() => void checkUpdates()}>
-            Check for updates
-          </button>
+          <>
+            <button type="button" onClick={() => void checkUpdates()}>
+              Check for updates
+            </button>
+            {desktopUpdate && (
+              <button type="button" onClick={() => void installUpdate()} disabled={installing}>
+                {installing ? 'Installing…' : `Download & install ${desktopUpdate.version}`}
+              </button>
+            )}
+          </>
         }
       />
       {updateMsg && (

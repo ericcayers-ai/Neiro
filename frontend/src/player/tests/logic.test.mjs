@@ -27,6 +27,7 @@ import { detectPitchHz, nearestNote, pitchAt } from '../pitch.ts'
 import { EN, missingKeys, translate } from '../../i18n/translate.ts'
 import { chordLane } from '../timeline.ts'
 import { mostRecentSong } from '../../library/recent.ts'
+import { checkDesktopUpdate, isTauri } from '../../api/updater.ts'
 
 test('transport plays, pauses and ends', () => {
   const transport = new Transport({ duration: 10 })
@@ -392,4 +393,9 @@ test('resume card picks the most recently played song', () => {
   assert.equal(mostRecentSong(songs)?.id, 'c')
   assert.equal(mostRecentSong([{ id: 'x', title: 'X', updated: 1, last_played: 2 }])?.id, 'x')
   assert.equal(mostRecentSong([]), null)
+})
+
+test('desktop updater bridge is a no-op outside Tauri', async () => {
+  assert.equal(isTauri(), false)
+  assert.equal(await checkDesktopUpdate(), null)
 })

@@ -104,6 +104,12 @@ Measured 2026-10-21: the build produced `Neiro_1.2.1_x64-setup.exe.sig` and
 base64-wrapped `.sig`, then verifies the signature against the installer — so the
 key/signature/artifact chain is proven, not just present.
 
+About → **Check for updates** now uses the updater plugin when running in the
+desktop shell (check, progress, download/install, relaunch) and keeps the GitHub
+Releases check in a normal browser. The plugin calls are only exercised in the
+desktop app; the non-Tauri path is unit-tested, and the signed artifact itself is
+verified in Rust (C23).
+
 Still missing: hosting/publishing the release assets, a publicly trusted signing
 certificate (Authenticode), and a clean-VM update test.
 
