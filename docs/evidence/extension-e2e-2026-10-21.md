@@ -35,3 +35,8 @@ PASS: companion paired, health-checked and uploaded to the dynamic-port engine
 Tab capture and site adapters (the panel is opened as a tab here, not attached as a
 side panel; `tabCapture` needs the side-panel gesture/permission), ad wait, and
 live streaming sites remain owner-run.
+
+Automating capture was attempted and rejected deliberately: `chrome.permissions
+.request({permissions:['tabCapture']})` opens an interactive Chrome permission
+dialog that blocks automation (the probe hung until timeout). Do not add a
+test-only bypass; capture stays a manual check.
