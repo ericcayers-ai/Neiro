@@ -667,3 +667,10 @@ uncatalogued module body.
 Each track graph now runs shifter → low shelf (200 Hz) → peaking (1 kHz) → high
 shelf (6 kHz) → gain → pan. Three ±12 dB sliders sit beside gain/pan; values apply
 live (applyVolumes depends on tracks) and round-trip through Studio scenes.
+
+## Sixty-seventh batch: ad-wait actually enforced
+
+The panel used to display “ad playing — capture waits for media” but Start still
+captured. Start now queries the adapter media state and refuses while `ad` is true,
+showing “ad playing — wait for the show to resume.” Validator checks the guard;
+pairing/upload e2e is unaffected.

@@ -101,6 +101,13 @@ $('bypass').addEventListener('change', async () => {
 })
 
 $('capture-start').addEventListener('click', async () => {
+  // The label says capture waits for the media; enforce it instead of capturing
+  // an advert (adapters expose `ad` from the page state).
+  const mediaState = await send({ op: 'media', mediaOp: 'state' })
+  if (mediaState && mediaState.ok && mediaState.ad) {
+    $('media-state').textContent = 'ad playing — wait for the show to resume'
+    return
+  }
   $('capture-start').disabled = true
   // The permission request must run in this page, from the user's click.
   const granted = await chrome.permissions.request({ permissions: ['tabCapture'] })

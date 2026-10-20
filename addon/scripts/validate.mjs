@@ -102,6 +102,10 @@ const panel = read('src/sidepanel/index.html')
 check('panel labels the method', /clean-room/i.test(panel))
 check('panel states no DRM bypass', /no DRM bypass/i.test(panel))
 check(
+  'panel guards capture during ads',
+  read('src/sidepanel/panel.js').includes('mediaState.ad'),
+)
+check(
   'panel exposes site-access diagnostics',
   panel.includes('site-access') && read('src/sidepanel/panel.js').includes('site:info'),
 )

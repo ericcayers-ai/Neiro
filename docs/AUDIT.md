@@ -1026,7 +1026,7 @@ player, **Q** queued Neiro engine, **RT+Q** hybrid, **Addon** extension surface,
 | T-53 | Supported-site playback | yt-dlp ingest optional/absent; no streaming/player integration | M | Addon adapters; pairing/upload e2e verified in Chromium; live sites owner-run | Addon | P1 |
 | T-54 | Tab Audio capture | None | M | Addon offscreen/tabCapture | Addon | P1 |
 | T-55 | Site permissions/connection diagnostics | None | M | Addon site-access + engine health probe | Addon | P2 |
-| T-56 | Ad wait/transport on sites | None | M | Addon adapter state | Addon | P2 |
+| T-56 | Ad wait/transport on sites | None | M | Adapter state blocks capture start during ads | Addon | P2 |
 | T-57 | Compact song bar, popup/side panel | Desktop/browser app exists; no compact bar/extension panel | M | Addon side panel + player compact mode | Addon/RT | P2 |
 | T-58 | URL ingest/download | Optional; yt-dlp absent (live 422) | P | Keep Q ingest; add clear optional install | Q | P1 |
 | T-59 | Direct site adapters (YouTube/Spotify/SoundCloud/Deezer/Apple Music) | None | M | Addon adapter interface + fallback | Addon | P1 |

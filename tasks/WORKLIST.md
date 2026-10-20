@@ -116,6 +116,8 @@ Gate: `python scripts/verify_goal.py --full` — **18/18 PASS** on 2026-10-20.
   design (Chrome mutes the captured tab).
 - [x] **P4-4 Pairing.** 6-digit code → token, rotated after use; Q gate.
 - [x] **P4-5 Static validator + tests.** 47 validator checks, 5 worklet tests.
+- [x] **P4-9 Ad-wait guard.** Capture start is refused while the adapter reports an
+  ad; the panel no longer claims a behavior it did not enforce.
 - [x] **P4-8 Site-access diagnostics.** Panel shows the active http(s) origin and
   host-permission state, with a click-driven grant; adapter prerequisite.
 - [x] **P4-7 Companion engine diagnostics + host policy.** Loopback host permission
