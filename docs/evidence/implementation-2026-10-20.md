@@ -563,3 +563,10 @@ release URL. Two tests cover manifest shape and missing-artifact errors.
 
 Normal builds remain key-free; publishing assets, a trusted Authenticode
 certificate and a clean-VM update test remain owner steps.
+
+## Fifty-fifth batch: consolidated acceptance run
+
+Ran the gate and every optional browser/companion check in one pass; results are in
+`docs/evidence/acceptance-2026-10-21.md` (23/23, 280 Python, 49 player, 17 vitest,
+Chromium worklets, extension pairing/upload, 47 addon checks, updater manifest).
+The same run lists exactly what remains unproven.
