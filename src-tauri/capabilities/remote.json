@@ -1,0 +1,17 @@
+{
+  "$schema": "../gen/schemas/remote-schema.json",
+  "identifier": "remote-loopback",
+  "description": "Minimal IPC for the engine-served UI on loopback (updater/relaunch only)",
+  "windows": [
+    "main"
+  ],
+  "remote": {
+    "urls": [
+      "http://127.0.0.1:*"
+    ]
+  },
+  "permissions": [
+    "updater:default",
+    "process:allow-restart"
+  ]
+}

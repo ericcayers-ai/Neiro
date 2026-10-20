@@ -130,6 +130,9 @@ Two shell details this exposed and fixed:
 - the window is now created **directly on the engine origin** (`WebviewUrl::External`)
   with a `remote.urls = ["http://127.0.0.1:*"]` capability; navigating an
   `about:blank` window to a remote URL does not expose the IPC globals;
+- the loopback capability is **separate and minimal** (`remote-loopback`: only
+  `updater:default` + `process:allow-restart`), so the engine-served origin cannot
+  call core window/app commands through Tauri IPC;
 - a stale `target/release/resources/engine` from an earlier build can ship an old
   UI, so `scripts/build_sidecar.py --install` now cleans and re-stages it and the
   release notes say to remove `target/release/resources` before building.

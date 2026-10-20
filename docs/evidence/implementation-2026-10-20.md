@@ -696,3 +696,10 @@ Transport, tools, track actions, scenes/render, Mute/Solo/Gain/Pan and mix actio
 now have localized tooltips through `studio.*`. The help sheet, dynamic status
 messages and unicode-dash titles that could not be matched cleanly remain English
 and are documented as such.
+
+## Seventy-first batch: minimal loopback IPC capability
+
+Split the remote capability out of `default.json`: the engine-served loopback origin
+now gets only `updater:default` and `process:allow-restart`, not the broad
+`core:default` set. The updater runtime check, nine-module smoke and import →
+analysis → player workflow all still pass, so the minimal set is sufficient.

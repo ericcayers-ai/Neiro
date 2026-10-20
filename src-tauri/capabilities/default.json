@@ -9,10 +9,5 @@
     "core:default",
     "updater:default",
     "process:allow-restart"
-  ],
-  "remote": {
-    "urls": [
-      "http://127.0.0.1:*"
-    ]
-  }
+  ]
 }
