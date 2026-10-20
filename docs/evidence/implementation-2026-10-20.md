@@ -682,3 +682,10 @@ Rebuilt the sidecar clean, cleared `target/release/resources`, and produced MSI
 Administrative MSI extraction contains the bundled engine; launching the extracted
 app with **no Python on PATH** spawned `neiro-engine.exe` and opened the Neiro
 window. Details: `docs/evidence/release-candidate-2026-10-21.md`.
+
+## Sixty-ninth batch: Studio chrome catalogue
+
+Headings, tool-group labels and the transport/tool/view/clip aria labels now
+resolve through `studio.*` via a `tr = useT()` alias (avoiding the `t` track
+variable). Tooltips, the help sheet and dynamic messages remain English and are
+documented as such.

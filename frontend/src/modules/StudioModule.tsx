@@ -35,6 +35,7 @@ import {
 import { focusGain, isTargetStem } from '../player/mix'
 import { chordLane } from '../player/timeline'
 import { renderRequest } from '../studio/render'
+import { useT } from '../i18n'
 import {
   applySceneToTracks,
   createScene,
@@ -306,6 +307,7 @@ function drawLane(canvas: HTMLCanvasElement, wave: WaveformData, color: string) 
 }
 
 export function StudioModule() {
+  const tr = useT()
   const {
     file,
     studioTarget,
@@ -2010,7 +2012,7 @@ export function StudioModule() {
     return (
       <div className="module-panel bleed studio-layout module-enter">
         <div className="studio-header">
-          <h2>Studio</h2>
+          <h2>{tr('studio.title')}</h2>
           <button
             type="button"
             className="studio-help"
@@ -2058,7 +2060,7 @@ export function StudioModule() {
   return (
     <div className="module-panel bleed studio-layout module-enter">
       <div className="studio-header">
-        <h2>Studio</h2>
+        <h2>{tr('studio.title')}</h2>
         <button
           type="button"
           className="studio-help"
@@ -2072,12 +2074,12 @@ export function StudioModule() {
       </div>
 
       <div className="studio-toolbar compact">
-        <ToolGroup label="Transport">
+        <ToolGroup label={tr('studio.transport')}>
           <button
             type="button"
             className="studio-icon-btn"
             title="Play or pause (Space)"
-            aria-label={playing ? 'Pause' : 'Play'}
+            aria-label={playing ? tr('studio.pause') : tr('studio.play')}
             onMouseEnter={() => setIntentOverride(TRANSPORT_INTENT)}
             onMouseLeave={() => setIntentOverride(null)}
             onClick={togglePlay}
@@ -2100,8 +2102,8 @@ export function StudioModule() {
           <button
             type="button"
             className={`studio-icon-btn${loopSel ? ' active' : ''}`}
-            title="Loop selection"
-            aria-label="Loop selection"
+            title={tr('studio.loop')}
+            aria-label={tr('studio.loop')}
             aria-pressed={loopSel}
             onMouseEnter={() =>
               setIntentOverride(
@@ -2117,7 +2119,7 @@ export function StudioModule() {
           </button>
         </ToolGroup>
 
-        <ToolGroup label="Tools">
+        <ToolGroup label={tr('studio.tools')}>
           {(
             [
               ['select', 'Select region (V)', IconSelect],
@@ -2143,8 +2145,8 @@ export function StudioModule() {
           <button
             type="button"
             className={`studio-icon-btn${beatSnap ? ' active' : ''}`}
-            title="Snap clip moves to beat grid"
-            aria-label="Beat snap"
+            title={tr('studio.snap')}
+            aria-label={tr('studio.beatSnap')}
             aria-pressed={beatSnap}
             onMouseEnter={() =>
               setIntentOverride(`Snap offsets to beats at ~${Math.round(sessionBpm)} BPM.`)
@@ -2156,11 +2158,11 @@ export function StudioModule() {
           </button>
         </ToolGroup>
 
-        <ToolGroup label="View">
+        <ToolGroup label={tr('studio.view')}>
           <button
             type="button"
             className="studio-icon-btn"
-            title="Zoom in (=)"
+            title={tr('studio.zoomIn')}
             aria-label="Zoom in"
             onClick={() => zoomBy(0.5)}
           >
@@ -2169,7 +2171,7 @@ export function StudioModule() {
           <button
             type="button"
             className="studio-icon-btn"
-            title="Zoom out (-)"
+            title={tr('studio.zoomOut')}
             aria-label="Zoom out"
             onClick={() => zoomBy(2)}
           >
@@ -2179,7 +2181,7 @@ export function StudioModule() {
             type="button"
             className="studio-icon-btn"
             title="Fit view — useful window for long files"
-            aria-label="Fit view"
+            aria-label={tr('studio.fit')}
             onClick={() => applyFitView(timelineDur, true)}
           >
             Fit
@@ -2187,8 +2189,8 @@ export function StudioModule() {
           <button
             type="button"
             className={`studio-icon-btn${showSpectrogram ? ' active' : ''}`}
-            title="Toggle spectrogram lane"
-            aria-label="Spectrogram lane"
+            title={tr('studio.spectrogram')}
+            aria-label={tr('studio.spectrogramAria')}
             aria-pressed={showSpectrogram}
             onMouseEnter={() =>
               setIntentOverride('Show log-frequency spectrogram under each waveform lane.')
@@ -2200,7 +2202,7 @@ export function StudioModule() {
           </button>
         </ToolGroup>
 
-        <ToolGroup label="Clip">
+        <ToolGroup label={tr('studio.clip')}>
           {EDIT_TOOLS.map((t) => (
             <button
               key={t.label}
@@ -2217,8 +2219,8 @@ export function StudioModule() {
             type="button"
             className="studio-icon-btn"
             disabled={!undoStack.length}
-            title="Undo (Ctrl+Z)"
-            aria-label="Undo"
+            title={tr('studio.undo')}
+            aria-label={tr('studio.undo')}
             onClick={undo}
           >
             <IconUndo size={16} />
@@ -2227,8 +2229,8 @@ export function StudioModule() {
             type="button"
             className="studio-icon-btn"
             disabled={!redoStack.length}
-            title="Redo (Ctrl+Y)"
-            aria-label="Redo"
+            title={tr('studio.redo')}
+            aria-label={tr('studio.redo')}
             onClick={redo}
           >
             <IconRedo size={16} />
@@ -2236,8 +2238,8 @@ export function StudioModule() {
           <button
             type="button"
             className="studio-icon-btn"
-            title="Bounce / combine selected tracks"
-            aria-label="Bounce"
+            title={tr('studio.bounce')}
+            aria-label={tr('studio.bounce')}
             onMouseEnter={() => setIntentOverride('Combine selected tracks into one bounced clip.')}
             onMouseLeave={() => setIntentOverride(null)}
             onClick={() => void bounceSelected()}
@@ -2280,7 +2282,7 @@ export function StudioModule() {
           </button>
         </ToolGroup>
 
-        <ToolGroup label="Mix">
+        <ToolGroup label={tr('studio.mix')}>
           <button
             type="button"
             className={`studio-icon-btn${mixOpen ? ' active' : ''}`}
@@ -2319,7 +2321,7 @@ export function StudioModule() {
             if (event.target === event.currentTarget) setRealtimeTrack(null)
           }}
         >
-          <div className="realtime-player" role="dialog" aria-modal="true" aria-label="Real-time player">
+          <div className="realtime-player" role="dialog" aria-modal="true" aria-label={tr('studio.realtime')}>
             <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0 }}>{realtimeTrack.name}</h3>
               <button type="button" onClick={() => setRealtimeTrack(null)}>
@@ -2469,7 +2471,7 @@ export function StudioModule() {
           )}
 
           {studioReport?.chords && studioReport.chords.length > 0 && (
-            <div className="studio-chords" aria-label="Chord timeline (heuristic)">
+            <div className="studio-chords" aria-label={tr('studio.chordLane')}>
               {chordLane(studioReport.chords, viewStart, viewDur).map((block, index) => (
                 <span
                   key={`${block.chord}-${index}`}
