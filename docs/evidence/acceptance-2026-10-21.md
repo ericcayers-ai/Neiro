@@ -72,3 +72,20 @@ The unproven list remains unchanged: listening quality, device latency, trusted
 signing/hosting, clean-VM install/update, live streaming sites, full RTL/plurals,
 neural models.
 
+## Round 79 final verification
+
+Re-ran the full set on the final tree (281 Python, 53 player, 17 vitest, 49 addon):
+
+| Check | Exit |
+|---|---:|
+| Gate | 0 |
+| Desktop smoke (9 modules) | 0 |
+| Desktop workflow (import → analysis → player) | 0 |
+| Desktop updater runtime (Tauri IPC) | 0 |
+| Companion e2e (dynamic port) | 0 |
+| Chromium worklets | 0 |
+
+Every automated check that exists in this repo passes. The owner-gated list is
+unchanged: trusted cert/hosting, clean-VM install/update, listening quality,
+per-stem phase-vocoder engine, neural models, non-English/RTL CSS, live-site capture.
+
