@@ -723,3 +723,12 @@ All responses now send `X-Content-Type-Options: nosniff`, `Referrer-Policy:
 no-referrer`, `X-Frame-Options: DENY` and a Permissions-Policy denying
 geolocation/camera/microphone/payment/USB. The CSP test asserts the headers; the
 desktop workflow still passes.
+
+## Seventy-fifth batch: CI and release workflows brought up to date
+
+CI gained player DSP tests, an addon validator/worklet job, and Rust
+fmt/clippy/check/unit tests; the duplicated rust key introduced while editing was
+merged and the workflow parsed. Release now installs PyInstaller, stages the
+model-free sidecar, uses the signed release config only when signing secrets exist,
+emits `latest.json`, and uploads `.sig`/manifest assets. `build_sidecar.py` now
+renames `neiro` → `neiro-engine` on non-Windows too.

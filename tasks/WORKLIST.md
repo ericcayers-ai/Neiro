@@ -158,6 +158,9 @@ Gate: `python scripts/verify_goal.py --full` — **18/18 PASS** on 2026-10-20.
 - [x] **P6-2 Audit + handoff addenda.** `docs/AUDIT.md` §13, `HANDOFF.md` §14.
 - [x] **P6-3 Owner decisions recorded.** Local-first scope, clean-room DSP, hybrid
   addon, sidecar packaging direction, pitch fix committed.
+- [x] **P6-5 CI/release workflow current.** Player/addon/Rust jobs; release stages
+  the sidecar, signs conditionally and emits latest.json; cross-platform sidecar
+  rename fixed.
 - [x] **P6-4 Rust fmt/clippy/check.** `cargo fmt --check`, `cargo clippy -- -D
   warnings`, `cargo check` pass on the dynamic-port shell (gate C23). Signed
   installer remains owner-gated.

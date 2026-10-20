@@ -16,7 +16,8 @@
     "test:desktop-updater": "node tests/desktop-updater-runtime.mjs",
     "test:updater-available": "node tests/updater-available.mjs",
     "test:desktop-smoke": "node tests/desktop-smoke.mjs",
-    "test:desktop-workflow": "node tests/desktop-workflow.mjs"
+    "test:desktop-workflow": "node tests/desktop-workflow.mjs",
+    "test:player": "node --test src/player/tests/player.test.mjs src/player/tests/logic.test.mjs src/player/tests/abx.test.mjs src/player/tests/stemShift.test.mjs src/player/tests/scenes.test.mjs"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.2.7",

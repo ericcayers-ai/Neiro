@@ -82,13 +82,27 @@ jobs:
         run: |
           npm --prefix frontend run build
           test -f src/neiro/ui/static/index.html
-      - name: Build Tauri bundle
-        # Unsigned local build — code signing secrets are optional and
-        # intentionally not required for an open-source nightly/tag release.
-        run: npm run tauri:build
+      - name: Build the model-free sidecar
+        run: |
+          pip install pyinstaller
+          python scripts/build_sidecar.py --install
+      - name: Build Tauri bundle (signed updater artifacts)
+        if: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
+        run: npm run tauri:build -- --config src-tauri/tauri.release.conf.json
         env:
-          # Suppress interactive prompts / missing signing keys in CI.
-          TAURI_SIGNING_PRIVATE_KEY: ""
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+      - name: Build Tauri bundle (unsigned)
+        if: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY == '' }}
+        run: npm run tauri:build
+      - name: Updater manifest (Windows, signed builds)
+        if: matrix.os == 'windows-latest' && secrets.TAURI_SIGNING_PRIVATE_KEY != ''
+        shell: bash
+        run: |
+          python scripts/updater_manifest.py \
+            --version "${GITHUB_REF_NAME#v}" \
+            --base-url "https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}" \
+            --out src-tauri/target/release/bundle/nsis/latest.json
       - name: Upload desktop artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -96,6 +110,8 @@ jobs:
           path: |
             ${{ matrix.bundle_glob }}
             ${{ matrix.extra_glob }}
+            src-tauri/target/release/bundle/**/*.sig
+            src-tauri/target/release/bundle/**/latest.json
           if-no-files-found: warn
 
   release-notes:
@@ -118,6 +134,7 @@ jobs:
             -name '*.whl' -o -name '*.tar.gz' \
             -o -name '*.msi' -o -name '*.exe' \
             -o -name '*.dmg' -o -name '*.AppImage' -o -name '*.deb' \
+            -o -name '*.sig' -o -name 'latest.json' \
           \) -exec cp -v {} collected/ \;
           ls -la collected || true
       - name: Create / update GitHub Release with notes

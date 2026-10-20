@@ -140,6 +140,21 @@ Two shell details this exposed and fixed:
 Still missing: hosting/publishing the release assets, a publicly trusted signing
 certificate (Authenticode), and a clean-VM update test.
 
+## CI and release automation
+
+`ci.yml` now runs Python lint/tests, frontend lint/typecheck/build + vitest +
+**player DSP tests**, the **addon validator/worklet tests**, and a Linux
+**Rust fmt/clippy/check/unit-test** job. `release.yml` installs PyInstaller,
+stages the model-free sidecar with `build_sidecar.py --install`, and:
+
+- with `TAURI_SIGNING_PRIVATE_KEY` (+ password) secrets: builds updater artifacts
+  via `tauri.release.conf.json` and writes `latest.json` with
+  `updater_manifest.py`;
+- without secrets: builds unsigned installers (no updater artifacts).
+
+The upload/release steps include `*.sig` and `latest.json`. YAML is validated
+locally; the exact commands are the same ones verified by hand.
+
 ## Signing (pipeline verified with a dev certificate)
 
 `scripts/sign_windows.ps1` signs artifacts with Authenticode using a PFX supplied

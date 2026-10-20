@@ -82,7 +82,11 @@ def main() -> int:
             else:
                 child.unlink()
         shutil.copytree(exe.parent, dest, dirs_exist_ok=True)
-        (dest / "neiro.exe").replace(dest / "neiro-engine.exe")
+        built_name = "neiro.exe" if sys.platform == "win32" else "neiro"
+        installed_name = "neiro-engine.exe" if sys.platform == "win32" else "neiro-engine"
+        built = dest / built_name
+        if built.is_file():
+            built.replace(dest / installed_name)
         if readme_text:
             readme.write_text(readme_text, encoding="utf-8")
         print(f"installed into {dest} (README preserved)")
