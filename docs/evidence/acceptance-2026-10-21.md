@@ -15,6 +15,7 @@ uncommitted evidence of this run.
 | Companion worklet tests | `node --test addon/tests/capture.test.mjs` | **6 passed** |
 | Updater manifest | `python scripts/updater_manifest.py …` | **PASS** |
 | Desktop updater runtime | `cd frontend; npm run test:desktop-updater` | **PASS** (Tauri IPC path; no-release error surfaced) |
+| Desktop shell smoke | `cd frontend; npm run test:desktop-smoke` | **PASS** (all 9 modules, 0 page errors) |
 | Desktop updater availability | `cd frontend; npm run test:updater-available` (dev-flag build) | **PASS** (“Update available: 1.2.2.”) |
 
 ## Worklet numbers (Chromium OfflineAudioContext)

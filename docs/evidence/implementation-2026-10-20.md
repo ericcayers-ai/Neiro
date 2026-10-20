@@ -639,3 +639,10 @@ track artifact (keeping the original id for Reset), and reset the preview contro
 The panel shows the active http(s) origin and optional host-permission state, with a
 click-driven **Grant this site** request (required by adapters on streaming sites).
 Validator 48/48 and the dynamic-port pairing/upload e2e still pass.
+
+## Sixty-third batch: desktop shell smoke
+
+`npm run test:desktop-smoke` launches the release exe with WebView2 remote
+debugging, connects over CDP, and visits all nine rail modules (Import, Analysis,
+Studio, Separate, Restore, MIDI, Library, Prefs, About). Result: every module
+renders its expected heading and **zero page errors**.
