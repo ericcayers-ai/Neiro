@@ -1,6 +1,17 @@
 /* Neiro Companion side panel. */
 
 const $ = (id) => document.getElementById(id)
+const DEFAULT_ENGINE_URL = 'http://127.0.0.1:8377'
+
+function normalizeEngineUrl(value) {
+  const trimmed = String(value || '').trim().replace(/\/+$/, '')
+  return /^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(trimmed) ? trimmed : ''
+}
+
+async function loadEngineUrl() {
+  const stored = await chrome.storage.local.get('engineUrl')
+  $('engine-url').value = stored.engineUrl || DEFAULT_ENGINE_URL
+}
 
 function send(message) {
   return new Promise((resolve) => {
@@ -10,6 +21,8 @@ function send(message) {
     })
   })
 }
+
+void loadEngineUrl()
 
 async function refreshStatus() {
   const [settings, paired] = await Promise.all([
@@ -50,6 +63,18 @@ async function pushPitch() {
   await send({ op: 'pitch', semitones: transpose, cents })
   await send({ op: 'settings:set', patch: { transpose, cents } })
 }
+
+$('engine-save').addEventListener('click', async () => {
+  const url = normalizeEngineUrl($('engine-url').value)
+  if (!url) {
+    $('engine-url-status').textContent =
+      'Use http://127.0.0.1:<port> or http://localhost:<port> (engine URLs only).'
+    return
+  }
+  $('engine-url').value = url
+  await chrome.storage.local.set({ engineUrl: url })
+  $('engine-url-status').textContent = `Engine URL saved: ${url}`
+})
 
 $('transpose').addEventListener('input', () => void pushPitch())
 $('cents').addEventListener('input', () => void pushPitch())
@@ -110,11 +135,32 @@ $('queued-file').addEventListener('change', async (event) => {
   const file = event.target.files?.[0]
   if (!file) return
   $('queued-status').textContent = 'Uploading…'
-  const buffer = await file.arrayBuffer()
-  const result = await send({ op: 'q:upload', buffer, filename: file.name })
-  $('queued-status').textContent = result.ok
-    ? `Uploaded. Engine analysis: ${result.report?.report?.estimated_key || 'done'}.`
-    : result.error || 'upload failed'
+  // Upload directly from the panel: runtime messages use JSON serialization, so
+  // an ArrayBuffer sent through the service worker arrives as {} ("empty upload").
+  const stored = await chrome.storage.local.get(['engineUrl', 'pairedToken'])
+  const base = normalizeEngineUrl(stored.engineUrl) || DEFAULT_ENGINE_URL
+  if (!stored.pairedToken) {
+    $('queued-status').textContent = 'Pair Neiro before queued processing.'
+    return
+  }
+  try {
+    const response = await fetch(`${base}/api/upload`, {
+      method: 'POST',
+      headers: {
+        'X-Neiro-Token': stored.pairedToken,
+        'X-Filename': file.name,
+        'Content-Type': 'application/octet-stream',
+      },
+      body: await file.arrayBuffer(),
+    })
+    const data = await response.json().catch(() => ({}))
+    $('queued-status').textContent = response.ok
+      ? `Uploaded. Engine analysis: ${data.report?.estimated_key || 'done'}.`
+      : data.error || `upload failed (${response.status})`
+  } catch (error) {
+    $('queued-status').textContent =
+      error instanceof Error ? `Upload failed: ${error.message}` : 'upload failed'
+  }
 })
 
 void refreshStatus()

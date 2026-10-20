@@ -7,7 +7,16 @@
  */
 
 const OFFSCREEN_PATH = 'src/offscreen/offscreen.html'
-const NEIRO_BASE = 'http://127.0.0.1:8377'
+const DEFAULT_NEIRO_BASE = 'http://127.0.0.1:8377'
+
+/** The desktop app picks a dynamic port; the panel stores the real base URL. */
+async function baseUrl() {
+  const stored = await chrome.storage.local.get('engineUrl')
+  const value = stored.engineUrl
+  return typeof value === 'string' && /^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(value)
+    ? value
+    : DEFAULT_NEIRO_BASE
+}
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false }).catch(() => {})
@@ -62,7 +71,8 @@ async function getToken() {
 }
 
 async function pairWithNeiro(code) {
-  const response = await fetch(`${NEIRO_BASE}/api/pair`, {
+  const base = await baseUrl()
+  const response = await fetch(`${base}/api/pair`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ code }),
@@ -79,7 +89,8 @@ async function pairWithNeiro(code) {
 async function uploadQueued(fileBuffer, filename) {
   const token = await getToken()
   if (!token) throw new Error('Pair Neiro before queued processing.')
-  const response = await fetch(`${NEIRO_BASE}/api/upload`, {
+  const base = await baseUrl()
+  const response = await fetch(`${base}/api/upload`, {
     method: 'POST',
     headers: {
       'X-Neiro-Token': token,
@@ -169,12 +180,15 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         case 'settings:set':
           sendResponse({ ok: true, settings: await saveSettings(message.patch || {}) })
           break
-        case 'engine:health':
+        case 'engine:health': {
+          const base = await baseUrl()
           sendResponse({
             ok: true,
-            health: await fetch(`${NEIRO_BASE}/api/health`, { cache: 'no-store' }).then((r) => r.json()),
+            base,
+            health: await fetch(`${base}/api/health`, { cache: 'no-store' }).then((r) => r.json()),
           })
           break
+        }
         case 'settings:get':
           sendResponse({ ok: true, settings: (await chrome.storage.local.get('settings')).settings || {} })
           break

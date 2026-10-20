@@ -511,3 +511,20 @@ To make the player test deterministic, the processor now accepts an initial
 buffer/params via `processorOptions`, avoiding a message race before the first
 `process()` call. Node kernel tests remain; this adds the missing real-runtime
 evidence. Quality/listening and device latency remain owner-run.
+
+## Fiftieth batch: companion extension e2e and two real fixes
+
+Playwright/Chromium loads the unpacked MV3 extension, points it at a
+**dynamic-port** engine, saves the URL, pairs with the code, checks health, and
+uploads a WAV; the engine returns “A minor”. Receipt:
+`docs/evidence/extension-e2e-2026-10-21.md`.
+
+Bugs found and fixed:
+
+1. the companion hardcoded `127.0.0.1:8377`, incompatible with the new dynamic port —
+   the panel now stores a validated loopback Engine URL and Prefs shows the origin;
+2. queued upload sent an `ArrayBuffer` through `chrome.runtime.sendMessage`, which
+   is JSON serialized (`{}` → “empty upload”); the panel now POSTs directly with the
+   stored token.
+
+Tab capture/site adapters remain owner-run (side panel + permission gesture).

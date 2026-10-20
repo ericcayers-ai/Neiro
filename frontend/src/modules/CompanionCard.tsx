@@ -54,6 +54,12 @@ export function CompanionCard() {
         The MV3 companion adds real-time tab transpose and a paired queued hand-off. Neiro works
         without it; nothing is required for the app, and there is no cloud account.
       </p>
+      <p className="muted">
+        Engine URL for the extension:{' '}
+        <code className="mono">{typeof window !== 'undefined' ? window.location.origin : ''}</code>{' '}
+        — paste it into the companion&apos;s Engine URL field. It changes when the desktop picks a
+        dynamic port.
+      </p>
       {pair ? (
         <div className="row" style={{ alignItems: 'center' }}>
           <code
