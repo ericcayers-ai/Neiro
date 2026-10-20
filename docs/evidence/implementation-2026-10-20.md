@@ -689,3 +689,10 @@ Headings, tool-group labels and the transport/tool/view/clip aria labels now
 resolve through `studio.*` via a `tr = useT()` alias (avoiding the `t` track
 variable). Tooltips, the help sheet and dynamic messages remain English and are
 documented as such.
+
+## Seventieth batch: Studio tooltips catalogue
+
+Transport, tools, track actions, scenes/render, Mute/Solo/Gain/Pan and mix actions
+now have localized tooltips through `studio.*`. The help sheet, dynamic status
+messages and unicode-dash titles that could not be matched cleanly remain English
+and are documented as such.

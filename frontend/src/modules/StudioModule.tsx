@@ -2016,7 +2016,7 @@ export function StudioModule() {
           <button
             type="button"
             className="studio-help"
-            title="Studio shortcuts (?)"
+            title={tr('studio.shortcuts')}
             aria-label="Studio shortcuts"
             onClick={() => setHelpOpen(true)}
           >
@@ -2040,7 +2040,7 @@ export function StudioModule() {
             </button>
             <button
               type="button"
-              title="Import another song or stems as a pack on this timeline"
+              title={tr('studio.importPack')}
               onClick={() => setModule('import')}
             >
               Add pack
@@ -2064,7 +2064,7 @@ export function StudioModule() {
         <button
           type="button"
           className="studio-help"
-          title="Studio shortcuts (?)"
+          title={tr('studio.shortcuts')}
           aria-label="Studio shortcuts"
           aria-expanded={helpOpen}
           onClick={() => setHelpOpen((v) => !v)}
@@ -2078,7 +2078,7 @@ export function StudioModule() {
           <button
             type="button"
             className="studio-icon-btn"
-            title="Play or pause (Space)"
+            title={tr('studio.playPause')}
             aria-label={playing ? tr('studio.pause') : tr('studio.play')}
             onMouseEnter={() => setIntentOverride(TRANSPORT_INTENT)}
             onMouseLeave={() => setIntentOverride(null)}
@@ -2341,10 +2341,10 @@ export function StudioModule() {
       <div className="studio-body">
         <div className={`studio-timeline${compact ? ' is-compact' : ''}`} ref={wrapRef}>
           <div className="studio-track-tools">
-            <button type="button" title="Add empty track" onClick={addEmptyTrack}>
+            <button type="button" title={tr('studio.addTrack')} onClick={addEmptyTrack}>
               + Track
             </button>
-            <button type="button" title="Import audio as track" onClick={() => importRef.current?.click()}>
+            <button type="button" title={tr('studio.importTrack')} onClick={() => importRef.current?.click()}>
               Import
             </button>
             <input
@@ -2360,7 +2360,7 @@ export function StudioModule() {
             />
             <button
               type="button"
-              title="Duplicate selected"
+              title={tr('studio.duplicate')}
               disabled={!selectedIds.length}
               onClick={() => selectedIds[0] && duplicateTrack(selectedIds[0])}
             >
@@ -2368,7 +2368,7 @@ export function StudioModule() {
             </button>
             <button
               type="button"
-              title="Delete selected tracks"
+              title={tr('studio.deleteTracks')}
               disabled={!selectedIds.length}
               onClick={() => deleteTracks(selectedIds)}
             >
@@ -2376,13 +2376,13 @@ export function StudioModule() {
             </button>
             <button
               type="button"
-              title="Chord lane for the first track (heuristic analysis)"
+              title={tr('studio.chordLaneHint')}
               onClick={() => void loadStudioAnalysis()}
               disabled={!tracks.length || analysisBusy}
             >
               {analysisBusy ? 'Chords…' : 'Chords'}
             </button>
-            <label className="field" title="Preview speed for every stem; pitch is corrected by the granular shifter">
+            <label className="field" title={tr('studio.speedHint')}>
               <span>Speed</span>
               <select value={speed} onChange={(event) => setSpeed(Number(event.target.value))}>
                 {[0.5, 0.75, 1, 1.25, 1.5, 2].map((value) => (
@@ -2392,7 +2392,7 @@ export function StudioModule() {
                 ))}
               </select>
             </label>
-            <label className="field" title="Preview transpose for every stem">
+            <label className="field" title={tr('studio.transposeHint')}>
               <span>Transpose</span>
               <input
                 type="number"
@@ -2410,7 +2410,7 @@ export function StudioModule() {
             <select
               value={sceneName}
               onChange={(event) => setSceneName(event.target.value)}
-              title="Studio layout scenes"
+              title={tr('studio.scenesHint')}
             >
               <option value="">Scenes…</option>
               {studioScenes.map((scene) => (
@@ -2419,39 +2419,39 @@ export function StudioModule() {
                 </option>
               ))}
             </select>
-            <button type="button" onClick={saveStudioScene} title="Save tracks, mix, view and loop as a scene">
+            <button type="button" onClick={saveStudioScene} title={tr('studio.saveSceneHint')}>
               Save scene
             </button>
             <button
               type="button"
               disabled={!sceneName}
               onClick={applyStudioScene}
-              title="Apply the selected scene to this timeline"
+              title={tr('studio.applySceneHint')}
             >
               Apply
             </button>
-            <button type="button" disabled={!sceneName} onClick={deleteStudioScene} title="Delete the selected scene">
+            <button type="button" disabled={!sceneName} onClick={deleteStudioScene} title={tr('studio.deleteSceneHint')}>
               Del scene
             </button>
             <button
               type="button"
               disabled={!tracks.length || renderBusy}
               onClick={() => void renderStems()}
-              title="Bake the preview transpose/speed into new engine-rendered stems"
+              title={tr('studio.renderStemsHint')}
             >
               {renderBusy ? 'Rendering stems…' : 'Render stems'}
             </button>
             <button
               type="button"
               aria-pressed={compact}
-              title="Compact track heights"
+              title={tr('studio.compactHint')}
               onClick={() => setCompact((value) => !value)}
             >
               Compact
             </button>
             <button
               type="button"
-              title="Open the selected track in the shared real-time player"
+              title={tr('studio.realtimeHint')}
               onClick={() => {
                 const track = tracks.find((item) => selectedIds.includes(item.id)) ?? tracks[0]
                 if (!track) return
@@ -2541,7 +2541,7 @@ export function StudioModule() {
                   <button
                     type="button"
                     className={`studio-icon-btn${t.mute ? ' active' : ''}`}
-                    title="Mute"
+                    title={tr('studio.mute')}
                     aria-label={`Mute ${t.name}`}
                     aria-pressed={t.mute}
                     onClick={(e) => {
@@ -2554,7 +2554,7 @@ export function StudioModule() {
                   <button
                     type="button"
                     className={`studio-icon-btn${t.solo ? ' active' : ''}`}
-                    title="Solo"
+                    title={tr('studio.solo')}
                     aria-label={`Solo ${t.name}`}
                     aria-pressed={t.solo}
                     onClick={(e) => {
@@ -2668,7 +2668,7 @@ export function StudioModule() {
                   />
                 </div>
                 <div className="studio-track-faders">
-                  <label title="Gain">
+                  <label title={tr('studio.gain')}>
                     G
                     <input
                       type="range"
@@ -2680,7 +2680,7 @@ export function StudioModule() {
                       aria-label={`${t.name} gain`}
                     />
                   </label>
-                  <label title="Pan">
+                  <label title={tr('studio.pan')}>
                     P
                     <input
                       type="range"
@@ -2735,7 +2735,7 @@ export function StudioModule() {
                   aria-valuetext={`${Math.round(targetFocus * 100)} percent vocal focus`}
                 />
               </label>
-              <button type="button" onClick={() => setTargetFocus(0.5)} title="Neutral balance">
+              <button type="button" onClick={() => setTargetFocus(0.5)} title={tr('studio.neutral')}>
                 Reset
               </button>
             </div>
@@ -2770,7 +2770,7 @@ export function StudioModule() {
                               key={t.id}
                               href={exportUrl(t.fileId, exportFmt)}
                               download
-                              title="Export first stem of pack"
+                              title={tr('studio.exportStem')}
                             >
                               Export stem
                             </a>
@@ -2781,14 +2781,14 @@ export function StudioModule() {
                 </ul>
                 <button
                   type="button"
-                  title="Re-estimate BPM/key for the selected pack or track"
+                  title={tr('studio.reestimate')}
                   onClick={() => void reestimatePackOrSelection()}
                 >
                   Re-estimate BPM/key
                 </button>
                 <button
                   type="button"
-                  title="Bounce all non-muted pack tracks currently selected, or all audible"
+                  title={tr('studio.bounceAudible')}
                   onClick={() => void bounceSelected()}
                 >
                   Bounce selection
@@ -2820,17 +2820,17 @@ export function StudioModule() {
                 type="button"
                 className={ab === 'original' ? 'active' : ''}
                 disabled={!separateResult?.source_url}
-                title="A/B original vs stems"
+                title={tr('studio.ab')}
                 onClick={toggleAB}
               >
                 A/B: {ab === 'stems' ? 'stems' : 'original'}
               </button>
               {residual && (
-                <button type="button" title="Play residual null test" onClick={() => void playNull()}>
+                <button type="button" title={tr('studio.nullTest')} onClick={() => void playNull()}>
                   Null test
                 </button>
               )}
-              <button type="button" title="Bounce selected to one track" onClick={() => void bounceSelected()}>
+              <button type="button" title={tr('studio.bounceSelected')} onClick={() => void bounceSelected()}>
                 Bounce
               </button>
             </div>
@@ -2898,7 +2898,7 @@ export function StudioModule() {
       </div>
 
       <div className="studio-transport">
-        <button type="button" onClick={togglePlay} title="Play or pause (Space)">
+        <button type="button" onClick={togglePlay} title={tr('studio.playPause')}>
           {playing ? 'Pause' : 'Play'}
         </button>
         <button type="button" onClick={stopTransport} title="Stop — leave playhead">
@@ -2921,7 +2921,7 @@ export function StudioModule() {
           ~{Math.round(sessionBpm)} BPM
           {sessionKey ? ` · ${sessionKey}` : ''}
         </span>
-        <label className="studio-seek" title="Scrub playhead">
+        <label className="studio-seek" title={tr('studio.scrub')}>
           <span className="sr-only">Playhead</span>
           <input
             type="range"
