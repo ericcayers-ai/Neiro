@@ -543,3 +543,11 @@ Prefs gains an opt-in **Open the player after import** toggle
 (`neiro.prefs.openPlayerAfterImport`). The shell routes a newly imported file to
 Practice once when it is enabled and the user is on Import; it does not steal focus
 on later module switches. SSR asserts the toggle.
+
+## Fifty-third batch: Studio layout scenes
+
+`studio/scenes.ts` + Studio controls save/apply/delete up to 20 named scenes
+(track mix gain/pan/mute/solo by id, view window, loop, transpose/speed) in
+localStorage. Storage is validated against hostile/malformed data; applying only
+changes matching tracks and preserves unknown ones. Four Node tests; player Node
+tests 49.

@@ -980,7 +980,7 @@ player, **Q** queued Neiro engine, **RT+Q** hybrid, **Addon** extension surface,
 | T-17 | Markers (add/list/blocks/jump/convert A-B) | None | M | Library + Player + timeline | RT | P1 |
 | T-18 | Clips (range, per-clip transpose/pitch/formant/speed/effects, enable, loop count) | Studio audio clips, not practice clips | M | Practice clip model + Player | RT | P1 |
 | T-19 | Practice ramp (chromatic/circle/scale, tempo range, repetitions) | None | M | Clip sequence generator | RT | P2 |
-| T-20 | Scenes (standard/timeline/clip sequence, widget layout) | None | M | Studio scenes + persistence | RT | P2 |
+| T-20 | Scenes (standard/timeline/clip sequence, widget layout) | None | M | Studio layout scenes + player scenes; widget layouts absent | RT | P2 |
 | T-21 | Stem Mix (4 stems, solo/mute, target/backing crossfade, chord/waveform) | Native offline stems; Studio Mix gain/pan/mute/solo/A-B/null; no target crossfade/chord view | P | Add crossfade/chord view; Q stems | RT+Q | P1 |
 | T-22 | Clip sequence playback/loop counts | None | M | Player scheduler | RT | P2 |
 | T-23 | Transport first/prev/next/ad wait | Studio transport; no site/ad state | P | Core + Addon transport | RT+Addon | P2 |

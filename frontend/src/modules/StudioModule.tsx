@@ -32,6 +32,14 @@ import {
 } from '../constants/options'
 import { focusGain, isTargetStem } from '../player/mix'
 import { chordLane } from '../player/timeline'
+import {
+  applySceneToTracks,
+  createScene,
+  readScenes,
+  serializeScenes,
+  upsertScene,
+  type StudioScene,
+} from '../studio/scenes'
 import { PlayerSurface } from '../player/PlayerSurface'
 import stemWorkletSource from '../player/worklet/stem-shift-worklet.js?raw'
 import {
@@ -328,6 +336,14 @@ export function StudioModule() {
   const [mixOpen, setMixOpen] = useState(false)
   // 0.5 = neutral; >0.5 boosts vocals/singers and ducks backing, <0.5 the reverse.
   const [targetFocus, setTargetFocus] = useState(0.5)
+  const [sceneName, setSceneName] = useState('')
+  const [studioScenes, setStudioScenes] = useState<StudioScene[]>(() => {
+    try {
+      return readScenes(localStorage.getItem('neiro.studio.scenes'))
+    } catch {
+      return []
+    }
+  })
   const [compact, setCompact] = useState<boolean>(() => {
     try {
       return localStorage.getItem('neiro.studio.compact') === '1'
@@ -516,6 +532,57 @@ export function StudioModule() {
   const viewDur = Math.max(0.001, (viewEnd || timelineDur) - viewStart)
   const activeIntent = intentOverride || MODE_INTENT[mode]
   const hasSel = !!sel && Math.abs(sel.end - sel.start) >= 0.01
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('neiro.studio.scenes', serializeScenes(studioScenes))
+    } catch {
+      /* ignore */
+    }
+  }, [studioScenes])
+
+  const saveStudioScene = () => {
+    const name = window.prompt('Scene name', sceneName || 'Layout')
+    if (!name) return
+    try {
+      const scene = createScene(name, Date.now(), tracks, {
+        loop: hasSel && sel ? { start: sel.start, end: sel.end } : null,
+        viewStart,
+        viewDur,
+        transpose,
+        speed,
+      })
+      setStudioScenes((current) => upsertScene(current, scene))
+      setSceneName(scene.name)
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : String(error))
+    }
+  }
+
+  const applyStudioScene = () => {
+    const scene = studioScenes.find((item) => item.name === sceneName)
+    if (!scene) return
+    setTracks((current) => applySceneToTracks(scene, current))
+    setViewStart(scene.viewStart)
+    setViewEnd(scene.viewStart + scene.viewDur)
+    setTranspose(scene.transpose)
+    setSpeed(scene.speed)
+    if (scene.loop) {
+      setSel({
+        trackId: selectedIds[0] || tracks[0]?.id || '',
+        start: scene.loop.start,
+        end: scene.loop.end,
+      })
+      setLoopSel(true)
+    } else {
+      setLoopSel(false)
+    }
+  }
+
+  const deleteStudioScene = () => {
+    setStudioScenes((current) => current.filter((item) => item.name !== sceneName))
+    setSceneName('')
+  }
 
   playheadRef.current = playhead
 
@@ -2247,6 +2314,32 @@ export function StudioModule() {
                 style={{ width: '4.2rem' }}
               />
             </label>
+            <select
+              value={sceneName}
+              onChange={(event) => setSceneName(event.target.value)}
+              title="Studio layout scenes"
+            >
+              <option value="">Scenes…</option>
+              {studioScenes.map((scene) => (
+                <option key={scene.name} value={scene.name}>
+                  {scene.name}
+                </option>
+              ))}
+            </select>
+            <button type="button" onClick={saveStudioScene} title="Save tracks, mix, view and loop as a scene">
+              Save scene
+            </button>
+            <button
+              type="button"
+              disabled={!sceneName}
+              onClick={applyStudioScene}
+              title="Apply the selected scene to this timeline"
+            >
+              Apply
+            </button>
+            <button type="button" disabled={!sceneName} onClick={deleteStudioScene} title="Delete the selected scene">
+              Del scene
+            </button>
             <button
               type="button"
               aria-pressed={compact}

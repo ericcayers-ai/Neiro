@@ -123,6 +123,13 @@ phase-vocoder quality are not implemented in Studio — use Render with Neiro fo
 engine-quality path. A fractional ring-index bug that produced NaN/Inf in the
 granular taps was fixed in both copies and is covered by tests.
 
+## Studio scenes
+
+Studio can save up to 20 named layout scenes (tracks and mix gain/pan/mute/solo,
+view window, A–B loop, preview transpose/speed) in localStorage and apply them to
+the current timeline by track id. Unknown tracks are preserved; scenes never move
+audio. Scenes store mix/view intent, not widget layouts.
+
 ## Studio integration
 
 Studio's timeline keeps its multi-track transport (per-stem elements, gain/pan,
