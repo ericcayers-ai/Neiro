@@ -79,9 +79,32 @@ Launch verification (simulated fresh machine):
 That proves the shell prefers the bundled engine and does not need system Python
 for this layout. It is not a clean-VM test: WebView2 was already installed.
 
+## Signing (pipeline verified with a dev certificate)
+
+`scripts/sign_windows.ps1` signs artifacts with Authenticode using a PFX supplied
+through `NEIRO_SIGN_PFX` / `NEIRO_SIGN_PASSWORD` (never committed), falls back to
+unsigned-timestamp signing if the timestamp server is unreachable, and reports the
+signature status. `signtool.exe` is discovered from PATH or the Windows SDK.
+
+Measured 2026-10-21 with a temporary self-signed code-signing certificate
+(`CN=Neiro Dev Signing`, removed afterwards):
+
+| Artifact | Signed | Timestamped | Authenticode status |
+|---|---|---|---|
+| `Neiro_1.2.1_x64_en-US.msi` (56.0 MB) | yes | yes | `UnknownError` (untrusted root) |
+| `Neiro_1.2.1_x64-setup.exe` (38.3 MB) | yes | yes | `UnknownError` (untrusted root) |
+
+`signtool verify /pa` exits 1 with “a certificate chain processed, but terminated
+in a root certificate which is not trusted” — exactly what a self-signed test cert
+should produce. The signature and timestamp are present; only trust is missing.
+
+A release needs a **publicly trusted OV/EV code-signing certificate** (then rerun
+the script and `signtool verify /pa`), SmartScreen reputation, updater keys and an
+update endpoint, and a clean-VM install/uninstall test.
+
 Still missing (owner-gated):
 
-- signing/notarisation and updater keys (`TAURI_SIGNING_PRIVATE_KEY`),
+- trusted certificate + notarisation/SmartScreen, updater key/endpoint,
 - a clean-VM install with no Python, no WebView2 and no network,
 - uninstall verification.
 

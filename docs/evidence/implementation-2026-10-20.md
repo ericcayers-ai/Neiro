@@ -449,3 +449,19 @@ HANDOFF §14, the worklist closure assessment and AUDIT §13.6 now match the tre
 278 Python tests, 39 player tests, 16 vitest tests, 47 addon checks, clean Rust
 toolchain, installers with the bundled engine, and the catalogued surfaces. The
 closure assessment separates what is done from the five owner/toolchain-gated gaps.
+
+## Forty-fifth batch: Authenticode signing pipeline
+
+Added `scripts/sign_windows.ps1` (PFX + password from env, timestamp with fallback,
+signature status report). Verified on both existing bundles with a temporary
+self-signed code-signing certificate (created, used, then removed; PFX deleted):
+
+```
+MSI   signed, timestamped=True, status=UnknownError, signer=CN=Neiro Dev Signing
+NSIS  signed, timestamped=True, status=UnknownError, signer=CN=Neiro Dev Signing
+signtool verify /pa -> exit 1: chain terminates in an untrusted root
+```
+
+That is the expected result for a dev certificate: signature and timestamp are
+present, only public trust is missing. A release reruns the same script with an
+OV/EV certificate; updater keys/endpoint and the clean-VM test remain owner steps.
