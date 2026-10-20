@@ -465,3 +465,12 @@ signtool verify /pa -> exit 1: chain terminates in an untrusted root
 That is the expected result for a dev certificate: signature and timestamp are
 present, only public trust is missing. A release reruns the same script with an
 OV/EV certificate; updater keys/endpoint and the clean-VM test remain owner steps.
+
+## Forty-sixth batch: blind ABX listening panel
+
+`abx.ts` (balanced trials, injectable RNG, scoring, summary) + `AbxPanel` wired to
+the rendered artifact. A is original, B is rendered, X is hidden; 10 trials at a
+fixed offset with 4 s excerpts, reveal, "can't tell", and accuracy over decided
+trials. Unit tests (3) cover balance, determinism, scoring and summary; SSR checks
+the controls. Player Node tests 42; this is a discrimination test, not an owner
+preference verdict.

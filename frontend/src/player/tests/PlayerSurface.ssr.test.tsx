@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 
 import { PlayerSurface } from '../PlayerSurface'
+import { AbxPanel } from '../AbxPanel'
 import type { AnalysisReport } from '../../api/types'
 
 /**
@@ -92,6 +93,15 @@ describe('PlayerSurface markup', () => {
     const html = render({ analysis: null })
     expect(html).not.toContain('player-analysis')
     expect(html).toContain('phase-vocoder preview')
+  })
+
+  it('renders the blind ABX controls', () => {
+    const html = renderToStaticMarkup(
+      <AbxPanel originalUrl="/files/a.wav" renderedUrl="/files/b.wav" duration={60} onClose={() => {}} />,
+    )
+    expect(html).toContain('Play X (hidden)')
+    expect(html).toContain('X is A')
+    expect(html).toContain('Trial 1 of 10')
   })
 
   it('hides practice panels in compact mode', () => {

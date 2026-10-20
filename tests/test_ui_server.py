@@ -406,12 +406,15 @@ def test_prefs_get_update_and_flush(server):
     assert prefs["warm_pool_ttl_s"] == 300.0
     assert "resident_models" in prefs
 
+    # Pick a budget that is legal even on a nearly-full disk: the endpoint
+    # refuses budgets above 90% of free space.
+    budget = min(8.0, max(0.1, float(prefs["disk_free_gb"]) * 0.5))
     updated = _post(
         base + "/api/prefs",
-        json.dumps({"cache_budget_gb": 8, "warm_pool_ttl_s": 60}).encode(),
+        json.dumps({"cache_budget_gb": budget, "warm_pool_ttl_s": 60}).encode(),
         {"Content-Type": "application/json"},
     )
-    assert updated["cache_budget_gb"] == 8.0
+    assert updated["cache_budget_gb"] == pytest.approx(budget)
     assert updated["warm_pool_ttl_s"] == 60.0
     assert state.cache.disk_budget_bytes == updated["cache_budget_effective_bytes"]
     # The GB field is a rounded display value; allow display rounding only.

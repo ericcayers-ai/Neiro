@@ -53,6 +53,7 @@ const EN: Record<string, string> = {
   'player.rendering': 'Rendering in the Neiro engine…',
   'player.renderReady': 'Rendered: {method}',
   'player.renderFailed': 'Render failed: {error}',
+  'player.abx': 'Blind A/B test',
   'player.download': 'Download rendered',
   'player.heard': 'heard {note} {cents}¢',
   'player.chords': 'Chords',

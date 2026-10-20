@@ -198,6 +198,7 @@ def c10_player(fast: bool) -> tuple[bool, str]:
             "--test",
             "frontend/src/player/tests/player.test.mjs",
             "frontend/src/player/tests/logic.test.mjs",
+            "frontend/src/player/tests/abx.test.mjs",
         ],
         timeout=600,
     )

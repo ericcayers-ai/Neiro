@@ -260,3 +260,32 @@
 .player-render a {
   color: var(--accent, #8fd3ff);
 }
+
+/* Blind ABX listening test */
+.player-abx-backdrop {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(4, 6, 10, 0.66);
+  z-index: 40;
+}
+.player-abx {
+  width: min(640px, 94vw);
+  max-height: 90vh;
+  overflow: auto;
+  display: grid;
+  gap: 0.6rem;
+  padding: 1rem;
+  border: 1px solid var(--line, #2a2f3a);
+  border-radius: 12px;
+  background: var(--panel, #12151c);
+}
+.player-abx-reveal {
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--line, #2a2f3a);
+  border-radius: 8px;
+  background: rgba(143, 211, 255, 0.08);
+  font-size: 0.85rem;
+}

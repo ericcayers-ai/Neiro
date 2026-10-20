@@ -45,6 +45,8 @@ Gate: `python scripts/verify_goal.py --full` — **18/18 PASS** on 2026-10-20.
 - [x] **P1-7 Tests + latency receipt.** 37 Node tests; `docs/evidence/player-latency-2026-10-20.md`.
 - [x] **P1-9 Compact player mode.** Header toggle hides practice panels (markup, not
   just CSS), persists per file, and is SSR-tested.
+- [x] **P1-10 Blind ABX listening panel.** 10 balanced trials, same-offset A/B/X
+  excerpts, reveal and accuracy summary; pure logic tested.
 - [x] **P1-8 Render preview settings (Q).** `render` edit job applies speed+pitch and
   returns a downloadable WAV with provenance; contract test covers duration.
 

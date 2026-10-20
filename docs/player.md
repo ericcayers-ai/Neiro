@@ -92,6 +92,16 @@ From `docs/evidence/player-latency-2026-10-20.md`:
 - Browser control-to-audio latency is **not measured here** (no browser harness);
   the surface displays `baseLatency + outputLatency + algorithmic` at runtime.
 
+## Blind listening (ABX)
+
+After a queued render completes, **Blind A/B test** opens a 10-trial ABX panel:
+A is always the original, B the rendered output, and X is a hidden copy of one of
+them (balanced, randomised). Each trial plays 4 s at the same offset; the listener
+answers "X is A", "X is B" or "can't tell", then sees the reveal and a summary with
+accuracy over decided trials (chance = 50%). This is a **discrimination** test, not
+a preference score, and it does not replace the owner's ears. Trial logic lives in
+`abx.ts` and is unit-tested.
+
 ## Studio integration
 
 Studio's timeline keeps its multi-track transport (per-stem elements, gain/pan,

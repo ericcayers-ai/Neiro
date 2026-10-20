@@ -36,6 +36,7 @@ import { addScene, applyScene, loadScenes, makeScene, persistScenes, removeScene
 import type { MidiAction } from './midi'
 import type { AnalysisReport } from '../api/types'
 import { getJob, startEditJob } from '../api/client'
+import { AbxPanel } from './AbxPanel'
 import { t } from './i18n'
 import './player.css'
 
@@ -125,6 +126,7 @@ export function PlayerSurface({
   const [renderUrl, setRenderUrl] = useState<string | null>(null)
   const [renderNote, setRenderNote] = useState('')
   const [renderError, setRenderError] = useState('')
+  const [abxOpen, setAbxOpen] = useState(false)
   const [ready, setReady] = useState(false)
   const [durationState, setDurationState] = useState(duration ?? 0)
   const [loopA, setLoopA] = useState<number | null>(null)
@@ -915,7 +917,10 @@ export function PlayerSurface({
               {' '}
               <a href={renderUrl} download>
                 {t('player.download')}
-              </a>
+              </a>{' '}
+              <button type="button" onClick={() => setAbxOpen(true)}>
+                {t('player.abx')}
+              </button>
             </>
           )}
         </p>
@@ -1121,6 +1126,15 @@ export function PlayerSurface({
           <p className="intent">{t('player.sceneHint')}</p>
         </div>
       </div>
+      )}
+
+      {abxOpen && renderUrl && (
+        <AbxPanel
+          originalUrl={src}
+          renderedUrl={renderUrl}
+          duration={duration ?? 0}
+          onClose={() => setAbxOpen(false)}
+        />
       )}
     </section>
   )
