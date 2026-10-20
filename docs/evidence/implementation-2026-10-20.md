@@ -661,3 +661,9 @@ Catalogued the score pane, roll option labels (quality/mode/model/ensemble/decod
 partial-snap title, PDF/score fallbacks, and the practice panel gates/toggles.
 Option data (mode names, instrument lists) remains English. Studio is the last
 uncatalogued module body.
+
+## Sixty-sixth batch: Studio per-stem 3-band EQ
+
+Each track graph now runs shifter → low shelf (200 Hz) → peaking (1 kHz) → high
+shelf (6 kHz) → gain → pan. Three ±12 dB sliders sit beside gain/pan; values apply
+live (applyVolumes depends on tracks) and round-trip through Studio scenes.

@@ -47,6 +47,8 @@ Gate: `python scripts/verify_goal.py --full` — **18/18 PASS** on 2026-10-20.
 - [x] **P1-7 Tests + latency receipt.** 37 Node tests; `docs/evidence/player-latency-2026-10-20.md`.
 - [x] **P1-9 Compact player mode.** Header toggle hides practice panels (markup, not
   just CSS), persists per file, and is SSR-tested.
+- [x] **P3-11 Studio per-stem 3-band EQ.** Low/mid/high ±12 dB in the track head,
+  live after the shifter; saved in scenes.
 - [x] **P3-10 Bake preview settings into stems (Q).** Render stems through the
   engine `render` op, replace artifacts, keep originals, reset controls; confirm
   dialog and progress.

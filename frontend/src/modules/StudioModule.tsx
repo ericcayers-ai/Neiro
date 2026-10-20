@@ -104,11 +104,16 @@ interface Track {
   /** Root file before any edits on this chain — Reset to original. */
   originalFileId?: string
   originalAudioUrl?: string
+  /** Low/mid/high EQ gains in dB. */
+  eq?: [number, number, number]
 }
 
 type TrackGraph = {
   gain: GainNode
   pan: StereoPannerNode
+  low: BiquadFilterNode
+  mid: BiquadFilterNode
+  high: BiquadFilterNode
   shifter: AudioWorkletNode | null
 }
 
@@ -703,10 +708,23 @@ export function StudioModule() {
             source
           const gain = ctx.createGain()
           const pan = ctx.createStereoPanner()
-          source.connect(gain)
+          const low = ctx.createBiquadFilter()
+          low.type = 'lowshelf'
+          low.frequency.value = 200
+          const mid = ctx.createBiquadFilter()
+          mid.type = 'peaking'
+          mid.frequency.value = 1000
+          mid.Q.value = 0.9
+          const high = ctx.createBiquadFilter()
+          high.type = 'highshelf'
+          high.frequency.value = 6000
+          source.connect(low)
+          low.connect(mid)
+          mid.connect(high)
+          high.connect(gain)
           gain.connect(pan)
           pan.connect(ctx.destination)
-          graph = { gain, pan, shifter: null }
+          graph = { gain, pan, low, mid, high, shifter: null }
           graphByElRef.current.set(el, graph)
           el.volume = 1
           // We do the pitch correction; let playbackRate change pitch as well.
@@ -758,7 +776,7 @@ export function StudioModule() {
                     /* already disconnected */
                   }
                   source.connect(shifter)
-                  shifter.connect(elGraph.gain)
+                  shifter.connect(elGraph.low)
                   elGraph.shifter = shifter
                 }
               } catch {
@@ -837,6 +855,12 @@ export function StudioModule() {
     for (const t of tracks) {
       const el = audioRefs.current[t.id]
       const graph = graphByTrackRef.current[t.id]
+      if (graph) {
+        const eq = t.eq ?? [0, 0, 0]
+        graph.low.gain.value = eq[0]
+        graph.mid.gain.value = eq[1]
+        graph.high.gain.value = eq[2]
+      }
       let level = 0
       if (ab === 'original') {
         level = t.id === tracks[0]?.id ? 1 : 0
@@ -2666,6 +2690,24 @@ export function StudioModule() {
                       aria-label={`${t.name} pan`}
                     />
                   </label>
+                  {(['L', 'M', 'H'] as const).map((band, index) => (
+                    <label key={band} title={`${band} EQ (dB)`}>
+                      {band}
+                      <input
+                        type="range"
+                        min={-12}
+                        max={12}
+                        step={1}
+                        value={(t.eq ?? [0, 0, 0])[index]}
+                        onChange={(e) => {
+                          const next = [...(t.eq ?? [0, 0, 0])] as [number, number, number]
+                          next[index] = Number(e.target.value)
+                          patchTrack(t.id, { eq: next })
+                        }}
+                        aria-label={`${t.name} ${band} EQ`}
+                      />
+                    </label>
+                  ))}
                 </div>
               </div>
             )

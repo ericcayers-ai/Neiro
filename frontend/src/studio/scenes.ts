@@ -1,11 +1,14 @@
 /** Named Studio layout scenes — pure data so they can be validated and tested. */
 
+export type EqBands = [number, number, number]
+
 export interface SceneTrack {
   id: string
   gain: number
   pan: number
   mute: boolean
   solo: boolean
+  eq: EqBands
 }
 
 export interface SceneLoop {
@@ -44,7 +47,7 @@ export interface SceneOptions {
 export function createScene(
   name: string,
   createdAt: number,
-  tracks: Array<Pick<SceneTrack, 'id' | 'gain' | 'pan' | 'mute' | 'solo'>>,
+  tracks: Array<Pick<SceneTrack, 'id' | 'gain' | 'pan' | 'mute' | 'solo'> & { eq?: EqBands }>,
   options: SceneOptions,
 ): StudioScene {
   const trimmed = name.trim()
@@ -59,6 +62,11 @@ export function createScene(
       pan: clamp(track.pan, -1, 1, 0),
       mute: Boolean(track.mute),
       solo: Boolean(track.solo),
+      eq: [
+        clamp(track.eq?.[0], -12, 12, 0),
+        clamp(track.eq?.[1], -12, 12, 0),
+        clamp(track.eq?.[2], -12, 12, 0),
+      ] as EqBands,
     })),
     loop: options.loop
       ? {
@@ -87,6 +95,11 @@ export function normalizeScene(value: unknown): StudioScene | null {
           pan: clamp(track.pan, -1, 1, 0),
           mute: Boolean(track.mute),
           solo: Boolean(track.solo),
+          eq: [
+            clamp(Array.isArray(track.eq) ? track.eq[0] : 0, -12, 12, 0),
+            clamp(Array.isArray(track.eq) ? track.eq[1] : 0, -12, 12, 0),
+            clamp(Array.isArray(track.eq) ? track.eq[2] : 0, -12, 12, 0),
+          ] as EqBands,
         }))
         .filter((track) => track.id)
     : []
@@ -134,7 +147,9 @@ export function serializeScenes(scenes: StudioScene[]): string {
 }
 
 /** Apply stored mix values by track id; order and unknown tracks are preserved. */
-export function applySceneToTracks<T extends { id: string; gain: number; pan: number; mute: boolean; solo: boolean }>(
+export function applySceneToTracks<
+  T extends { id: string; gain: number; pan: number; mute: boolean; solo: boolean; eq?: EqBands },
+>(
   scene: StudioScene,
   tracks: T[],
 ): T[] {
@@ -142,7 +157,14 @@ export function applySceneToTracks<T extends { id: string; gain: number; pan: nu
   return tracks.map((track) => {
     const saved = byId.get(track.id)
     return saved
-      ? { ...track, gain: saved.gain, pan: saved.pan, mute: saved.mute, solo: saved.solo }
+      ? {
+          ...track,
+          gain: saved.gain,
+          pan: saved.pan,
+          mute: saved.mute,
+          solo: saved.solo,
+          eq: saved.eq,
+        }
       : track
   })
 }

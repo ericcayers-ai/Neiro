@@ -123,6 +123,13 @@ phase-vocoder quality are not implemented in Studio — use Render with Neiro fo
 engine-quality path. A fractional ring-index bug that produced NaN/Inf in the
 granular taps was fixed in both copies and is covered by tests.
 
+## Studio per-stem EQ
+
+Each stem has a 3-band EQ (low shelf 200 Hz, peaking 1 kHz, high shelf 6 kHz,
+±12 dB) in the track head, applied live after the shifter and before gain/pan.
+Values are saved in Studio scenes. This is preview EQ; the engine render path
+remains the quality reference.
+
 ## Studio: bake preview settings
 
 **Render stems** pauses the transport, then sends each track through the queued
