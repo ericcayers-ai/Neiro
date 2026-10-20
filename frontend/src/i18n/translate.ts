@@ -286,3 +286,11 @@ export function translate(catalogue: Catalogue, key: string, vars?: Record<strin
 export function missingKeys(catalogue: Catalogue, required: string[]): string[] {
   return required.filter((key) => !(key in catalogue))
 }
+
+/** Locales written right-to-left. None are shipped yet; this is plumbing. */
+export const RTL_LOCALES = new Set(['ar', 'fa', 'he', 'ur'])
+
+export function dirFor(locale: string): 'rtl' | 'ltr' {
+  return RTL_LOCALES.has(locale.split('-')[0].toLowerCase()) ? 'rtl' : 'ltr'
+}
+

@@ -1,6 +1,6 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 
-import { EN, translate, type Catalogue } from './translate'
+import { EN, dirFor, translate, type Catalogue } from './translate'
 
 /**
  * App-wide i18n scaffold. English is the only shipped catalogue; the interface is
@@ -41,6 +41,12 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       // storage unavailable: keep the in-memory locale
     }
   }, [])
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    document.documentElement.lang = locale
+    document.documentElement.dir = dirFor(locale)
+  }, [locale])
 
   const value = useMemo<I18nValue>(() => {
     const catalogue = CATALOGUES[locale] ?? EN

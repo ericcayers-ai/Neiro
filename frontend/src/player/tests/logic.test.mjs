@@ -24,7 +24,7 @@ import { libraryWrites, playerStorageKey, readPlayerArtifacts } from '../library
 import { ShortcutMap, bindingLabel, eventToBinding, conflictFor } from '../shortcuts.ts'
 import { focusGain, isTargetStem } from '../mix.ts'
 import { detectPitchHz, nearestNote, pitchAt } from '../pitch.ts'
-import { EN, missingKeys, translate } from '../../i18n/translate.ts'
+import { EN, dirFor, missingKeys, translate } from '../../i18n/translate.ts'
 import { chordLane } from '../timeline.ts'
 import { mostRecentSong } from '../../library/recent.ts'
 import { checkDesktopUpdate, isTauri } from '../../api/updater.ts'
@@ -406,4 +406,12 @@ test('studio render request maps speed/transpose and clamps', () => {
   assert.deepEqual(renderRequest(0, 1), { rate: 1, semitones: 0 })
   assert.deepEqual(renderRequest(-99, 0.01), { rate: 4, semitones: -36 })
   assert.deepEqual(renderRequest(99, 4), { rate: 0.25, semitones: 36 })
+})
+
+test('direction helper recognizes RTL locales and defaults to LTR', () => {
+  assert.equal(dirFor('en'), 'ltr')
+  assert.equal(dirFor('en-NZ'), 'ltr')
+  assert.equal(dirFor('ar'), 'rtl')
+  assert.equal(dirFor('he-IL'), 'rtl')
+  assert.equal(dirFor('fa'), 'rtl')
 })

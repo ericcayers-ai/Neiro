@@ -739,3 +739,9 @@ Added AUDIT §13.7: a conservative, evidence-linked summary of which matrix rows
 implemented, partial, N/A or owner-gated as of 2026-10-21. HANDOFF §14 counts were
 refreshed (281 Python, 51 player, 17 vitest, 49 addon). No row is called complete
 without a commit or receipt.
+
+## Seventy-seventh batch: RTL direction plumbing
+
+`dirFor()` maps ar/fa/he/ur to rtl; the provider now sets `<html lang>`/`dir` and
+the helper is unit-tested. No RTL catalogue ships and CSS is not mirrored, so this
+is infrastructure, not an RTL-ready claim.
