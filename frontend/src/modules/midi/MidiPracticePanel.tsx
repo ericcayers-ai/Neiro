@@ -4,6 +4,7 @@ import { useDawBridge } from '../../hooks/useDawBridge'
 import { IconChevronDown, IconChevronRight } from '../../icons'
 import { useSession } from '../../state/session'
 import { PlayerSurface, type PlayerNote } from '../../player/PlayerSurface'
+import { useT } from '../../i18n'
 
 /**
  * Practice mode on the shared real-time player.
@@ -13,6 +14,7 @@ import { PlayerSurface, type PlayerNote } from '../../player/PlayerSurface'
  * runs when the speed changes, and no "pitch-preserving" label is hard-coded.
  */
 export function MidiPracticePanel({ focus }: { focus: boolean }) {
+  const t = useT()
   const { file, transcribeResult, setModule } = useSession()
   const [collapsed, setCollapsed] = useChromeCollapsed('neiro.practice.midi.collapsed', false)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -56,7 +58,7 @@ export function MidiPracticePanel({ focus }: { focus: boolean }) {
   if (!file && !dawConnected) {
     return (
       <div className="gate">
-        <div className="gate-title">Practice</div>
+        <div className="gate-title">{t('practice.title')}</div>
         <p className="gate-body">
           Import (and optionally transcribe) a track — or open the Neiro VST injector from your DAW.
         </p>
@@ -72,8 +74,8 @@ export function MidiPracticePanel({ focus }: { focus: boolean }) {
           className="chrome-collapse-toggle ghost icon-btn"
           onClick={() => setCollapsed(false)}
           aria-expanded={false}
-          aria-label="Show practice panel"
-          title="Show practice"
+          aria-label={t('practice.showAria')}
+          title={t('practice.showTitle')}
         >
           <IconChevronRight size={16} />
         </button>
@@ -84,14 +86,14 @@ export function MidiPracticePanel({ focus }: { focus: boolean }) {
   return (
     <div ref={panelRef} className="practice-panel" id="midi-practice" tabIndex={-1}>
       <div className="practice-panel-head">
-        <h2>Practice</h2>
+        <h2>{t('practice.title')}</h2>
         <button
           type="button"
           className="ghost icon-btn"
           onClick={() => setCollapsed(true)}
           aria-expanded
-          aria-label="Hide practice panel"
-          title="Hide practice"
+          aria-label={t('practice.hideAria')}
+          title={t('practice.hideTitle')}
         >
           <IconChevronDown size={16} />
         </button>
@@ -104,7 +106,7 @@ export function MidiPracticePanel({ focus }: { focus: boolean }) {
 
       {dawConnected && dawStatus && (
         <div className="gate" role="status" aria-live="polite">
-          <div className="gate-title">DAW bridge active</div>
+          <div className="gate-title">{t('practice.dawActive')}</div>
           <p className="gate-body">
             {dawStatus.instance_count} injector{dawStatus.instance_count === 1 ? '' : 's'}; focused{' '}
             {dawStatus.focus_instance || 'none'}. Set wait mode to WebMIDI or keyboard; a matching
@@ -115,7 +117,7 @@ export function MidiPracticePanel({ focus }: { focus: boolean }) {
 
       {!transcribeResult && (
         <div className="gate">
-          <div className="gate-title">No transcription yet</div>
+          <div className="gate-title">{t('practice.noTranscription')}</div>
           <p className="gate-body">
             The player works without it. Transcribe to get wait-at-each-note practice.
           </p>

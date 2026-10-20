@@ -654,3 +654,10 @@ on the real Import file input, waits for the session to show `flow-tone.wav`, op
 Analysis and confirms report text (BPM/key/LUFS), then opens MIDI/player. Result:
 **0 page errors**, “import → analysis → player” passes. This exercises the API,
 analysis and session together, not mocked components.
+
+## Sixty-fifth batch: MIDI Studio body catalogue
+
+Catalogued the score pane, roll option labels (quality/mode/model/ensemble/decoders),
+partial-snap title, PDF/score fallbacks, and the practice panel gates/toggles.
+Option data (mode names, instrument lists) remains English. Studio is the last
+uncatalogued module body.

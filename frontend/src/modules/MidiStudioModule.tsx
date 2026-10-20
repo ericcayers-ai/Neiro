@@ -93,6 +93,7 @@ function ScorePane({
 }) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const verovioOk = tools?.verovio.installed
+  const t = useT()
   const museOk = tools?.musescore.installed
   const hasPdf = Boolean(result.score_pdf_url)
   const hasSvg = Boolean(result.score_svg_url || result.svg_url)
@@ -115,7 +116,7 @@ function ScorePane({
 
   return (
     <div className="midi-score-pane">
-      <h3>Score</h3>
+      <h3>{t('midi.score')}</h3>
       {hasSvg ? (
         <div className="score-view midi-score-scroll" ref={scrollRef}>
           <img
@@ -124,12 +125,12 @@ function ScorePane({
             style={{ maxWidth: 'none', height: 160 }}
           />
           {placeholder && (
-            <p className="muted">Placeholder engraving — install Verovio in Prefs → Tools for real SVG.</p>
+            <p className="muted">{t('midi.engravingPlaceholder')}</p>
           )}
         </div>
       ) : (
         <div className="gate">
-          <div className="gate-title">No score SVG yet</div>
+          <div className="gate-title">{t('midi.noScore')}</div>
           <p className="gate-body">
             {verovioOk || museOk
               ? 'Re-run Transcribe to engrave MusicXML → SVG.'
@@ -182,6 +183,7 @@ function RollOptionsBar({
   setMetronome: (v: boolean) => void
   soundfontOk: boolean
 }) {
+  const t = useT()
   const toggle = (key: keyof RollOptions) =>
     setOptions({ ...options, [key]: !options[key] })
 
@@ -206,7 +208,7 @@ function RollOptionsBar({
         Metronome
       </button>
       {!soundfontOk && (
-        <span className="muted">Soundfont: install GM SF2 in Prefs → Tools for sampled audition</span>
+        <span className="muted">{t('midi.soundfontHint')}</span>
       )}
     </div>
   )
@@ -221,6 +223,7 @@ function TranscribeControls({
   onRun: () => void
   onOpenPrefs: (section?: 'models' | 'tools') => void
 }) {
+  const t = useT()
   const [quality, setQuality] = useLocalPref('neiro.tr.quality', 'standard')
   const [mode, setMode] = useLocalPref('neiro.tr.mode', 'auto')
   const [model, setModel] = useLocalPref('neiro.tr.model', '')
@@ -343,7 +346,7 @@ function TranscribeControls({
       </p>
 
       <div className="row">
-        <IntentField label="Quality" intent={selectedQuality.intent} htmlFor="tr-quality">
+        <IntentField label={t('midi.quality')} intent={selectedQuality.intent} htmlFor="tr-quality">
           <select
             id="tr-quality"
             value={quality}
@@ -357,7 +360,7 @@ function TranscribeControls({
             ))}
           </select>
         </IntentField>
-        <IntentField label="Mode" intent={selected.intent} htmlFor="tr-mode">
+        <IntentField label={t('midi.mode')} intent={selected.intent} htmlFor="tr-mode">
           <select id="tr-mode" value={mode} disabled={running} onChange={(e) => setMode(e.target.value)}>
             {TRANSCRIBE_MODES.map((m) => (
               <option key={m.value} value={m.value}>
@@ -366,7 +369,7 @@ function TranscribeControls({
             ))}
           </select>
         </IntentField>
-        <IntentField label="Model" intent={selectedModel.intent} htmlFor="tr-model">
+        <IntentField label={t('midi.model')} intent={selectedModel.intent} htmlFor="tr-model">
           <select
             id="tr-model"
             value={model}
@@ -406,10 +409,10 @@ function TranscribeControls({
       </div>
 
       <details className="advanced-block" open={ensembleMode}>
-        <summary>Ensemble members</summary>
+        <summary>{t('midi.ensemble')}</summary>
         <div className="advanced-block-body">
           <IntentField
-            label="Decoders"
+            label={t('midi.decoders')}
             intent="Select two or more decoders for hybrid vote. Needs-download members auto-fetch on Transcribe; needs-install stay Prefs-linked."
           >
             <div className="row" style={{ flexWrap: 'wrap', gap: '0.5rem 1rem' }}>
@@ -696,7 +699,7 @@ export function MidiStudioModule() {
                     transcribeResult,
                   )
                 }
-                title="Partial snap — preserves groove"
+                title={t('midi.partialSnap')}
               >
                 Quantize soft
               </button>
@@ -802,7 +805,7 @@ export function MidiStudioModule() {
               ) : (
                 <>
                   {' · '}
-                  <span className="muted">PDF unavailable</span>
+                  <span className="muted">{t('midi.pdfUnavailable')}</span>
                   {' · '}
                   <button type="button" className="ghost" onClick={() => goPrefs('tools')}>
                     Prefs → Tools
@@ -871,7 +874,7 @@ export function MidiStudioModule() {
               ) : (
                 <>
                   {' · '}
-                  <span className="muted">No PDF — MuseScore in Prefs → Tools</span>
+                  <span className="muted">{t('midi.noPdf')}</span>
                 </>
               )}
               {transcribeResult.provenance_url && (
