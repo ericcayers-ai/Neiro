@@ -1030,7 +1030,7 @@ player, **Q** queued Neiro engine, **RT+Q** hybrid, **Addon** extension surface,
 | T-57 | Compact song bar, popup/side panel | Desktop/browser app exists; no compact bar/extension panel | M | Addon side panel + player compact mode | Addon/RT | P2 |
 | T-58 | URL ingest/download | Optional; yt-dlp absent (live 422) | P | Keep Q ingest; add clear optional install | Q | P1 |
 | T-59 | Direct site adapters (YouTube/Spotify/SoundCloud/Deezer/Apple Music) | None | M | Addon adapter interface + fallback | Addon | P1 |
-| T-60 | Always-open Player / open in player | None | M | Addon/core preference | Addon | P3 |
+| T-60 | Always-open Player / open in player | None | M | Opt-in core preference (open Practice after import) | Addon | P3 |
 | T-61 | Share links | None | N/A | Do not port cloud link; local session file | N/A | P3 |
 
 ### 4.4 UI, settings, MIDI, i18n, DAW, non-goals

@@ -71,6 +71,7 @@ describe('module shells render through the catalogue', () => {
     const html = render(<PreferencesModule />)
     expect(html).toContain('Compute &amp; storage')
     expect(html).toContain('No telemetry by default')
+    expect(html).toContain('Open the player after import')
   })
 
   it('renders the Separate empty gate', () => {

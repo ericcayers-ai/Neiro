@@ -92,6 +92,13 @@ From `docs/evidence/player-latency-2026-10-20.md`:
 - Browser control-to-audio latency is **not measured here** (no browser harness);
   the surface displays `baseLatency + outputLatency + algorithmic` at runtime.
 
+## Always-open preference
+
+Prefs → Interface → **Open the player after import** stores
+`neiro.prefs.openPlayerAfterImport`. When a new file is imported while on the
+Import module, the shell routes to Practice once; it never steals focus on
+subsequent module switches or when disabled.
+
 ## Blind listening (ABX)
 
 After a queued render completes, **Blind A/B test** opens a 10-trial ABX panel:

@@ -536,3 +536,10 @@ pitch ratios (e.g. +12) were already sample-aligned; fractional ratios (+7,
 ratio 1.498) previously read the nearest sample. Chromium measurement for +7 st:
 target 659.3 Hz magnitude 0.00711 vs 440 Hz 0.00071 (~10×), finite output, and the
 existing +12/2× cases are unchanged. Companion and Studio copies share the fix.
+
+## Fifty-second batch: always-open player preference
+
+Prefs gains an opt-in **Open the player after import** toggle
+(`neiro.prefs.openPlayerAfterImport`). The shell routes a newly imported file to
+Practice once when it is enabled and the user is on Import; it does not steal focus
+on later module switches. SSR asserts the toggle.

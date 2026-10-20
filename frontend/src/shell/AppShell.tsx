@@ -57,6 +57,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     requestCancel,
     clearSession,
     resumeSong,
+    requestPracticeFocus,
     engineStatus,
     stemPacks,
     setStemPacks,
@@ -71,6 +72,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { dawConnected, status: dawStatus } = useDawBridge()
   const [sessionMsg, setSessionMsg] = useState('')
   const [recentSong, setRecentSong] = useState<LibrarySong | null>(null)
+  const lastFileIdRef = useRef<string | null>(null)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [railCollapsed, setRailCollapsed] = useState(readRailCollapsed)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -83,6 +85,23 @@ export function AppShell({ children }: { children: ReactNode }) {
   const dialogInputRef = useRef<HTMLInputElement>(null)
 
   const recording = Boolean(dawStatus?.instances?.some((i) => i.recording))
+
+  useEffect(() => {
+    const id = file?.fileId ?? null
+    if (!id) {
+      lastFileIdRef.current = null
+      return
+    }
+    if (lastFileIdRef.current === id) return
+    lastFileIdRef.current = id
+    let enabled = false
+    try {
+      enabled = localStorage.getItem('neiro.prefs.openPlayerAfterImport') === '1'
+    } catch {
+      /* ignore */
+    }
+    if (enabled && module === 'import') requestPracticeFocus()
+  }, [file, module, requestPracticeFocus])
 
   useEffect(() => {
     if (file) return

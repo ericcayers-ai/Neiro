@@ -39,6 +39,13 @@ export function PreferencesModule() {
   const [warmPoolTtl, setWarmPoolTtl] = useLocalPref('neiro.pref.warmPoolTtl', '300')
   const [taskFilter, setTaskFilter] = useLocalPref('neiro.pref.modelsTask', 'all')
   const [status, setStatus] = useState('')
+  const [openPlayer, setOpenPlayer] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('neiro.prefs.openPlayerAfterImport') === '1'
+    } catch {
+      return false
+    }
+  })
   const [engineBusy, setEngineBusy] = useState(false)
   const [residents, setResidents] = useState<string[]>([])
   const [models, setModels] = useState<ModelStatus[]>([])
@@ -345,6 +352,23 @@ export function PreferencesModule() {
             <option value="no-preference">{t('prefs.motionNoPreference')}</option>
           </select>
         </IntentField>
+
+      <label className="inline" style={{ marginTop: '0.6rem' }}>
+        <input
+          type="checkbox"
+          checked={openPlayer}
+          onChange={(event) => {
+            const next = event.target.checked
+            setOpenPlayer(next)
+            try {
+              localStorage.setItem('neiro.prefs.openPlayerAfterImport', next ? '1' : '0')
+            } catch {
+              /* ignore */
+            }
+          }}
+        />{' '}
+        Open the player after import
+      </label>
       </div>
 
       <h3 id="prefs-models">{t('prefs.models')}</h3>
