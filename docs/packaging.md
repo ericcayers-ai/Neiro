@@ -79,6 +79,31 @@ Launch verification (simulated fresh machine):
 That proves the shell prefers the bundled engine and does not need system Python
 for this layout. It is not a clean-VM test: WebView2 was already installed.
 
+## Updater (pipeline verified)
+
+The Tauri updater plugin is configured (`plugins.updater` with a minisign public
+key and the GitHub Releases `latest.json` endpoint). The private key lives at
+`~/.neiro-updater/neiro.key` (never committed; README there explains usage); the
+public key is committed in `tauri.conf.json`.
+
+Normal builds stay key-free (`createUpdaterArtifacts: false`). Release builds:
+
+```powershell
+$env:TAURI_SIGNING_PRIVATE_KEY = Get-Content -Raw "$HOME\.neiro-updater\neiro.key"
+$env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = Get-Content -Raw "$HOME\.neiro-updater\password.txt"
+npx --prefix frontend tauri build --config src-tauri/tauri.release.conf.json
+python scripts/updater_manifest.py --version 1.2.1 ^
+  --base-url https://github.com/ericcayers-ai/Neiro/releases/download/v1.2.1 ^
+  --out latest.json
+```
+
+Measured 2026-10-21: the build produced `Neiro_1.2.1_x64-setup.exe.sig` and
+`Neiro_1.2.1_x64_en-US.msi.sig` (416 B each), and `updater_manifest.py` produced a
+`latest.json` with that signature and the release URL.
+
+Still missing: hosting/publishing the release assets, a publicly trusted signing
+certificate (Authenticode), and a clean-VM update test.
+
 ## Signing (pipeline verified with a dev certificate)
 
 `scripts/sign_windows.ps1` signs artifacts with Authenticode using a PFX supplied

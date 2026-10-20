@@ -1714,7 +1714,7 @@ below has a receipt in `docs/evidence/` and a criterion in `GOAL.md`.
 | Finding | State | Why it remains |
 |---|---|---|
 | F-17 cache budget vs disk | **closed for declared sizes** | Disk note, half-free cache cap, 90% preference rejection, upload preflight, and a declared-size model-download preflight (507 before a job). Unsized weights are labelled in progress |
-| F-23/F-24/F-25/F-27 packaging | **partial** | Dynamic port end-to-end; installers build with the engine; extracted app launched with no Python on PATH; Authenticode signing pipeline verified with a dev cert (signature + timestamp present, untrusted root as expected). Remaining: trusted cert/updater, clean-VM test, uninstall, Python matrix |
+| F-23/F-24/F-25/F-27 packaging | **partial** | Dynamic port; installers with the engine; no-Python launch; Authenticode pipeline verified; updater plugin + signed artifacts + latest.json verified. Remaining: publish/host releases, trusted cert, clean-VM install/update, uninstall, Python matrix |
 | F-26 model capacity | open | Still 16/70 ready, CPU-only, no torch/ONNX; no weights downloaded in this pass |
 | F-31 frontend tests | **partial** | Vitest SSR tests cover the player markup/labels/overlay (5 tests, gate C22); no DOM/audio or user-event tests yet |
 | F-32 Rust build | **closed for compile** | `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo check` pass; runtime launch still owner-run |

@@ -551,3 +551,15 @@ on later module switches. SSR asserts the toggle.
 localStorage. Storage is validated against hostile/malformed data; applying only
 changes matching tracks and preserves unknown ones. Four Node tests; player Node
 tests 49.
+
+## Fifty-fourth batch: Tauri updater pipeline
+
+Added `tauri-plugin-updater` (registered + capability), a minisign keypair outside
+the repo (`~/.neiro-updater/`), the public key and GitHub `latest.json` endpoint in
+config, and a release-only config that enables updater artifacts. A signed build
+produced `Neiro_1.2.1_x64-setup.exe.sig` and `…msi.sig` (416 B each); the new
+`scripts/updater_manifest.py` generated `latest.json` with that signature and the
+release URL. Two tests cover manifest shape and missing-artifact errors.
+
+Normal builds remain key-free; publishing assets, a trusted Authenticode
+certificate and a clean-VM update test remain owner steps.

@@ -133,8 +133,9 @@ Gate: `python scripts/verify_goal.py --full` — **18/18 PASS** on 2026-10-20.
   extraction verifies `resources/engine/neiro-engine.exe`). Launch was verified
   with Python removed from PATH: the app spawned the bundled engine and opened the
   Neiro window. Signing pipeline verified with a dev cert (signatures + timestamp
-  present; untrusted root as expected). Remaining: trusted cert/updater, clean-VM
-  install, uninstall.
+  present; untrusted root as expected). Updater plugin + keypair + signed
+  artifacts + `latest.json` generation verified. Remaining: publish releases,
+  trusted cert, clean-VM install/update, uninstall.
 - [~] **P5-4 Model manager status.** Sizes/licences/needs-install and a
   confirm-gated remove-weights action exist in Prefs; disk-impact preview and
   batch install remain.

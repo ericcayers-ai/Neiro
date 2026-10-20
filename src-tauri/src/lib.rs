@@ -282,6 +282,7 @@ pub fn run() {
     }));
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(engine)
         .invoke_handler(tauri::generate_handler![engine_status, restart_engine_cmd])
         .setup(|app| {
