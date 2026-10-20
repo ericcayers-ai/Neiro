@@ -14,6 +14,7 @@ uncommitted evidence of this run.
 | Addon validator | `node addon/scripts/validate.mjs` | **47/47** |
 | Companion worklet tests | `node --test addon/tests/capture.test.mjs` | **6 passed** |
 | Updater manifest | `python scripts/updater_manifest.py …` | **PASS** |
+| Desktop updater runtime | `cd frontend; npm run test:desktop-updater` | **PASS** (Tauri IPC path; no-release error surfaced) |
 
 ## Worklet numbers (Chromium OfflineAudioContext)
 

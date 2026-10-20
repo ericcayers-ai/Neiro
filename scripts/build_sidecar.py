@@ -29,6 +29,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dist", default=str(ROOT / "dist"))
     parser.add_argument("--work", default=str(ROOT / "build" / "neiro-sidecar"))
+    parser.add_argument(
+        "--install",
+        action="store_true",
+        help="clean src-tauri/resources/engine (keeping its README) and copy the build in",
+    )
     args = parser.parse_args()
 
     try:
@@ -64,7 +69,24 @@ def main() -> int:
         print(f"expected {exe} to exist", file=sys.stderr)
         return 1
     print(f"built {exe} ({exe.stat().st_size / 1e6:.1f} MB)")
-    print("Tauri release: copy the whole folder to src-tauri/resources/engine/")
+    if args.install:
+        dest = ROOT / "src-tauri" / "resources" / "engine"
+        dest.mkdir(parents=True, exist_ok=True)
+        readme = dest / "README.txt"
+        readme_text = readme.read_text(encoding="utf-8") if readme.is_file() else ""
+        for child in dest.iterdir():
+            if child.name == "README.txt":
+                continue
+            if child.is_dir():
+                shutil.rmtree(child)
+            else:
+                child.unlink()
+        shutil.copytree(exe.parent, dest, dirs_exist_ok=True)
+        (dest / "neiro.exe").replace(dest / "neiro-engine.exe")
+        if readme_text:
+            readme.write_text(readme_text, encoding="utf-8")
+        print(f"installed into {dest} (README preserved)")
+        print("Before a release build, also remove src-tauri/target/release/resources")
     return 0
 
 

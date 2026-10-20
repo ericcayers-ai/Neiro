@@ -586,3 +586,21 @@ available version, download/install with progress, and relaunch via the process
 plugin; the browser path keeps the GitHub Releases check. Rust registers
 `tauri-plugin-process` and adds `process:allow-restart`. The non-Tauri bridge is
 unit-tested; desktop runtime remains owner-run, as does publishing/hosting.
+
+## Fifty-eighth batch: desktop updater runtime + two shell bugs
+
+Added `npm run test:desktop-updater`: launch the release exe with WebView2 remote
+debugging, connect Playwright over CDP, open About and click Check for updates. The
+UI now reports “Updater check failed (Could not fetch a valid release JSON from the
+remote)” — proof the plugin ran through Tauri IPC (the browser fallback fails the
+test).
+
+Fixed while verifying:
+
+1. **No IPC on the UI origin.** An `about:blank` window navigated to the engine did
+   not expose `__TAURI_INTERNALS__`; the window is now built with
+   `WebviewUrl::External` and the capability grants `remote.urls =
+   ["http://127.0.0.1:*"]`.
+2. **Stale bundled engine.** `target/release/resources/engine` from an earlier
+   build served an old UI. `build_sidecar.py --install` now cleans/re-stages, and
+   the release notes require removing `target/release/resources` first.

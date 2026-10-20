@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:browser": "node tests/browser-worklet.mjs",
-    "test:extension": "node tests/extension-e2e.mjs"
+    "test:extension": "node tests/extension-e2e.mjs",
+    "test:desktop-updater": "node tests/desktop-updater-runtime.mjs"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.2.7",

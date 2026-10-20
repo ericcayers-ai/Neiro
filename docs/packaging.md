@@ -31,8 +31,8 @@ fresh-machine test are still owner steps.
 wraps it:
 
 ```powershell
-uv pip install pyinstaller          # once, dev environment
-python scripts/build_sidecar.py    # -> dist/neiro/neiro.exe (+ _internal/)
+uv pip install pyinstaller               # once, dev environment
+python scripts/build_sidecar.py --install # -> src-tauri/resources/engine/ (clean)
 ```
 
 Measured 2026-10-20: build completed in ~39 s; `neiro.exe` is ~11 MB plus its
@@ -104,11 +104,25 @@ Measured 2026-10-21: the build produced `Neiro_1.2.1_x64-setup.exe.sig` and
 base64-wrapped `.sig`, then verifies the signature against the installer — so the
 key/signature/artifact chain is proven, not just present.
 
-About → **Check for updates** now uses the updater plugin when running in the
-desktop shell (check, progress, download/install, relaunch) and keeps the GitHub
-Releases check in a normal browser. The plugin calls are only exercised in the
-desktop app; the non-Tauri path is unit-tested, and the signed artifact itself is
-verified in Rust (C23).
+About → **Check for updates** uses the updater plugin when running in the desktop
+shell (check, progress, download/install, relaunch) and keeps the GitHub Releases
+check in a normal browser.
+
+Runtime verification (`npm run test:desktop-updater`): the release exe is launched
+with WebView2 remote debugging, Playwright connects over CDP, and About → Check for
+updates reports **“Updater check failed (Could not fetch a valid release JSON from
+the remote)”** — i.e. the plugin was reached through Tauri IPC and the failure is
+surfaced. A browser fallback would have said “Could not reach GitHub” and fails the
+check.
+
+Two shell details this exposed and fixed:
+
+- the window is now created **directly on the engine origin** (`WebviewUrl::External`)
+  with a `remote.urls = ["http://127.0.0.1:*"]` capability; navigating an
+  `about:blank` window to a remote URL does not expose the IPC globals;
+- a stale `target/release/resources/engine` from an earlier build can ship an old
+  UI, so `scripts/build_sidecar.py --install` now cleans and re-stages it and the
+  release notes say to remove `target/release/resources` before building.
 
 Still missing: hosting/publishing the release assets, a publicly trusted signing
 certificate (Authenticode), and a clean-VM update test.

@@ -298,14 +298,19 @@ pub fn run() {
                 })?;
                 engine_url(guard.port)
             };
-            // The window starts on about:blank; navigate once the engine is ready.
-            if let Some(window) = handle.get_webview_window("main") {
-                let parsed = tauri::Url::parse(&url)
-                    .map_err(|e| format!("invalid engine URL {url}: {e}"))?;
-                window
-                    .navigate(parsed)
-                    .map_err(|e| format!("could not open the engine UI: {e}"))?;
-            }
+            // Create the window directly on the engine origin. A window created
+            // with about:blank and then navigated does not receive Tauri's IPC
+            // globals, so plugin calls (e.g. the updater) would silently fall back
+            // to browser behavior.
+            let parsed =
+                tauri::Url::parse(&url).map_err(|e| format!("invalid engine URL {url}: {e}"))?;
+            tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::External(parsed))
+                .title("Neiro")
+                .inner_size(1280.0, 800.0)
+                .min_inner_size(900.0, 600.0)
+                .resizable(true)
+                .build()
+                .map_err(|e| format!("could not open the engine UI: {e}"))?;
             if cfg!(debug_assertions) {
                 handle.plugin(
                     tauri_plugin_log::Builder::default()
