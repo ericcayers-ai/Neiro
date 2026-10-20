@@ -38,3 +38,19 @@ This run proves the automated and browser-level checks listed above. It does not
 prove listening quality, device latency, trusted code signing, a clean-VM
 install/update, live streaming sites, full localization, or a trained chord/beat
 model. Those remain the owner-gated items in the worklist.
+
+## Re-run after rounds 60–61
+
+Re-ran every browser/desktop check on the tree with the MIDI catalogue and Studio
+EQ changes:
+
+| Check | Exit |
+|---|---:|
+| Desktop smoke (9 modules) | 0 |
+| Desktop workflow (import → analysis → player) | 0 |
+| Desktop updater runtime (Tauri IPC) | 0 |
+| Companion e2e (dynamic port) | 0 |
+| Chromium worklets (speed/+12/+7, shifter) | 0 |
+
+Gate remained **23/23** on its last full run. No regressions from the UI/EQ work.
+
