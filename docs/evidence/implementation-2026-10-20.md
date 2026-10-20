@@ -703,3 +703,9 @@ Split the remote capability out of `default.json`: the engine-served loopback or
 now gets only `updater:default` and `process:allow-restart`, not the broad
 `core:default` set. The updater runtime check, nine-module smoke and import →
 analysis → player workflow all still pass, so the minimal set is sufficient.
+
+## Seventy-second batch: remaining Studio tooltips
+
+Stop/Fit/Pitch-correct/Loop/BPM/Reset/Mix-drawer tooltips (including em-dash and
+arrow strings) now resolve through `studio.*`. Studio tooltips/aria are complete;
+the help sheet and dynamic messages remain the only English chrome.

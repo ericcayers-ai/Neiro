@@ -2089,7 +2089,7 @@ export function StudioModule() {
           <button
             type="button"
             className="studio-icon-btn"
-            title="Stop — leave playhead"
+            title={tr('studio.stopHint')}
             aria-label="Stop"
             onMouseEnter={() =>
               setIntentOverride('Stop pauses playback and leaves the playhead where it is.')
@@ -2180,7 +2180,7 @@ export function StudioModule() {
           <button
             type="button"
             className="studio-icon-btn"
-            title="Fit view — useful window for long files"
+            title={tr('studio.fitHint')}
             aria-label={tr('studio.fit')}
             onClick={() => applyFitView(timelineDur, true)}
           >
@@ -2249,7 +2249,7 @@ export function StudioModule() {
           <button
             type="button"
             className="studio-icon-btn"
-            title="Pitch correct — new clip (YIN snap + Rubber Band)"
+            title={tr('studio.pitchCorrectHint')}
             aria-label="Pitch correct"
             disabled={pitchJob?.status === 'running'}
             onMouseEnter={() =>
@@ -2265,7 +2265,7 @@ export function StudioModule() {
           <button
             type="button"
             className="studio-icon-btn"
-            title="Reset to original (before edits on this chain)"
+            title={tr('studio.resetHint')}
             aria-label="Reset to original"
             disabled={
               !selectedTrack ||
@@ -2286,7 +2286,7 @@ export function StudioModule() {
           <button
             type="button"
             className={`studio-icon-btn${mixOpen ? ' active' : ''}`}
-            title="Mix drawer (M)"
+            title={tr('studio.mixDrawerHint')}
             aria-label="Mix"
             aria-pressed={mixOpen}
             onMouseEnter={() =>
@@ -2901,20 +2901,20 @@ export function StudioModule() {
         <button type="button" onClick={togglePlay} title={tr('studio.playPause')}>
           {playing ? 'Pause' : 'Play'}
         </button>
-        <button type="button" onClick={stopTransport} title="Stop — leave playhead">
+        <button type="button" onClick={stopTransport} title={tr('studio.stopHint')}>
           Stop
         </button>
         <button
           type="button"
           className={loopSel ? 'active' : ''}
           onClick={() => setLoopSel((v) => !v)}
-          title="Loop selection (wraps sel end → start)"
+          title={tr('studio.loopHint')}
         >
           Loop
         </button>
         <span
           className={`studio-live-bpm${playing ? ' is-playing' : ''}`}
-          title="Pack/session BPM under selection or playhead (phase-locked beat)"
+          title={tr('studio.bpmHint')}
           style={{ ['--beat-phase' as string]: String(liveBeatPhase) }}
         >
           <span className="studio-live-bpm-dot" aria-hidden />
