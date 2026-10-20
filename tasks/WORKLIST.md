@@ -132,6 +132,8 @@ Gate: `python scripts/verify_goal.py --full` — **18/18 PASS** on 2026-10-20.
 
 - [x] **P5-2 RTL plumbing.** `<html lang/dir>` follows the locale (ar/fa/he/ur →
   rtl); no RTL locale shipped and CSS is not mirrored yet.
+- [x] **P5-2 Plural selection.** `translatePlural`/`usePlural` with plural rules
+  and fallback; used by queue/song counts; tested.
 - [~] **P5-1 String catalogue.** Shell/navigation, Import, Library, Restore, Separate, Preferences, MIDI Studio, Studio chrome and tooltips go through
   `src/i18n/` (`I18nProvider`, `useT`, en catalogue, fallback, persistence) and
   player strings through `player/i18n.ts`; Studio/Restore/Separate/MIDI/Prefs

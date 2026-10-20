@@ -15,7 +15,7 @@ import {
 } from '../constants/options'
 import { stemIcon } from '../constants/stemIdentity'
 import { useSession } from '../state/session'
-import { useT } from '../i18n'
+import { usePlural, useT } from '../i18n'
 import './modules.css'
 
 function packIntentFromResult(
@@ -42,6 +42,7 @@ function packIntentFromResult(
 
 export function SeparateModule() {
   const t = useT()
+  const plural = usePlural()
   const {
     file,
     setFile,
@@ -263,7 +264,7 @@ export function SeparateModule() {
       )}
       {importQueue.length > 0 && (
         <p className="intent">
-          {t('separate.queue', { count: importQueue.length })}
+          {plural('separate.queue', importQueue.length)}
         </p>
       )}
 

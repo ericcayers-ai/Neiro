@@ -4,11 +4,12 @@ import { JobProgress } from '../components/JobProgress'
 import { IntentField } from '../components/IntentField'
 import { ModuleHeader } from '../components/ModuleHeader'
 import { useSession } from '../state/session'
-import { useT } from '../i18n'
+import { usePlural, useT } from '../i18n'
 import './modules.css'
 
 export function ImportModule() {
   const t = useT()
+  const plural = usePlural()
   const {
     setFile,
     setModule,
@@ -177,7 +178,7 @@ export function ImportModule() {
 
       {importQueue.length > 0 && (
         <div className="option-detail" style={{ marginTop: '1rem' }} role="status">
-          <div className="option-detail-title">{t('import.queue', { count: importQueue.length })}</div>
+          <div className="option-detail-title">{plural('import.queue', importQueue.length)}</div>
           <ul className="sep-stem-badges">
             {importQueue.map((f) => (
               <li key={f.fileId}>

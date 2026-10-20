@@ -22,13 +22,14 @@ import { libraryWrites, playerStorageKey, readPlayerArtifacts } from '../player/
 import type { PlayerParams } from '../player/params'
 import { useSession } from '../state/session'
 import { ModuleHeader } from '../components/ModuleHeader'
-import { useT } from '../i18n'
+import { usePlural, useT } from '../i18n'
 
 const NOTES_LIMIT = 5000
 
 export function LibraryModule() {
   const { file, pendingSongId, clearPendingSong } = useSession()
   const t = useT()
+  const plural = usePlural()
   const [songs, setSongs] = useState<LibrarySong[]>([])
   const [playlists, setPlaylists] = useState<LibraryPlaylist[]>([])
   const [selected, setSelected] = useState<LibrarySong | null>(null)
@@ -250,7 +251,7 @@ export function LibraryModule() {
 
       <div className="row" style={{ alignItems: 'flex-start', gap: '1rem' }}>
         <div style={{ flex: '1 1 320px', minWidth: 260 }}>
-          <h3>{t('library.songs', { count: songs.length })}</h3>
+          <h3>{plural('library.songs', songs.length)}</h3>
           {songs.length === 0 ? (
             <p className="intent">{t('library.noSongs')}</p>
           ) : (

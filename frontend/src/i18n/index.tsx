@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 
-import { EN, dirFor, translate, type Catalogue } from './translate'
+import { EN, dirFor, translate, translatePlural, type Catalogue } from './translate'
 
 /**
  * App-wide i18n scaffold. English is the only shipped catalogue; the interface is
@@ -65,6 +65,17 @@ export function useT(): Translate {
   const value = useContext(I18nContext)
   if (!value) return (key, vars) => translate(EN, key, vars)
   return value.t
+}
+
+export function usePlural(): (
+  key: string,
+  count: number,
+  vars?: Record<string, string | number>,
+) => string {
+  const value = useContext(I18nContext)
+  const locale = value?.locale ?? 'en'
+  const catalogue = CATALOGUES[locale] ?? EN
+  return (key, count, vars) => translatePlural(catalogue, key, count, vars, locale)
 }
 
 export function useI18n(): I18nValue {

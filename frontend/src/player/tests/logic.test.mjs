@@ -24,7 +24,7 @@ import { libraryWrites, playerStorageKey, readPlayerArtifacts } from '../library
 import { ShortcutMap, bindingLabel, eventToBinding, conflictFor } from '../shortcuts.ts'
 import { focusGain, isTargetStem } from '../mix.ts'
 import { detectPitchHz, nearestNote, pitchAt } from '../pitch.ts'
-import { EN, dirFor, missingKeys, translate } from '../../i18n/translate.ts'
+import { EN, dirFor, missingKeys, translate, translatePlural } from '../../i18n/translate.ts'
 import { chordLane } from '../timeline.ts'
 import { mostRecentSong } from '../../library/recent.ts'
 import { checkDesktopUpdate, isTauri } from '../../api/updater.ts'
@@ -414,4 +414,16 @@ test('direction helper recognizes RTL locales and defaults to LTR', () => {
   assert.equal(dirFor('ar'), 'rtl')
   assert.equal(dirFor('he-IL'), 'rtl')
   assert.equal(dirFor('fa'), 'rtl')
+})
+
+test('plural helper picks one/other and falls back', () => {
+  const catalogue = {
+    'x.one': '{count} item',
+    'x.other': '{count} items',
+  }
+  assert.equal(translatePlural(catalogue, 'x', 1), '1 item')
+  assert.equal(translatePlural(catalogue, 'x', 2), '2 items')
+  assert.equal(translatePlural(catalogue, 'x', 0), '0 items')
+  assert.equal(translatePlural({ 'y.other': '{count} things' }, 'y', 1), '1 things')
+  assert.equal(translatePlural({}, 'missing', 1), 'missing')
 })

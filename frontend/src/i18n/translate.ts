@@ -184,6 +184,12 @@ export const EN: Catalogue = {
   'restore.openStudioHint': 'Load the restored audio in Studio',
   'restore.preview': 'Restored audio preview',
   'restore.nothing': 'Nothing to repair.',
+  'import.queue.one': 'Import queue (1)',
+  'import.queue.other': 'Import queue ({count})',
+  'library.songs.one': 'Songs (1)',
+  'library.songs.other': 'Songs ({count})',
+  'separate.queue.one': 'Queue: 1 file — use Separate queue → packs for multi-song mashups.',
+  'separate.queue.other': 'Queue: {count} files — use Separate queue → packs for multi-song mashups.',
   'import.title': 'Import',
   'import.lede': 'Open local files (multi-select for mashup packs) or fetch a URL.',
   'import.browse': 'Browse',
@@ -292,5 +298,30 @@ export const RTL_LOCALES = new Set(['ar', 'fa', 'he', 'ur'])
 
 export function dirFor(locale: string): 'rtl' | 'ltr' {
   return RTL_LOCALES.has(locale.split('-')[0].toLowerCase()) ? 'rtl' : 'ltr'
+}
+
+/** Pick a plural form (`key.one`/`key.other`) using the locale's plural rules. */
+export function pluralKey(
+  catalogue: Catalogue,
+  key: string,
+  count: number,
+  locale = 'en',
+): string {
+  const rule = new Intl.PluralRules(locale).select(count)
+  return catalogue[`${key}.${rule}`] != null
+    ? `${key}.${rule}`
+    : catalogue[`${key}.other`] != null
+      ? `${key}.other`
+      : key
+}
+
+export function translatePlural(
+  catalogue: Catalogue,
+  key: string,
+  count: number,
+  vars: Record<string, string | number> = {},
+  locale = 'en',
+): string {
+  return translate(catalogue, pluralKey(catalogue, key, count, locale), { count, ...vars })
 }
 

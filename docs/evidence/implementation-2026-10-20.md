@@ -745,3 +745,10 @@ without a commit or receipt.
 `dirFor()` maps ar/fa/he/ur to rtl; the provider now sets `<html lang>`/`dir` and
 the helper is unit-tested. No RTL catalogue ships and CSS is not mirrored, so this
 is infrastructure, not an RTL-ready claim.
+
+## Seventy-eighth batch: plural selection
+
+`translatePlural`/`usePlural` implement `Intl.PluralRules` selection with an
+`other` fallback; queue/song counts use it in Import, Library and Separate. Tests
+cover one/other/zero/fallback. Only English rules are exercised until another
+catalogue ships.
