@@ -800,3 +800,9 @@ Added `frontend/tests/backend-cli.mjs` (`npm run test:backend`): analyze,
 transcribe, enhance and separate with output assertions. Rebuilt sidecar + desktop
 and re-ran smoke, workflow, updater IPC, companion e2e, worklets and addon
 validation; fixed the workflow's stale rail selectors found by the regression.
+
+## Eighty-sixth batch: open-player preference and resume
+
+Import now honours “Open the player after import” by switching to MIDI practice and
+focusing it (it previously only set a flag no mounted module consumed). Verified
+practice playback after import and Library “Resume: song” after a reload.

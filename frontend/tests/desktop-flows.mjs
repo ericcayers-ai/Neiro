@@ -756,6 +756,49 @@ try {
     })
   }
 
+  if (only === 'persist') {
+    await step('library resume and open-player preference', async () => {
+      await rail('Library').click()
+      await page.getByRole('button', { name: 'Add current file', exact: true }).click()
+      await page.getByText(/Songs \(1\)/).waitFor({ timeout: 30_000 })
+      await page.reload()
+      await page.waitForTimeout(1200)
+      const resume = page.locator('header button').filter({ hasText: /Resume:/ }).first()
+      await resume.waitFor({ timeout: 15_000 })
+      await resume.click()
+      await page.waitForTimeout(800)
+      if (!/Library/.test(await page.locator('#module-content').innerText())) {
+        throw new Error('resume did not open the library song')
+      }
+
+      await rail('Prefs').click()
+      const openPlayer = page.locator('#module-content input[type=checkbox]').first()
+      if (!(await openPlayer.isChecked())) await openPlayer.check()
+      console.log('OPEN PREF:', await page.evaluate(() => localStorage.getItem('neiro.prefs.openPlayerAfterImport')))
+      await rail('Import').click()
+      await page.locator('#module-content input[type=file]').first().setInputFiles(wav2)
+      await page.waitForTimeout(4000)
+      console.log('AFTER IMPORT:', (await page.locator('#module-content').innerText()).slice(0, 200).replace(/\n+/g, ' | '))
+      await page.waitForFunction(
+        () =>
+          /Practice/.test(document.getElementById('module-content')?.innerText ?? '') &&
+          /A–B loop/.test(document.getElementById('module-content')?.innerText ?? ''),
+        undefined,
+        { timeout: 90_000 },
+      )
+      const practicePlay = page
+        .locator('#module-content')
+        .getByRole('button', { name: 'Play', exact: true })
+        .first()
+      await practicePlay.click()
+      await page
+        .locator('#module-content')
+        .getByRole('button', { name: 'Pause', exact: true })
+        .first()
+        .waitFor({ timeout: 10_000 })
+    })
+  }
+
   if (only === 'midi-export' || only === 'tray') {
     // Both need a finished transcription; tray hides it afterwards.
   }

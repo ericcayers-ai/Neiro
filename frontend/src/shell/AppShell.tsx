@@ -102,7 +102,11 @@ export function AppShell({ children }: { children: ReactNode }) {
     } catch {
       /* ignore */
     }
-    if (enabled && module === 'import') requestPracticeFocus()
+    if (enabled && module === 'import') {
+      // The practice panel lives on the MIDI module; focus alone did nothing.
+      setModule('midi')
+      requestPracticeFocus()
+    }
   }, [file, module, requestPracticeFocus])
 
   useEffect(() => {

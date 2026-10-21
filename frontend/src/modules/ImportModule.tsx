@@ -13,6 +13,7 @@ export function ImportModule() {
   const {
     setFile,
     setModule,
+    requestPracticeFocus,
     setSeparateResult,
     setTranscribeResult,
     setEnhanceResult,
@@ -52,7 +53,16 @@ export function ImportModule() {
       setEnhanceResult(null)
       setFile(entry)
       setMsg(`${data.name} loaded`)
-      if (!opts?.stayOnImport) setModule('analysis')
+      if (!opts?.stayOnImport) {
+      let openPlayer = false
+      try {
+        openPlayer = localStorage.getItem('neiro.prefs.openPlayerAfterImport') === '1'
+      } catch {
+        /* ignore */
+      }
+      setModule(openPlayer ? 'midi' : 'analysis')
+      if (openPlayer) requestPracticeFocus()
+    }
     },
     [
       addToImportQueue,
