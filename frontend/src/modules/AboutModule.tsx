@@ -31,32 +31,12 @@ export function AboutModule() {
       }
       return
     }
-    setUpdateMsg('Checking GitHub Releases…')
-    try {
-      const res = await fetch('https://api.github.com/repos/ericcayers-ai/Neiro/releases/latest', {
-        headers: { Accept: 'application/vnd.github+json' },
-      })
-      if (!res.ok) throw new Error(`GitHub ${res.status}`)
-      const data = (await res.json()) as { tag_name?: string; html_url?: string }
-      const latest = (data.tag_name || '').replace(/^v/, '')
-      if (!latest) {
-        setUpdateMsg('No published release found yet.')
-        return
-      }
-      if (latest === version) {
-        setUpdateMsg(`You are on the latest release (${latest}).`)
-      } else {
-        setUpdateMsg(
-          `Latest is ${latest} (you have ${version}). Open ${data.html_url || 'GitHub Releases'}.`,
-        )
-      }
-    } catch (err) {
-      setUpdateMsg(
-        `Could not reach GitHub (${err instanceof Error ? err.message : String(err)}). Updates are distributed via GitHub Releases — no telemetry phoning home.`,
-      )
-    }
+    // The engine-served UI is not the desktop shell; the updater lives there.
+    setUpdateMsg(
+      'Update checks run in the desktop app. This window is served by the local engine.',
+    )
+    return
   }
-
   const installUpdate = async () => {
     setInstalling(true)
     try {

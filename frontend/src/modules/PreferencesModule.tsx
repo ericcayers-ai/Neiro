@@ -36,6 +36,8 @@ export function PreferencesModule() {
   const [fontScale, setFontScale] = useLocalPref('neiro.pref.fontScale', '100')
   const [reducedMotion, setReducedMotion] = useLocalPref('neiro.pref.reducedMotion', 'system')
   const [cacheBudget, setCacheBudget] = useLocalPref('neiro.pref.cacheBudgetGb', '20')
+  const [cacheEffective, setCacheEffective] = useState<number | null>(null)
+  const [diskFree, setDiskFree] = useState<number | null>(null)
   const [warmPoolTtl, setWarmPoolTtl] = useLocalPref('neiro.pref.warmPoolTtl', '300')
   const [taskFilter, setTaskFilter] = useLocalPref('neiro.pref.modelsTask', 'all')
   const [status, setStatus] = useState('')
@@ -109,6 +111,8 @@ export function PreferencesModule() {
       .then((p) => {
         if (!alive) return
         setCacheBudget(String(p.cache_budget_gb))
+      setCacheEffective(Number(p.cache_budget_effective_gb))
+      setDiskFree(Number(p.disk_free_gb))
         setWarmPoolTtl(String(p.warm_pool_ttl_s))
         setResidents(p.resident_models || [])
       })
@@ -172,6 +176,8 @@ export function PreferencesModule() {
         warm_pool_ttl_s: Number(warmPoolTtl),
       })
       setResidents(p.resident_models || [])
+      setCacheEffective(Number(p.cache_budget_effective_gb))
+      setDiskFree(Number(p.disk_free_gb))
       setStatus(
         `Engine prefs applied — cache budget ${p.cache_budget_gb} GB, warm-pool TTL ${p.warm_pool_ttl_s}s.`,
       )
@@ -577,6 +583,13 @@ export function PreferencesModule() {
             onBlur={() => void syncCompute()}
           />
         </IntentField>
+        {cacheEffective !== null && (
+          <p className="intent" role="status">
+            Effective budget: {cacheEffective.toFixed(2)} GB
+            {diskFree !== null ? ` (disk free ${diskFree.toFixed(1)} GB)` : ''}. A request above
+            90% of free space is rejected.
+          </p>
+        )}
         <IntentField
           label={t('prefs.warmTtl')}
           intent={t('prefs.warmIntent')}

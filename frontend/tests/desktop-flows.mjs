@@ -656,6 +656,76 @@ try {
     })
   }
 
+  if (only === 'shortcuts') {
+    await step('studio keyboard shortcuts', async () => {
+      await rail('Studio').click()
+      await page.locator('.studio-header h2').click()
+      await page.keyboard.press('2')
+      await page.waitForTimeout(300)
+      if (!/Analysis/.test(await page.locator('#module-content').innerText())) {
+        throw new Error('shortcut 2 did not open Analysis')
+      }
+      await page.keyboard.press('3')
+      await page.waitForTimeout(300)
+      if (!/Studio/.test(await page.locator('#module-content').innerText())) {
+        throw new Error('shortcut 3 did not open Studio')
+      }
+      await page.keyboard.press('m')
+      await page.locator('.studio-mix-drawer').waitFor({ timeout: 5_000 })
+      await page.keyboard.press('m')
+      await page.locator('.studio-mix-drawer').waitFor({ state: 'detached', timeout: 5_000 })
+      await page.keyboard.press('Shift+/')
+      await page.locator('.studio-help-sheet').waitFor({ timeout: 5_000 })
+      await page.keyboard.press('Escape')
+      await page.locator('.studio-help-sheet').waitFor({ state: 'detached', timeout: 5_000 })
+    })
+  }
+
+  if (only === 'prefs-tools') {
+    await step('preferences maintenance actions', async () => {
+      await rail('Prefs').click()
+      await page.getByRole('button', { name: 'Clear player data', exact: true }).click()
+      await page.waitForTimeout(400)
+      const clearText = await page.locator('#module-content').innerText()
+      if (!/cleared|player/i.test(clearText)) throw new Error('clear player data gave no feedback')
+      await page.getByRole('button', { name: 'Clear MIDI mappings', exact: true }).click()
+      await page.waitForTimeout(300)
+      await page.getByRole('button', { name: 'Flush warm pool', exact: true }).click()
+      await page.waitForTimeout(500)
+      await page.getByRole('button', { name: 'Flush + clear cache', exact: true }).click()
+      await page.waitForTimeout(600)
+      const budget = page.locator('#cache-budget')
+      await budget.fill('1')
+      await page.getByRole('button', { name: 'Apply to engine', exact: true }).click()
+      await page.waitForTimeout(900)
+      const prefs = await page.evaluate(async () => {
+        const response = await fetch('/api/prefs')
+        return response.json()
+      })
+      console.log('PREFS:', JSON.stringify(prefs).slice(0, 260))
+      if (String(prefs?.cache_budget_gb ?? '') !== '1') throw new Error('cache budget did not apply')
+      await budget.fill('999')
+      await page.getByRole('button', { name: 'Apply to engine', exact: true }).click()
+      await page.waitForTimeout(800)
+      const status = await page.locator('#module-content').innerText()
+      if (!/exceed|free space|Couldn/i.test(status)) throw new Error('oversize budget got no warning')
+    })
+  }
+
+  if (only === 'about') {
+    await step('about update check', async () => {
+      await rail('About').click()
+      await page.getByRole('button', { name: 'Check for updates', exact: true }).click()
+      await page.waitForFunction(
+        () => /update|desktop|unavailable|failed/i.test(document.getElementById('module-content')?.innerText ?? ''),
+        undefined,
+        { timeout: 15_000 },
+      )
+      const text = await page.locator('#module-content').innerText()
+      console.log('ABOUT UPDATE:', text.slice(0, 220).replace(/\n+/g, ' | '))
+    })
+  }
+
   if (only === 'midi-export' || only === 'tray') {
     // Both need a finished transcription; tray hides it afterwards.
   }

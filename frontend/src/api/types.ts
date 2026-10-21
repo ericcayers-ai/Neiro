@@ -256,6 +256,8 @@ export interface PrefsResponse {
   resident_models: string[]
   flushed_models?: string[]
   cache_cleared?: boolean
+  cache_budget_effective_gb?: number
+  disk_free_gb?: number
 }
 
 export interface ExportFormat {

@@ -152,7 +152,14 @@ stages the model-free sidecar with `build_sidecar.py --install`, and:
   `updater_manifest.py`;
 - without secrets: builds unsigned installers (no updater artifacts).
 
-The upload/release steps include `*.sig` and `latest.json`. YAML is validated
+The upload/release steps include `*.sig` and `latest.json`.
+
+**Verify the bundled UI, not the repo copy.** The desktop shell serves the static
+files packaged **inside the PyInstaller sidecar**; rebuilding only the frontend or
+the Rust binary leaves an old UI in `resources/engine`. After UI changes:
+`python scripts/build_sidecar.py --install`, remove
+`src-tauri/target/release/resources`, then `tauri build`. This bit us once in QA —
+the axe sweep briefly tested a stale sidecar. YAML is validated
 locally; the exact commands are the same ones verified by hand.
 
 ## Signing (pipeline verified with a dev certificate)

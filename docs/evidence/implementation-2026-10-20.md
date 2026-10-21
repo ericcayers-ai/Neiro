@@ -786,3 +786,10 @@ The clip body swallowed select-drags and moved the clip in every mode; Select no
 starts a region selection there (Move tool still moves). Verified fade/gain/
 normalize/reverse/trim (8.0 s clip → 3.2 s), Restore → Studio and Separate → mashup
 pack with stems present.
+
+## Eighty-fourth batch: About/Prefs honesty and stale-sidecar note
+
+The engine UI no longer fetches GitHub (CSP-blocked) for update checks; it says the
+updater lives in the desktop app. Prefs shows the effective cache budget and free
+disk, and the oversize rejection is visible. Documented that desktop UI
+verification requires rebuilding the sidecar (the packaged UI lives inside it).
