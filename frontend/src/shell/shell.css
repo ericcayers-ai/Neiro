@@ -470,7 +470,8 @@
 
 .job-tray-resize,
 .job-tray-head,
-.job-tray-item {
+.job-tray-item,
+.job-tray-edge {
   pointer-events: auto;
 }
 

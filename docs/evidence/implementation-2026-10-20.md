@@ -772,3 +772,10 @@ Added a real-engine Playwright sweep (`frontend/tests/desktop-flows.mjs`) and a
 per-module axe/overflow sweep (`desktop-qa.mjs`). Fixed theme startup, rail
 accessible names/contrast, the dropzone control, modal Escape ownership and job-tray
 click-through. See `docs/evidence/qa-sweep-2026-10-22.md`.
+
+## Eighty-second batch: cancel, playlist and tray fixes
+
+Cancel now authenticates (was 401), playlist add refreshes the count, the queue
+message no longer miscounts, and the collapsed job tray can be reopened after the
+click-through fix. Extended flows cover all Restore/Separate presets, session
+save/open/export/new, multi-file queue, MusicXML export and tray hide/show.

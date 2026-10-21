@@ -311,7 +311,17 @@ export function LibraryModule() {
                 {favorites && (
                   <button
                     type="button"
-                    onClick={() => void addToLibraryPlaylist(favorites.id, selected.id)}
+                    onClick={() => {
+                      void (async () => {
+                        try {
+                          await addToLibraryPlaylist(favorites.id, selected.id)
+                          await refresh()
+                          setMessage(t('library.addedToPlaylist', { name: favorites.name }))
+                        } catch (err) {
+                          setMessage(err instanceof Error ? err.message : String(err))
+                        }
+                      })()
+                    }}
                   >
                     {t('library.addToPlaylist', { name: favorites.name })}
                   </button>

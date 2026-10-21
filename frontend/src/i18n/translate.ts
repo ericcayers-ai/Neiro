@@ -256,6 +256,7 @@ export const EN: Catalogue = {
   'library.saveNotes': 'Save notes',
   'library.remove': 'Remove from library',
   'library.addToPlaylist': 'Add to {name}',
+  'library.addedToPlaylist': 'Added to {name}.',
   'library.importPlayer': 'Import player markers/clips',
   'library.saveVersion': 'Save version',
   'library.versionPrompt': 'Version label',

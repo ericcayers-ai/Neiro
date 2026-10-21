@@ -63,6 +63,8 @@ function synth(seconds = 8, rate = 44100) {
 
 const wav = join(tempHome, 'flow-tune.wav')
 writeFileSync(wav, synth())
+const wav2 = join(tempHome, 'flow-second.wav')
+writeFileSync(wav2, synth(1, 44100))
 
 const portFile = join(tempHome, 'port.txt')
 const engine = spawn(
@@ -151,7 +153,7 @@ try {
     )
   }
 
-  if (only !== 'none') {
+  if (only !== 'none' && only !== 'queue') {
     await step('import audio file', async () => {
       await page.locator('#module-content input[type=file]').first().setInputFiles(wav)
       await page.waitForFunction(
@@ -203,6 +205,14 @@ try {
       const lowEq = page.getByLabel('Flow tune.wav L EQ')
       await lowEq.fill('3')
       if ((await lowEq.inputValue()) !== '3') throw new Error('EQ did not update')
+      await page.getByRole('button', { name: 'Chords', exact: true }).click()
+      await page.locator('.studio-chords').waitFor({ timeout: 10_000 })
+      await page.getByRole('button', { name: 'Chords', exact: true }).click()
+      await page.locator('.studio-chords').waitFor({ state: 'detached', timeout: 10_000 })
+      const spectro = page.getByRole('button', { name: 'Spectrogram lane', exact: true })
+      await spectro.click()
+      await page.waitForTimeout(200)
+      await spectro.click()
 
       await page.getByRole('button', { name: 'Save scene', exact: true }).click()
       await page.waitForTimeout(400)
@@ -297,6 +307,64 @@ try {
     })
   }
 
+  if (only === 'restore-presets') {
+    await step('restore presets', async () => {
+      await rail('Restore').click()
+      const values = await page.locator('#restore-chain option').evaluateAll((options) =>
+        options.map((option) => option.value),
+      )
+      for (const value of values) {
+        await page.locator('#restore-chain').selectOption(value)
+        await page.waitForTimeout(200)
+        await page.getByRole('button', { name: 'Restore', exact: true }).last().click()
+        await page
+          .waitForFunction(
+            () => /[1-9]\d* active/i.test(document.querySelector('.job-tray')?.innerText ?? ''),
+            undefined,
+            { timeout: 10_000 },
+          )
+          .catch(() => undefined)
+        await waitJobs()
+        await page.waitForTimeout(300)
+        const text = await page.locator('#module-content').innerText()
+        const outcome = /Applied|snippet|player|done/i.test(text)
+          ? 'done'
+          : /failed|error|not installed|unavailable/i.test(text)
+            ? 'error'
+            : 'unknown'
+        console.log(`restore ${value}: ${outcome}`)
+        if (outcome === 'unknown') throw new Error(`restore ${value} produced no status`)
+      }
+    })
+  }
+
+  if (only === 'separate-presets') {
+    await step('separate presets', async () => {
+      await rail('Separate').click()
+      const values = ['vocals', 'harmonic', 'drums', 'karaoke', '4stem']
+      for (const value of values) {
+        await page.locator('#sep-preset').selectOption(value)
+        await page.locator('#sep-tier').selectOption('draft')
+        await page.waitForTimeout(200)
+        await page.getByRole('button', { name: 'Separate', exact: true }).last().click()
+        await page
+          .waitForFunction(
+            () => /[1-9]\d* active/i.test(document.querySelector('.job-tray')?.innerText ?? ''),
+            undefined,
+            { timeout: 10_000 },
+          )
+          .catch(() => undefined)
+        await waitJobs()
+        await page.waitForTimeout(300)
+        const text = await page.locator('#module-content').innerText()
+        const ready = /Stems ready/i.test(text)
+        const error = /failed|error|not installed|unavailable|requires/i.test(text)
+        console.log(`separate ${value}: ${ready ? 'stems' : error ? 'error' : 'unknown'}`)
+        if (!ready && !error) throw new Error(`separate ${value} produced no result`)
+      }
+    })
+  }
+
   if (only === 'all' || only === 'separate') {
     await step('separate DSP fallback', async () => {
       await rail('Separate').click()
@@ -341,6 +409,33 @@ try {
       const practice = page.locator('#module-content')
       const text = await practice.innerText()
       if (!/practice|wait|count/i.test(text)) throw new Error('practice view did not render')
+      if (!/phase[- ]vocoder/i.test(text)) throw new Error('method label missing')
+      if (!/never a commercial stretcher/i.test(text)) throw new Error('honesty label missing')
+      const playButton = practice.getByRole('button', { name: 'Play', exact: true }).first()
+      await playButton.click()
+      await practice.getByRole('button', { name: 'Pause', exact: true }).first().waitFor({ timeout: 10_000 })
+      await practice.getByRole('button', { name: 'Pause', exact: true }).first().click()
+      await practice.locator('button').filter({ hasText: 'A–B loop' }).first().click()
+      await practice.locator('button').filter({ hasText: 'Set A' }).first().click()
+      await practice.getByRole('button', { name: 'Set B', exact: false }).first().click()
+      await page.waitForTimeout(300)
+      console.log('PRACTICE TEXT:', text.slice(0, 300).replace(/\n+/g, ' | '))
+      console.log('PRACTICE CONTROLS:', JSON.stringify(await practice.evaluate((root) => [...root.querySelectorAll('button, input, select')].slice(0, 30).map((el) => ({ tag: el.tagName, type: el.type, text: (el.innerText || el.getAttribute('aria-label') || '').trim().slice(0, 40), checked: el.checked })))))
+    })
+  }
+
+  if (only === 'all' || only === 'midi-edit') {
+    await step('midi edit and score views', async () => {
+      await rail('MIDI').click()
+      await page.locator('#module-content button').filter({ hasText: /^Edit$/ }).first().click()
+      await page.waitForTimeout(500)
+      const editText = await page.locator('#module-content').innerText()
+      if (!/roll|notes/i.test(editText)) throw new Error('edit view did not render')
+      await page.locator('#module-content button').filter({ hasText: 'Roll + score' }).first().click()
+      await page.waitForTimeout(700)
+      const scoreText = await page.locator('#module-content').innerText()
+      if (!/Score/i.test(scoreText)) throw new Error('score view did not render')
+      console.log('MIDI SCORE:', scoreText.slice(-260).replace(/\n+/g, ' | '))
     })
   }
 
@@ -361,9 +456,9 @@ try {
       if (savedValue !== 'QA note for the flow tune') throw new Error(`note did not persist in the field: ${JSON.stringify(savedValue)}`)
       const text = await page.locator('#module-content').innerText()
       if (!/saved/i.test(text)) throw new Error('no saved confirmation')
-      const markerTime = page.locator('#module-content input[type=number]').first()
+      const markerTime = page.getByLabel(/Marker time/i)
       await markerTime.fill('2')
-      const markerLabel = page.locator('#module-content input[type=text]').first()
+      const markerLabel = page.getByLabel(/Marker label/i)
       await markerLabel.fill('QA marker')
       console.log('MARKER LABEL BEFORE:', await markerLabel.inputValue())
       await page.locator('#module-content button').filter({ hasText: 'Add marker' }).last().click()
@@ -377,6 +472,30 @@ try {
       await page.waitForTimeout(500)
       const afterVersion = await page.locator('#module-content').innerText()
       if (!/QA scene/.test(afterVersion)) throw new Error('version was not saved')
+
+      await page.getByLabel(/Clip start/i).fill('1')
+      await page.getByLabel(/Clip end/i).fill('3')
+      await page.locator('#module-content button').filter({ hasText: 'Add clip' }).last().click()
+      await page.waitForTimeout(500)
+      const afterClip = await page.locator('#module-content').innerText()
+      if (!/1\.0–3\.0s/.test(afterClip)) throw new Error('clip was not added')
+
+      await page.locator('#module-content button').filter({ hasText: 'Add to Favorites' }).first().click()
+      await page.waitForTimeout(900)
+      const afterPlaylist = await page.locator('#module-content').innerText()
+      console.log('PLAYLIST TEXT:', afterPlaylist.slice(-260).replace(/\n+/g, ' | '))
+      if (!/Favorites \(1 songs\)/.test(afterPlaylist)) throw new Error('playlist add failed')
+
+      const exportHref = await page.locator('#module-content a[href="/api/library/export"]').getAttribute('href')
+      const exported = await page.evaluate(async (url) => {
+        const response = await fetch(url)
+        return { status: response.status, size: (await response.blob()).size }
+      }, exportHref)
+      if (exported.status !== 200 || exported.size < 50) throw new Error('library export failed')
+      console.log('LIBRARY EXPORT:', JSON.stringify(exported))
+
+      await page.getByRole('button', { name: 'Reset library', exact: true }).click()
+      await page.getByText(/Songs \(0\)/).waitFor({ timeout: 15_000 })
     })
   }
 
@@ -456,6 +575,122 @@ try {
       )
       const text = await page.locator('#module-content').innerText()
       console.log('IMPORT URL RESULT:', text.slice(0, 400).replace(/\n+/g, ' | '))
+    })
+  }
+
+  if (only === 'midi-export' || only === 'tray') {
+    // Both need a finished transcription; tray hides it afterwards.
+  }
+
+  if (only === 'midi-export') {
+    await step('midi export links', async () => {
+      await rail('MIDI').click()
+      await page.getByRole('button', { name: 'Transcribe', exact: true }).first().click()
+      await page.waitForFunction(
+        () => /notes .* BPM/i.test(document.getElementById('module-content')?.innerText ?? ''),
+        undefined,
+        { timeout: 120_000 },
+      )
+      const xml = page.locator('#module-content a[href*=".musicxml"], #module-content a[download][href*="xml"]').first()
+      const href = await xml.getAttribute('href')
+      const result = await page.evaluate(async (url) => {
+        const response = await fetch(url)
+        return { status: response.status, size: (await response.blob()).size }
+      }, href)
+      if (result.status !== 200 || result.size < 100) throw new Error('MusicXML export failed')
+      console.log('MIDI XML:', JSON.stringify(result))
+    })
+  }
+
+  if (only === 'tray') {
+    await step('job tray hide and show', async () => {
+      const show = page.getByRole('button', { name: 'Show job tray', exact: true })
+      const hide = page.getByRole('button', { name: 'Hide job tray', exact: true })
+      if ((await show.count()) > 0) await show.click()
+      await hide.click({ timeout: 10_000 })
+      await show.waitFor({ timeout: 5_000 })
+      await show.click()
+      await hide.waitFor({ timeout: 5_000 })
+    })
+  }
+
+  if (only === 'cancel') {
+    await step('cancel a running pitch-correct job', async () => {
+      await rail('Studio').click()
+      await page.locator('.studio-track-head').first().click()
+      await page.getByRole('button', { name: 'Pitch correct', exact: true }).click()
+      await page.waitForFunction(
+        () => /Pitch correct/.test(document.querySelector('.job-tray')?.innerText ?? ''),
+        undefined,
+        { timeout: 15_000 },
+      )
+      await page.waitForTimeout(300)
+      await page.locator('header button').filter({ hasText: 'Cancel' }).first().click()
+      await page.waitForFunction(
+        () => /cancelled|cancel failed|Pitch correct cancelled/i.test(document.body.innerText),
+        undefined,
+        { timeout: 30_000 },
+      )
+      await waitJobs()
+      const text = await page.locator('#module-content').innerText()
+      console.log('CANCEL RESULT:', text.slice(-200).replace(/\n+/g, ' | '))
+      if (!/cancel/i.test(text)) throw new Error('cancel did not surface')
+    })
+  }
+
+  if (only === 'session') {
+    await step('session save, open, export, new', async () => {
+      const menuButton = page.locator('.session-menu > button').first()
+      await menuButton.click()
+      await page.getByRole('menuitem', { name: 'Save session' }).click()
+      const dialog = page.getByRole('dialog', { name: 'Save session' })
+      await dialog.waitFor({ timeout: 10_000 })
+      await dialog.getByLabel('Name').fill('qa-session')
+      await dialog.getByLabel(/Notes/i).fill('QA session notes')
+      await dialog.getByRole('button', { name: 'Save', exact: true }).click()
+      await dialog.waitFor({ state: 'detached', timeout: 20_000 })
+
+      await menuButton.click()
+      await page.getByRole('menuitem', { name: 'Open session' }).click()
+      const openDialog = page.getByRole('dialog', { name: 'Open session' })
+      await openDialog.waitFor({ timeout: 10_000 })
+      await openDialog.getByLabel('Session').selectOption('qa-session')
+      const exportLink = openDialog.locator('a[href*="/api/session/export"]')
+      const href = await exportLink.getAttribute('href')
+      const exported = await page.evaluate(async (url) => {
+        const response = await fetch(url)
+        return { status: response.status, size: (await response.blob()).size }
+      }, href)
+      if (exported.status !== 200 || exported.size < 100) throw new Error('session export failed')
+      await openDialog.getByRole('button', { name: 'Open', exact: true }).click()
+      await openDialog.waitFor({ state: 'detached', timeout: 30_000 })
+      await page.waitForFunction(
+        () => !document.querySelector('.shell')?.innerText.includes('No file — Import a track'),
+        undefined,
+        { timeout: 30_000 },
+      )
+      console.log('SESSION EXPORT:', JSON.stringify(exported))
+
+      await menuButton.click()
+      await page.getByRole('menuitem', { name: 'New session' }).click()
+      await page.waitForFunction(
+        () => document.querySelector('.shell')?.innerText.includes('No file — Import a track'),
+        undefined,
+        { timeout: 10_000 },
+      )
+    })
+  }
+
+  if (only === 'queue') {
+    await step('import queue shows files and clears', async () => {
+      await rail('Import').click()
+      await page.locator('#module-content input[type=file]').first().setInputFiles([wav, wav2])
+      await page.getByText(/Import queue \(2\)/).waitFor({ timeout: 60_000 })
+      await page.getByRole('button', { name: /Clear queue/i }).first().click()
+      await page.waitForTimeout(400)
+      if (/Import queue/i.test(await page.locator('#module-content').innerText())) {
+        throw new Error('queue did not clear')
+      }
     })
   }
 

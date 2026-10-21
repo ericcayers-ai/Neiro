@@ -92,7 +92,7 @@ export function ImportModule() {
     if (!result.ok) {
       setMsg(`Couldn't read that file: ${result.error}`)
     } else if (multi) {
-      setMsg(`${list.length} files in queue — open Separate → “Separate queue → add packs”.`)
+      setMsg('Files queued — open Separate → “Separate queue → add packs”.')
     }
   }
 

@@ -331,7 +331,10 @@ export async function getJob(jobId: string): Promise<JobStatus> {
 }
 
 export async function cancelJob(jobId: string): Promise<void> {
-  const res = await fetch(`/api/job/${jobId}/cancel`, { method: 'POST' })
+  const res = await fetch(`/api/job/${jobId}/cancel`, {
+    method: 'POST',
+    headers: await apiHeaders(false),
+  })
   if (!res.ok) {
     const data = (await res.json().catch(() => ({}))) as { error?: string }
     throw new Error(data.error || res.statusText)
