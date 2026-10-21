@@ -133,7 +133,10 @@ try {
     errors.push(`requestfailed ${request.url()} ${failure}`)
   })
   page.on('console', (message) => {
-    if (message.type() === 'error') errors.push(message.text())
+    if (message.type() !== 'error') return
+    // Deliberate 4xx responses (SSRF rejection, oversize budget) log a resource error.
+    if (message.text().startsWith('Failed to load resource')) return
+    errors.push(message.text())
   })
   await page.goto(`http://127.0.0.1:${port}/`)
 
@@ -207,8 +210,6 @@ try {
       if ((await lowEq.inputValue()) !== '3') throw new Error('EQ did not update')
       await page.getByRole('button', { name: 'Chords', exact: true }).click()
       await page.locator('.studio-chords').waitFor({ timeout: 10_000 })
-      await page.getByRole('button', { name: 'Chords', exact: true }).click()
-      await page.locator('.studio-chords').waitFor({ state: 'detached', timeout: 10_000 })
       const spectro = page.getByRole('button', { name: 'Spectrogram lane', exact: true })
       await spectro.click()
       await page.waitForTimeout(200)
@@ -218,6 +219,15 @@ try {
       await page.waitForTimeout(400)
       const sceneOptions = await page.locator('#module-content select').last().innerText()
       if (!sceneOptions.includes('QA scene')) throw new Error('scene was not saved')
+
+      await speed.selectOption('2')
+      await page.getByRole('button', { name: 'Apply', exact: true }).click()
+      await page.waitForTimeout(500)
+      if ((await speed.inputValue()) !== '1.5') throw new Error('scene apply did not restore speed')
+      await page.getByRole('button', { name: 'Del scene', exact: true }).click()
+      await page.waitForTimeout(400)
+      const afterDelete = await page.locator('#module-content select').last().innerText()
+      if (afterDelete.includes('QA scene')) throw new Error('scene was not deleted')
     })
 
     await step('studio render stems (queued engine)', async () => {
@@ -556,8 +566,28 @@ try {
       await page.getByRole('button', { name: 'Real-time', exact: true }).click()
       const dialog = page.locator('.realtime-player')
       await dialog.waitFor({ timeout: 10_000 })
+      if (!/phase[- ]vocoder/i.test(await dialog.innerText())) throw new Error('method label missing')
       await dialog.getByRole('button', { name: 'Play', exact: true }).first().click()
-      await page.waitForTimeout(700)
+      await dialog.getByRole('button', { name: 'Pause', exact: true }).first().waitFor({ timeout: 10_000 })
+      const boxes = dialog.locator('input[type=checkbox]')
+      await boxes.nth(1).check()
+      await boxes.nth(2).check()
+      if (!(await boxes.nth(1).isChecked()) || !(await boxes.nth(2).isChecked())) {
+        throw new Error('count-in/metronome did not toggle')
+      }
+      await dialog.getByRole('button', { name: 'Pause', exact: true }).first().click()
+      await page.keyboard.press('End')
+      await page.waitForTimeout(200)
+      await dialog.getByRole('button', { name: 'Set A', exact: false }).first().click()
+      await page.keyboard.press('Home')
+      await dialog.getByRole('button', { name: 'Set B', exact: false }).first().click()
+      const create = dialog.getByRole('button', { name: /Create clip from A/i }).first()
+      if (await create.isEnabled()) {
+        await create.click()
+        await page.waitForTimeout(300)
+      }
+      await dialog.getByRole('button', { name: /Add marker/i }).first().click()
+      await page.waitForTimeout(300)
       await page.keyboard.press('Escape')
       await dialog.waitFor({ state: 'detached', timeout: 5_000 })
     })

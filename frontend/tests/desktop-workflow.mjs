@@ -76,13 +76,13 @@ try {
   const errors = []
   page.on('pageerror', (error) => errors.push(String(error)))
 
-  await page.locator('.rail').getByRole('button', { name: 'Import', exact: true }).click()
+  await page.locator('.rail-item').filter({ hasText: 'Import' }).first().click()
   await page.locator('#module-content input[type=file]').first().setInputFiles(file)
 
   await page.getByText('flow-tone.wav').first().waitFor({ timeout: 30_000 })
   console.log('imported: flow-tone.wav')
 
-  await page.locator('.rail').getByRole('button', { name: 'Analysis', exact: true }).click()
+  await page.locator('.rail-item').filter({ hasText: 'Analysis' }).first().click()
   await page.waitForFunction(
     () => /BPM|Integrated|LUFS|Key/i.test(document.body.innerText),
     undefined,
@@ -90,7 +90,7 @@ try {
   )
   console.log('analysis rendered')
 
-  await page.locator('.rail').getByRole('button', { name: 'MIDI', exact: true }).click()
+  await page.locator('.rail-item').filter({ hasText: 'MIDI' }).first().click()
   await page.waitForTimeout(800)
   const body = await page.locator('body').innerText()
   if (!/Practice|MIDI Studio/i.test(body)) throw new Error('player/MIDI view did not render')

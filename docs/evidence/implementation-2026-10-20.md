@@ -793,3 +793,10 @@ The engine UI no longer fetches GitHub (CSP-blocked) for update checks; it says 
 updater lives in the desktop app. Prefs shows the effective cache budget and free
 disk, and the oversize rejection is visible. Documented that desktop UI
 verification requires rebuilding the sidecar (the packaged UI lives inside it).
+
+## Eighty-fifth batch: backend CLI sweep and desktop regression
+
+Added `frontend/tests/backend-cli.mjs` (`npm run test:backend`): analyze,
+transcribe, enhance and separate with output assertions. Rebuilt sidecar + desktop
+and re-ran smoke, workflow, updater IPC, companion e2e, worklets and addon
+validation; fixed the workflow's stale rail selectors found by the regression.
