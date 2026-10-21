@@ -578,6 +578,84 @@ try {
     })
   }
 
+  if (only === 'studio-edits') {
+    await step('studio region edits', async () => {
+      await rail('Studio').click()
+      await page.locator('.studio-track-head').first().click()
+      await page.getByRole('button', { name: 'Select region (V)', exact: true }).click()
+      const lane = page.locator('.studio-lane').first()
+      const box = await lane.boundingBox()
+      if (!box) throw new Error('no lane')
+      await page.mouse.move(box.x + box.width * 0.2, box.y + box.height * 0.5)
+      await page.mouse.down()
+      await page.mouse.move(box.x + box.width * 0.6, box.y + box.height * 0.5, { steps: 10 })
+      await page.mouse.up()
+      await page.waitForTimeout(300)
+      const selected = await page.locator('#module-content').innerText()
+      const lines = selected.split('\n')
+      const idx = lines.findIndex((line) => /Playhead/i.test(line))
+      console.log('PLAYHEAD:', JSON.stringify(lines.slice(Math.max(0, idx - 1), idx + 4)))
+      if (!/sel \d+:\d+\.\d+–/.test(selected)) throw new Error('drag made no selection')
+
+      const selectRegion = async () => {
+        const laneBox = await lane.boundingBox()
+        if (!laneBox) throw new Error('no lane')
+        await page.mouse.move(laneBox.x + laneBox.width * 0.2, laneBox.y + laneBox.height * 0.5)
+        await page.mouse.down()
+        await page.mouse.move(laneBox.x + laneBox.width * 0.6, laneBox.y + laneBox.height * 0.5, { steps: 10 })
+        await page.mouse.up()
+        await page.waitForTimeout(250)
+      }
+      for (const op of ['In', 'Out', '+3', 'Norm', 'Rev', 'Trim']) {
+        await selectRegion()
+        await page.getByRole('button', { name: op, exact: true }).first().click()
+        await waitJobs()
+        await page.waitForTimeout(300)
+        const status = await page.locator('#module-content').innerText()
+        if (/Select a region on the active track first/i.test(status)) {
+          throw new Error(`${op} ran without a selection`)
+        }
+      }
+      const after = await page.locator('#module-content').innerText()
+      console.log('EDIT RESULT:', after.slice(-220).replace(/\n+/g, ' | '))
+      if (/failed|error/i.test(after)) throw new Error('an edit reported a failure')
+      await page.getByRole('button', { name: 'Undo', exact: true }).click()
+      await page.getByRole('button', { name: 'Undo', exact: true }).click()
+    })
+  }
+
+  if (only === 'studio-paths') {
+    await step('restore and separate into Studio', async () => {
+      await rail('Restore').click()
+      await page.getByRole('button', { name: 'Restore', exact: true }).last().click()
+      await waitJobs()
+      const openInStudio = page.locator('#module-content button').filter({ hasText: /Open in Studio/i }).first()
+      await openInStudio.waitFor({ timeout: 30_000 })
+      await openInStudio.click()
+      await page.waitForTimeout(800)
+      if (!/Studio/.test(await page.locator('#module-content').innerText())) {
+        throw new Error('restore did not open Studio')
+      }
+      const restored = await page.locator('#module-content').innerText()
+      if (!/restored|enhanced|dehum/i.test(restored)) throw new Error('restored track not in Studio')
+
+      await rail('Separate').click()
+      await page.getByRole('button', { name: 'Separate', exact: true }).last().click()
+      await waitJobs()
+      const addPack = page.locator('#module-content button').filter({ hasText: /Add as mashup pack/i }).first()
+      await addPack.waitFor({ timeout: 60_000 })
+      await addPack.click()
+      await page.waitForTimeout(800)
+      if (!/Studio/.test(await page.locator('#module-content').innerText())) {
+        throw new Error('pack did not open Studio')
+      }
+      const packed = await page.locator('#module-content').innerText()
+      if (!/Vocals/i.test(packed) || !/Instrumental/i.test(packed)) {
+        throw new Error('pack stems missing in Studio')
+      }
+    })
+  }
+
   if (only === 'midi-export' || only === 'tray') {
     // Both need a finished transcription; tray hides it afterwards.
   }

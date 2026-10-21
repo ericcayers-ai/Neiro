@@ -1995,16 +1995,34 @@ export function StudioModule() {
       seekAll(xToTime(e.clientX, lane))
       return
     }
-    // move or select: dragging the clip body moves it
+    const lane = e.currentTarget.parentElement as HTMLElement | null
+    if (!lane) return
+    if (mode === 'move') {
+      dragRef.current = {
+        kind: 'clip-move',
+        trackId: track.id,
+        clipId: clip.id,
+        startX: e.clientX,
+        originOffset: clip.offset,
+        pushedUndo: false,
+      }
+      lane.setPointerCapture?.(e.pointerId)
+      return
+    }
+    // Select tool: a clip fills the lane, so dragging its body must select a
+    // region (the help says so); moving clips belongs to the Move tool only.
+    const at = xToTime(e.clientX, lane)
     dragRef.current = {
-      kind: 'clip-move',
+      kind: 'sel',
       trackId: track.id,
-      clipId: clip.id,
+      clipId: null,
       startX: e.clientX,
-      originOffset: clip.offset,
+      originOffset: 0,
       pushedUndo: false,
     }
-    ;(e.currentTarget.parentElement as HTMLElement | null)?.setPointerCapture?.(e.pointerId)
+    setSel({ trackId: track.id, start: at, end: at })
+    seekAll(at)
+    lane.setPointerCapture?.(e.pointerId)
   }
 
   const playheadPct = ((playhead - viewStart) / viewDur) * 100

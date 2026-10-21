@@ -779,3 +779,10 @@ Cancel now authenticates (was 401), playlist add refreshes the count, the queue
 message no longer miscounts, and the collapsed job tray can be reopened after the
 click-through fix. Extended flows cover all Restore/Separate presets, session
 save/open/export/new, multi-file queue, MusicXML export and tray hide/show.
+
+## Eighty-third batch: select-drag, edit ops and stem paths
+
+The clip body swallowed select-drags and moved the clip in every mode; Select now
+starts a region selection there (Move tool still moves). Verified fade/gain/
+normalize/reverse/trim (8.0 s clip → 3.2 s), Restore → Studio and Separate → mashup
+pack with stems present.
