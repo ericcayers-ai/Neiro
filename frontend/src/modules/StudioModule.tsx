@@ -1806,6 +1806,14 @@ export function StudioModule() {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName
       if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return
+      // A modal player owns the keyboard: Escape closes it, nothing else leaks through.
+      if (realtimeTrack) {
+        if (e.key === 'Escape') {
+          e.preventDefault()
+          setRealtimeTrack(null)
+        }
+        return
+      }
       if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
         e.preventDefault()
         setHelpOpen((v) => !v)
@@ -1841,7 +1849,7 @@ export function StudioModule() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasSel, sel, timelineDur, viewStart, viewDur, tracks, selectedIds, playing, playhead, helpOpen, zoomBy, ctxMenu])
+  }, [hasSel, sel, timelineDur, viewStart, viewDur, tracks, selectedIds, playing, playhead, helpOpen, zoomBy, ctxMenu, realtimeTrack])
 
   // Wheel zoom/pan
   useEffect(() => {

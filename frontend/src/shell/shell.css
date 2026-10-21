@@ -243,7 +243,7 @@
   padding: 0.1rem 0.35rem;
   border: 1px solid var(--line);
   border-radius: 3px;
-  color: var(--faint);
+  color: var(--muted);
 }
 
 .rail-nav {
@@ -302,7 +302,7 @@
 .rail-hint {
   margin: 0;
   font-size: 0.75rem;
-  color: var(--faint);
+  color: var(--muted);
   line-height: 1.3;
 }
 
@@ -454,6 +454,8 @@
   right: 1rem;
   bottom: 1rem;
   z-index: var(--z-tray);
+  /* Empty tray space must not swallow clicks on the page underneath. */
+  pointer-events: none;
   width: min(22rem, calc(100vw - 2rem));
   max-height: min(42vh, 20rem);
   display: flex;
@@ -464,6 +466,12 @@
   border-radius: var(--radius-lg);
   box-shadow: 0 0.4rem 1rem color-mix(in srgb, var(--bg0) 50%, transparent);
   padding: 0.45rem 0.55rem;
+}
+
+.job-tray-resize,
+.job-tray-head,
+.job-tray-item {
+  pointer-events: auto;
 }
 
 .job-tray-resize {

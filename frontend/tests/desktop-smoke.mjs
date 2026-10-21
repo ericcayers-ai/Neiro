@@ -63,7 +63,7 @@ try {
 
   const visited = []
   for (const [label, expected] of modules) {
-    await page.locator('.rail').getByRole('button', { name: label, exact: true }).click()
+    await page.locator('.rail-item').filter({ hasText: label }).first().click()
     await page.waitForTimeout(400)
     const body = await page.locator('body').innerText()
     if (!body.includes(expected)) {

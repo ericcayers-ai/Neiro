@@ -21,6 +21,7 @@ import {
   restoreStudioTracks,
 } from '../state/sessionGraph'
 import { useDawBridge } from '../hooks/useDawBridge'
+import { useAppearance } from '../hooks/useAppearance'
 import { fmtTime } from '../constants/options'
 import './shell.css'
 
@@ -48,6 +49,7 @@ function readRailCollapsed(): boolean {
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
+  useAppearance()
   const {
     module,
     setModule,
@@ -301,7 +303,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           className="rail-search"
           onClick={() => setPaletteOpen(true)}
           title="Command palette (Ctrl+K)"
-          aria-label="Open command palette"
+          aria-haspopup="dialog"
         >
           <span className="rail-search-inner">
             <IconSearch size={16} />
@@ -322,7 +324,6 @@ export function AppShell({ children }: { children: ReactNode }) {
                 className={`rail-item${module === m.id ? ' active' : ''}`}
                 onClick={() => setModule(m.id)}
                 aria-current={module === m.id ? 'page' : undefined}
-                aria-label={label}
                 title={m.key ? `${hint} (${m.key})` : hint}
               >
                 <span className="rail-item-row">

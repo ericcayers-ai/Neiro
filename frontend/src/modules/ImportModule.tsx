@@ -140,7 +140,6 @@ export function ImportModule() {
         className={`dropzone${over ? ' over' : ''}`}
         role="button"
         tabIndex={0}
-        aria-label={t('import.chooseAria')}
         onClick={() => inputRef.current?.click()}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
@@ -163,18 +162,19 @@ export function ImportModule() {
         <div className="intent" style={{ marginTop: '0.55rem' }}>
           {t('import.dropHint')}
         </div>
-        <input
-          ref={inputRef}
-          type="file"
-          accept="audio/*,video/*"
-          multiple
-          className="sr-only"
-          onChange={(e) => {
-            if (e.target.files?.length) void onFiles(e.target.files)
-            e.target.value = ''
-          }}
-        />
       </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="audio/*,video/*"
+        multiple
+        aria-label={t('import.chooseAria')}
+        className="sr-only"
+        onChange={(e) => {
+          if (e.target.files?.length) void onFiles(e.target.files)
+          e.target.value = ''
+        }}
+      />
 
       {importQueue.length > 0 && (
         <div className="option-detail" style={{ marginTop: '1rem' }} role="status">

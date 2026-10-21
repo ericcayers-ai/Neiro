@@ -765,3 +765,10 @@ non-English catalogues and mirrored RTL CSS remain the open i18n work.
 Rebuilt the current tree (post-i18n/CSP/CI): MSI 58.3 MB + NSIS 39.9 MB with
 updater signatures, manifest generated, signature verified by `cargo test --lib`,
 and the extracted app launched with no Python on PATH spawning the bundled engine.
+
+## Eighty-first batch: end-to-end QA sweep and UI fixes
+
+Added a real-engine Playwright sweep (`frontend/tests/desktop-flows.mjs`) and a
+per-module axe/overflow sweep (`desktop-qa.mjs`). Fixed theme startup, rail
+accessible names/contrast, the dropzone control, modal Escape ownership and job-tray
+click-through. See `docs/evidence/qa-sweep-2026-10-22.md`.
