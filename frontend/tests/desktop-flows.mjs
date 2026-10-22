@@ -638,6 +638,8 @@ try {
       await dialog.getByRole('button', { name: 'Set A', exact: false }).first().click()
       await page.keyboard.press('Home')
       await dialog.getByRole('button', { name: 'Set B', exact: false }).first().click()
+      const loopText = (await dialog.innerText()).split('\n').filter((line) => /A\s*0:|A–B|loop/i.test(line))
+      console.log('LOOP TEXT:', JSON.stringify(loopText.slice(0, 4)))
       const create = dialog.getByRole('button', { name: /Create clip from A/i }).first()
       if (await create.isEnabled()) {
         await create.click()
@@ -816,6 +818,11 @@ try {
       await page.locator('.studio-mix-drawer').waitFor({ state: 'detached', timeout: 5_000 })
       await page.keyboard.press('Shift+/')
       await page.locator('.studio-help-sheet').waitFor({ timeout: 5_000 })
+      for (let i = 0; i < 10; i += 1) {
+        await page.keyboard.press('Tab')
+        const inside = await page.evaluate(() => Boolean(document.activeElement?.closest('.studio-help-sheet')))
+        if (!inside) throw new Error(`help focus escaped on Tab ${i + 1}`)
+      }
       await page.keyboard.press('Escape')
       await page.locator('.studio-help-sheet').waitFor({ state: 'detached', timeout: 5_000 })
     })

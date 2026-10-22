@@ -172,8 +172,10 @@ function StudioHelpSheet({
   onAbout: () => void
 }) {
   const tr = useT()
+  const sheetRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(sheetRef, true)
   return (
-    <div className="studio-help-sheet" role="dialog" aria-label={tr('studio.help')}>
+    <div ref={sheetRef} className="studio-help-sheet" role="dialog" aria-label={tr('studio.help')}>
       <div className="studio-help-sheet-head">
         <strong>{tr('studio.help')}</strong>
         <button type="button" onClick={onClose} aria-label={tr('studio.helpCloseAria')}>

@@ -1009,7 +1009,12 @@ export function PlayerSurface({
         <div className="player-panel">
           <div className="player-panel-head">
             <h4>{t('player.clips')}</h4>
-            <button type="button" onClick={createClip} disabled={loopA == null || loopB == null}>
+            <button
+        type="button"
+        onClick={createClip}
+        disabled={loopA == null || loopB == null || loopB <= loopA}
+        title={loopA != null && loopB != null && loopB <= loopA ? 'Set A before B to create a clip' : undefined}
+      >
               {t('player.createClip')}
             </button>
           </div>

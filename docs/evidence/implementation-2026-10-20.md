@@ -853,3 +853,9 @@ loopback blocked).
 `useFocusTrap` keeps Tab inside the real-time player, focuses its first control and
 restores the trigger on close; Escape now works even when a slider/select has focus.
 Verified with 25 Tab presses, Escape and focus restoration.
+
+## Ninety-fifth batch: help-sheet trap and A–B clip guard
+
+The Studio help sheet joins the focus-trapped dialogs, and “Create clip from A–B” is
+disabled unless B > A (the handler already refused invalid ranges, but the button
+looked live).
