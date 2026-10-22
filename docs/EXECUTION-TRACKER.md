@@ -6,7 +6,7 @@ must not be assumed*. Updated whenever a phase changes state. The gate
 FAIL but may not overrule it.
 
 **Current state (2026-10-21, current tree):** `GATE PASS — 23/23 criteria`.
-Python suite 281 passed / 3 skipped; player tests 53 passed; vitest 17 (incl. axe); addon validator 49/49;
+Python suite 283 passed / 3 skipped; player tests 53 passed; vitest 17 (incl. axe); addon validator 49/49;
 frontend tsc + build pass; cargo fmt/clippy/check pass; installers verified; Chromium worklet DSP check passes. Commit `cf6c35b` contains the implementation (including
 the preserved `pitch_correct` fix and its regression test). Receipts:
 `docs/evidence/{implementation,security,player-latency}-2026-10-20.md`.
