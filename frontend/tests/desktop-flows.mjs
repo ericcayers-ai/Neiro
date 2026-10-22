@@ -117,7 +117,10 @@ async function step(name, run) {
 
 try {
   const port = await boundPort()
-  browser = await chromium.launch({ headless: true })
+  browser = await chromium.launch({
+      headless: true,
+      args: process.env.QA_NO_WEBGL ? ['--disable-webgl', '--disable-3d-apis'] : [],
+    })
   const context = await browser.newContext({ viewport: { width: 1360, height: 860 } })
   page = await context.newPage()
   page.on('pageerror', (error) => errors.push(String(error)))
