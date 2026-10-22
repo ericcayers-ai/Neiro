@@ -859,3 +859,10 @@ Verified with 25 Tab presses, Escape and focus restoration.
 The Studio help sheet joins the focus-trapped dialogs, and “Create clip from A–B” is
 disabled unless B > A (the handler already refused invalid ranges, but the button
 looked live).
+
+## Ninety-sixth batch: reload restores the current session
+
+The server records report/name per registered file and exposes
+`GET /api/session/current`; the shell restores that file on load. A browser refresh
+no longer loses the imported audio (it only did because the UI never asked the
+engine). Covered by a server test and an E2E reload flow.

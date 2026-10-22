@@ -1138,6 +1138,46 @@ try {
     })
   }
 
+  if (only === 'analysis-prefs') {
+    await step('analysis lane toggle persists', async () => {
+      await rail('Analysis').click()
+      const lanes = page.locator('#module-content input[type=checkbox]')
+      await lanes.first().waitFor({ timeout: 10_000 })
+      await lanes.first().uncheck()
+      await page.reload()
+      await page.waitForTimeout(1200)
+      await rail('Analysis').click()
+      await page.waitForTimeout(500)
+      const reloaded = page.locator('#module-content input[type=checkbox]').first()
+      await reloaded.waitFor({ timeout: 10_000 })
+      if (await reloaded.isChecked()) throw new Error('lane preference did not persist')
+    })
+  }
+
+  if (only === 'midi-models') {
+    await step('needs-download model is labelled', async () => {
+      await rail('MIDI').click()
+      await page.locator('#tr-model').selectOption('piano-transcription')
+      await page.waitForTimeout(400)
+      const text = await page.locator('#module-content').innerText()
+      if (!/needs (download|install)/i.test(text)) throw new Error('model is not marked needs-download')
+      console.log('MIDI MODEL: needs-download shown')
+    })
+  }
+
+  if (only === 'reload') {
+    await step('reload restores the current session', async () => {
+      await page.reload()
+      await page.waitForTimeout(1500)
+      const header = await page.locator('.shell').innerText()
+      if (/No file — Import a track/.test(header)) throw new Error('session not restored after reload')
+      if (!/flow-tune\.wav/.test(header)) throw new Error('restored file name missing')
+      await rail('Analysis').click()
+      await page.getByText(/Report for flow-tune\.wav/).waitFor({ timeout: 15_000 })
+      console.log('RELOAD: session restored')
+    })
+  }
+
   if (only === 'midi-export' || only === 'tray') {
     // Both need a finished transcription; tray hides it afterwards.
   }

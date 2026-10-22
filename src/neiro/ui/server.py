@@ -129,6 +129,8 @@ class _State:
         # process-lifetime only; artifacts remain on disk in the workspace.
         self.edit_cache: dict[str, str] = {}
         self.files: dict[str, Path] = {}
+        self.reports: dict[str, dict] = {}  # file_id -> analysis report (for reload)
+        self.names: dict[str, str] = {}  # file_id -> display name
         self.parents: dict[str, str] = {}  # edited file_id -> file_id it derived from
         self.jobs: dict[str, dict] = {}
         self.job_contexts: dict[str, ExecutionContext] = {}
@@ -1431,6 +1433,9 @@ def _make_handler(state: _State):
                     "application/json",
                 )
                 return
+            if path == "/api/session/current":
+                self._json(_current_session_payload(state))
+                return
             if path == "/api/session/list":
                 from neiro.ui.api_extras import list_sessions
 
@@ -2404,12 +2409,15 @@ def _make_handler(state: _State):
             report = analyze(audio, registry=state.registry)
             file_id = uuid.uuid4().hex[:12]
             state.files[file_id] = dest
-            return {
+            payload = {
                 "file_id": file_id,
                 "name": display_name,
                 "audio_url": f"/files/{dest.relative_to(state.workspace).as_posix()}",
                 "report": report.as_dict(),
             }
+            state.reports[file_id] = payload["report"]
+            state.names[file_id] = display_name
+            return payload
 
         def _handle_ingest_url(self) -> None:
             body = self._read_json()
@@ -2520,6 +2528,25 @@ def _start_ws_control_plane(state: _State, ws_port: int) -> None:
 
     threading.Thread(target=_run, daemon=True).start()
     print(f"WS control channel at ws://127.0.0.1:{ws_port}/")
+
+
+def _current_session_payload(state: _State) -> dict:
+    """Latest analysed file, so a browser reload can restore the session."""
+    with state.lock:
+        last = next(reversed(state.files), None)
+        path = state.files.get(last) if last else None
+        report = state.reports.get(last) if last else None
+        name = state.names.get(last) if last else None
+    if not last or path is None or report is None:
+        return {"file": None}
+    return {
+        "file": {
+            "file_id": last,
+            "name": name or path.name,
+            "audio_url": f"/files/{path.relative_to(state.workspace).as_posix()}",
+            "report": report,
+        }
+    }
 
 
 def serve(

@@ -1,4 +1,5 @@
 import type {
+  AnalysisReport,
   AnalysisCorrectionsPayload,
   EditResponse,
   EnhanceResult,
@@ -160,6 +161,13 @@ export async function saveSession(body: {
     headers: await apiHeaders(),
     body: JSON.stringify(body),
   })
+  return readJson(res)
+}
+
+export async function getCurrentSession(): Promise<{
+  file: { file_id: string; name: string; audio_url: string; report: AnalysisReport } | null
+}> {
+  const res = await fetch('/api/session/current', { cache: 'no-store' })
   return readJson(res)
 }
 

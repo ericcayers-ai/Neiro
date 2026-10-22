@@ -494,3 +494,17 @@ def test_job_progress_includes_structured_fields(server):
         assert "stage" in ev and "fraction" in ev and "line" in ev
         fracs = [e["fraction"] for e in status["progress_events"] if e.get("fraction") is not None]
         assert fracs == sorted(fracs) or max(fracs) >= 0.99  # overall progress advances
+
+
+def test_session_current_restores_latest_file(server):
+    base, _ = server
+    _, body = _get(base + "/api/session/current")
+    assert json.loads(body) == {"file": None}
+
+    uploaded = _upload(base, _tone_wav_bytes(seconds=0.5))
+    _, body = _get(base + "/api/session/current")
+    current = json.loads(body)["file"]
+    assert current["file_id"] == uploaded["file_id"]
+    assert current["name"] == uploaded["name"]
+    assert current["report"]["duration_seconds"] > 0
+    assert current["audio_url"].startswith("/files/")

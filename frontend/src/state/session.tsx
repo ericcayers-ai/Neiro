@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { cancelJob, getJob } from '../api/client'
+import { cancelJob, getCurrentSession, getJob } from '../api/client'
 import type {
   AnalysisCorrectionsPayload,
   AnalysisReport,
@@ -516,6 +516,26 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const first = jobsRef.current.find((j) => j.status === 'running')
     if (first) void cancelSessionJob(first.id)
   }, [cancelSessionJob])
+
+  useEffect(() => {
+    // A browser reload keeps the engine process (and its files); restore the
+    // latest analysed file so the UI comes back where the user left it.
+    let alive = true
+    void getCurrentSession()
+      .then(({ file: current }) => {
+        if (!alive || !current) return
+        setFile({
+          fileId: current.file_id,
+          name: current.name,
+          audioUrl: current.audio_url,
+          report: current.report,
+        })
+      })
+      .catch(() => undefined)
+    return () => {
+      alive = false
+    }
+  }, [setFile])
 
   useEffect(() => {
     pollActive.current = true
