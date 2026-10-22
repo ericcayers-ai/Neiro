@@ -125,3 +125,9 @@ checks on the packaged app — gate, signature test, smoke, workflow, updater IP
 packaged axe, 18-step flows, companion e2e, worklets, backend CLI, live API probe
 and addon validator — all exit 0. Details: `release-candidate-2026-10-23.md`.
 
+## Round-129 regression
+
+Gate 23/23 and the full 18-step user flow pass after the latest QA additions
+(rename Escape/blur, 200% scale, player scenes, WebGL fallback, drop import,
+queue dedupe), with 0 page errors.
+
