@@ -80,16 +80,24 @@ try {
   check('text/plain upload is not accepted as JSON/audio', plain.status, [415, 422])
 
   const big = new Uint8Array(2 * 1024 * 1024)
-  const oversized = await fetch(origin + '/api/upload', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/octet-stream',
-      'X-Neiro-Token': token,
-      'X-Filename': 'big.wav',
-    },
-    body: big,
-  })
-  check('oversized upload rejected', oversized.status, 413)
+  let oversizedStatus = 0
+  try {
+    const oversized = await fetch(origin + '/api/upload', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'X-Neiro-Token': token,
+        'X-Filename': 'big.wav',
+      },
+      body: big,
+    })
+    oversizedStatus = oversized.status
+  } catch {
+    // The server may refuse by closing the connection while the body is streamed.
+    oversizedStatus = 'closed'
+  }
+  check('oversized upload rejected', oversizedStatus, [413, 'closed'])
+  check('server healthy after oversized upload', (await fetch(origin + '/api/health')).status, 200)
 
   const noToken = await fetch(origin + '/api/edit/job', {
     method: 'POST',

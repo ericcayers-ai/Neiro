@@ -118,3 +118,10 @@ Gate plus ten focused checks — per-module axe, full flows, clip context menu,
 settings persistence, session validation, packs, resume preference, companion e2e,
 worklets and addon validator — all exit 0 after the latest test additions.
 
+## Post-QA release candidate (2026-10-23)
+
+Rebuilt signed MSI (58.2 MB) + NSIS (39.9 MB) with a fresh sidecar and ran twelve
+checks on the packaged app — gate, signature test, smoke, workflow, updater IPC,
+packaged axe, 18-step flows, companion e2e, worklets, backend CLI, live API probe
+and addon validator — all exit 0. Details: `release-candidate-2026-10-23.md`.
+

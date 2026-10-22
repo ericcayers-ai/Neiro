@@ -546,7 +546,7 @@ ledger, parity matrix, port plan, verification receipt.
 
 The brief was executed across 78 goal rounds. The gate
 `python scripts/verify_goal.py --full` reports **23/23 PASS**; the Python suite is
-**283 passed / 3 skipped**; player Node tests **53**; vitest tests **17**; addon
+**287 passed / 3 skipped (290 collected)**; player Node tests **53**; vitest tests **17**; addon
 validator **49/49**; `cargo fmt/clippy/check` pass; the frontend type-checks and
 builds; MSI/NSIS installers build with the bundled engine. Receipts: `docs/evidence/{implementation,security,player-latency,a11y-static}-2026-10-20.md`.
 
