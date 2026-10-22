@@ -185,7 +185,11 @@ export async function listSessions(): Promise<{ sessions: { name: string; path: 
   return readJson(res)
 }
 
-export async function openSession(name: string): Promise<{ ok: boolean; session: Record<string, unknown> }> {
+export async function openSession(name: string): Promise<{
+  ok: boolean
+  session: Record<string, unknown>
+  file?: { file_id: string; name: string; audio_url: string; report: AnalysisReport }
+}> {
   const res = await fetch('/api/session/open', {
     method: 'POST',
     headers: await apiHeaders(),

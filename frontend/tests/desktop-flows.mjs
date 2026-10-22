@@ -1486,6 +1486,50 @@ try {
     })
   }
 
+  if (only === 'session-graph') {
+    await step('session graph restores module, midi mode, draft', async () => {
+      await rail('Analysis').click()
+      await page.getByLabel(/^Key$/).first().fill('F minor')
+      await rail('MIDI').click()
+      await page.locator('#tr-mode').selectOption('split')
+      const menuButton = page.locator('.session-menu > button').first()
+      await menuButton.click()
+      await page.getByRole('menuitem', { name: 'Save session' }).click()
+      const dialog = page.getByRole('dialog', { name: 'Save session' })
+      await dialog.getByLabel('Name').fill('graph-test')
+      await dialog.getByRole('button', { name: 'Save', exact: true }).click()
+      await dialog.waitFor({ state: 'detached', timeout: 20_000 })
+
+      await menuButton.click()
+      await page.getByRole('menuitem', { name: 'New session' }).click()
+      await page.waitForFunction(
+        () => document.querySelector('.shell')?.innerText.includes('No file — Import a track'),
+        undefined,
+        { timeout: 10_000 },
+      )
+      await menuButton.click()
+      await page.getByRole('menuitem', { name: 'Open session' }).click()
+      const openDialog = page.getByRole('dialog', { name: 'Open session' })
+      await openDialog.getByLabel('Session').selectOption('graph-test')
+      await openDialog.getByRole('button', { name: 'Open', exact: true }).click()
+      await openDialog.waitFor({ state: 'detached', timeout: 30_000 })
+      await page.waitForTimeout(1500)
+      const moduleText = await page.locator('#module-content').innerText()
+      console.log('RESTORED MODULE HEAD:', moduleText.split('\n').slice(0, 3).join(' | '))
+      const midiMode = await page.locator('#tr-mode').count()
+      if (midiMode) {
+        const value = await page.locator('#tr-mode').inputValue()
+        if (value !== 'split') throw new Error(`midi mode not restored: ${value}`)
+      }
+      if (!/Transcribe/.test(moduleText)) throw new Error('module was not restored to MIDI')
+      const sessionHeader = await page.locator('.shell').innerText()
+      if (!/flow-tune\.wav/.test(sessionHeader)) throw new Error('source audio was not reloaded')
+      await rail('Analysis').click()
+      const keyDraft = await page.getByLabel(/^Key$/).first().inputValue()
+      console.log('DRAFT AFTER OPEN:', JSON.stringify(keyDraft))
+    })
+  }
+
   if (only === 'midi-export' || only === 'tray') {
     // Both need a finished transcription; tray hides it afterwards.
   }

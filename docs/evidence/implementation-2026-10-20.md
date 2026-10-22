@@ -878,3 +878,11 @@ queue now dedupes on name + duration. Verified by selecting the same file twice
 Verified the largest font scale keeps the page inside the viewport; the track
 rename Escape handler now calls preventDefault/stopPropagation (the keyboard exit
 itself is still unverified in automation and documented as such).
+
+## Ninety-ninth batch: session open reloads the source
+
+`POST /api/session/open` re-registers the source when it still lives inside the
+engine workspace (path confined to the workspace), returning the analysed file; the
+shell sets it so opening a session restores module + audio + MIDI mode. The
+corrections draft is retargeted to the new file id but still returns empty (logged
+as unresolved, not claimed).

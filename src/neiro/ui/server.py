@@ -1843,7 +1843,29 @@ def _make_handler(state: _State):
                 self._error(400, "name is required")
                 return
             try:
-                self._json(open_session_doc(name))
+                doc = open_session_doc(name)
+                # If the source still lives in this engine's workspace, re-register
+                # it so the UI comes back with audio instead of only graph config.
+                try:
+                    source = (doc.get("session") or {}).get("source") or {}
+                    raw = source.get("path")
+                    if raw:
+                        candidate = Path(str(raw)).resolve()
+                        candidate.relative_to(state.workspace.resolve())
+                        if candidate.is_file() and candidate.suffix.lower() in {
+                            ".wav",
+                            ".flac",
+                            ".ogg",
+                            ".mp3",
+                            ".m4a",
+                        }:
+                            doc = {
+                                **doc,
+                                "file": self._register_analyzed(candidate, candidate.name),
+                            }
+                except (ValueError, OSError):
+                    pass
+                self._json(doc)
             except FileNotFoundError:
                 self._error(404, "session not found")
             except Exception as exc:

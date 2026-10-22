@@ -55,6 +55,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     module,
     setModule,
     file,
+    setFile,
     jobRunning,
     jobLabel,
     requestCancel,
@@ -252,11 +253,26 @@ export function AppShell({ children }: { children: ReactNode }) {
     setSessionBusy(true)
     try {
       const res = await openSession(name)
+      if (res.file) {
+        setFile({
+          fileId: res.file.file_id,
+          name: res.file.name,
+          audioUrl: res.file.audio_url,
+          report: res.file.report,
+        })
+      }
       const cfg = parseSessionGraphConfig(res.session?.graph_config)
       if (cfg.module) setModule(cfg.module)
       if (cfg.stemPacks) setStemPacks(cfg.stemPacks)
       if (cfg.analysisCorrections) setAnalysisCorrections(cfg.analysisCorrections)
-      if (cfg.analysisCorrectionsDraft) writeCorrectionsDraft(cfg.analysisCorrectionsDraft)
+      if (cfg.analysisCorrectionsDraft) {
+        // The restored source has a new file id; retarget the draft to it or the
+        // Analysis view discards the draft as belonging to another file.
+        writeCorrectionsDraft({
+          ...cfg.analysisCorrectionsDraft,
+          fileId: res.file?.file_id ?? cfg.analysisCorrectionsDraft.fileId,
+        })
+      }
       if (cfg.midiMode) {
         writeMidiMode(cfg.midiMode)
         setMidiModeFocus(cfg.midiMode)
