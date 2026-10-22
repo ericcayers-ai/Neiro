@@ -444,6 +444,15 @@ try {
       await practice.locator('button').filter({ hasText: 'Set A' }).first().click()
       await practice.getByRole('button', { name: 'Set B', exact: false }).first().click()
       await page.waitForTimeout(300)
+      await practice.getByRole('button', { name: /Render with Neiro/i }).first().click()
+      await page.waitForFunction(
+        () => /render(ed|ing)|ready|failed/i.test(document.getElementById('module-content')?.innerText ?? ''),
+        undefined,
+        { timeout: 90_000 },
+      )
+      const rendered = await page.locator('#module-content').innerText()
+      if (/render failed/i.test(rendered)) throw new Error('player render failed')
+      console.log('PLAYER RENDER: completed')
       console.log('PRACTICE TEXT:', text.slice(0, 300).replace(/\n+/g, ' | '))
       console.log('PRACTICE CONTROLS:', JSON.stringify(await practice.evaluate((root) => [...root.querySelectorAll('button, input, select')].slice(0, 30).map((el) => ({ tag: el.tagName, type: el.type, text: (el.innerText || el.getAttribute('aria-label') || '').trim().slice(0, 40), checked: el.checked })))))
     })
