@@ -131,6 +131,7 @@ try {
       return {
         scrollWidth: document.documentElement.scrollWidth,
         innerWidth: width,
+        pageOverflow: document.documentElement.scrollWidth > width + 2,
         overflowCount: overflow.length,
         overflowSample: overflow.slice(0, 5).map((element) => ({
           tag: element.tagName,
@@ -164,7 +165,9 @@ try {
     }
 
     report.push({ module: slug, shot, metrics, axe })
-    console.log(`${slug}: overflow=${metrics.overflowCount} axe=${JSON.stringify(axe)}`)
+    console.log(
+      `${slug}: pageOverflow=${metrics.pageOverflow} elementsOutsideViewport=${metrics.overflowCount} axe=${JSON.stringify(axe)}`,
+    )
   }
 
   const summary = { consoleErrors, report }
