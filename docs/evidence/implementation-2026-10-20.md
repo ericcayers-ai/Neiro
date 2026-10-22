@@ -847,3 +847,9 @@ decode for direct audio links when yt-dlp is absent (512 MB cap, audio content-t
 required); URL uploads are named from the URL path instead of `audio.wav`. Verified
 end to end with a public OGG and two new rejection-path tests (non-audio suffix,
 loopback blocked).
+
+## Ninety-fourth batch: modal focus trap
+
+`useFocusTrap` keeps Tab inside the real-time player, focuses its first control and
+restores the trigger on close; Escape now works even when a slider/select has focus.
+Verified with 25 Tab presses, Escape and focus restoration.

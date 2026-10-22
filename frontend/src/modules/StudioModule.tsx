@@ -36,6 +36,7 @@ import { focusGain, isTargetStem } from '../player/mix'
 import { chordLane } from '../player/timeline'
 import { renderRequest } from '../studio/render'
 import { usePlural, useT } from '../i18n'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 import {
   applySceneToTracks,
   createScene,
@@ -360,6 +361,13 @@ export function StudioModule() {
   const [studioReport, setStudioReport] = useState<AnalysisReport | null>(null)
   const [analysisBusy, setAnalysisBusy] = useState(false)
   const [realtimeTrack, setRealtimeTrack] = useState<Track | null>(null)
+  const realtimeRef = useRef<HTMLDivElement>(null)
+  const realtimeTriggerRef = useRef<HTMLButtonElement>(null)
+  const closeRealtime = () => {
+    setRealtimeTrack(null)
+    window.requestAnimationFrame(() => realtimeTriggerRef.current?.focus())
+  }
+  useFocusTrap(realtimeRef, Boolean(realtimeTrack))
   const [beatSnap, setBeatSnap] = useState(false)
   const [keyConflict, setKeyConflict] = useState<string | null>(null)
   const [pendingTranspose, setPendingTranspose] = useState<{
@@ -1804,16 +1812,17 @@ export function StudioModule() {
   // Keyboard
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName
-      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return
-      // A modal player owns the keyboard: Escape closes it, nothing else leaks through.
+      // A modal player owns the keyboard (even when a control has focus):
+      // Escape closes it, nothing else leaks through to the timeline.
       if (realtimeTrack) {
         if (e.key === 'Escape') {
           e.preventDefault()
-          setRealtimeTrack(null)
+          closeRealtime()
         }
         return
       }
+      const tag = (e.target as HTMLElement)?.tagName
+      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return
       if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
         e.preventDefault()
         setHelpOpen((v) => !v)
@@ -2338,13 +2347,19 @@ export function StudioModule() {
           className="palette-backdrop"
           role="presentation"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setRealtimeTrack(null)
+            if (event.target === event.currentTarget) closeRealtime()
           }}
         >
-          <div className="realtime-player" role="dialog" aria-modal="true" aria-label={tr('studio.realtime')}>
+          <div
+            ref={realtimeRef}
+            className="realtime-player"
+            role="dialog"
+            aria-modal="true"
+            aria-label={tr('studio.realtime')}
+          >
             <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0 }}>{realtimeTrack.name}</h3>
-              <button type="button" onClick={() => setRealtimeTrack(null)}>
+              <button type="button" onClick={() => closeRealtime()}>
                 Close
               </button>
             </div>
@@ -2470,6 +2485,7 @@ export function StudioModule() {
               Compact
             </button>
             <button
+              ref={realtimeTriggerRef}
               type="button"
               title={tr('studio.realtimeHint')}
               onClick={() => {

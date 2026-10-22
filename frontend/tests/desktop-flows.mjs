@@ -644,8 +644,17 @@ try {
       await dialog.locator('.player-eq').waitFor({ timeout: 5_000 })
       await dialog.getByRole('button', { name: /Equalizer/i }).first().click()
       await dialog.locator('.player-eq').waitFor({ state: 'detached', timeout: 5_000 })
+      for (let i = 0; i < 25; i += 1) {
+        await page.keyboard.press('Tab')
+        const inside = await page.evaluate(() => Boolean(document.activeElement?.closest('.realtime-player')))
+        if (!inside) throw new Error(`focus escaped the dialog on Tab ${i + 1}`)
+      }
       await page.keyboard.press('Escape')
       await dialog.waitFor({ state: 'detached', timeout: 5_000 })
+      const focusAfter = await page.evaluate(
+        () => (document.activeElement?.textContent || '').trim() || document.activeElement?.getAttribute('aria-label') || '',
+      )
+      if (focusAfter !== 'Real-time') throw new Error(`focus not restored (${focusAfter})`)
     })
   }
 
