@@ -1831,3 +1831,21 @@ summary:
 
 No row above is marked complete without a commit or receipt.
 
+### QA additions (2026-10-23)
+
+The end-to-end sweep (docs/evidence/qa-sweep-2026-10-22.md) added capability and
+fixed defects beyond the original matrix:
+
+- Reload restores the current session (`GET /api/session/current`); New session
+  clears it; session notes round-trip.
+- Focus traps (player modal, help sheet, palette, session dialog) with Escape from
+  any control and focus restored to the trigger.
+- Direct audio URL import without yt-dlp (SSRF-checked urllib + ffmpeg), named from
+  the URL.
+- Queue dedupes the same song; cancel is authenticated; playlist/version/clip rows
+  refresh; drag-and-drop import and track reorder verified; 200% scale and 800 px
+  layouts do not overflow.
+- A live HTTP security probe (401/403/413/400/404/null-session) is part of the
+  check set.
+
+
