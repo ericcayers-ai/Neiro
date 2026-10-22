@@ -161,7 +161,7 @@ try {
     )
   }
 
-  if (!['none', 'queue', 'packs', 'url-import', 'url-error'].includes(only)) {
+  if (!['none', 'queue', 'packs', 'url-import', 'url-error', 'drop'].includes(only)) {
     await step('import audio file', async () => {
       await page.locator('#module-content input[type=file]').first().setInputFiles(wav)
       await page.waitForFunction(
@@ -1343,6 +1343,50 @@ try {
       await page.waitForTimeout(600)
       const text = await page.locator('#module-content').innerText()
       if (!/×1|clip/i.test(text)) throw new Error('player clip was not imported')
+    })
+  }
+
+  if (only === 'drop') {
+    await step('drag-and-drop import', async () => {
+      const bytes = readFileSync(wav)
+      await page.evaluate(async (base64) => {
+        const binary = atob(base64)
+        const array = new Uint8Array(binary.length)
+        for (let i = 0; i < binary.length; i += 1) array[i] = binary.charCodeAt(i)
+        const file = new File([array], 'drop-tune.wav', { type: 'audio/wav' })
+        const transfer = new DataTransfer()
+        transfer.items.add(file)
+        const zone = document.querySelector('.dropzone')
+        if (!zone) throw new Error('no dropzone')
+        for (const type of ['dragover', 'drop']) {
+          zone.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: transfer }))
+        }
+      }, bytes.toString('base64'))
+      await page.waitForFunction(
+        () => !document.querySelector('.shell')?.innerText.includes('No file — Import a track'),
+        undefined,
+        { timeout: 180_000 },
+      )
+      if (!/drop-tune\.wav/.test(await page.locator('.shell').innerText())) {
+        throw new Error('dropped file not loaded')
+      }
+      console.log('DROP: imported')
+    })
+  }
+
+  if (only === 'reorder') {
+    await step('drag a track head to reorder', async () => {
+      await rail('Studio').click()
+      await page.getByRole('button', { name: '+ Track', exact: true }).click()
+      await page.waitForTimeout(400)
+      const heads = page.locator('.studio-track-head')
+      if ((await heads.count()) < 2) throw new Error('need two tracks')
+      const before = await page.locator('.studio-track-badge').evaluateAll((els) => els.map((e) => e.getAttribute('title')))
+      await heads.nth(0).dragTo(heads.nth(1))
+      await page.waitForTimeout(500)
+      const after = await page.locator('.studio-track-badge').evaluateAll((els) => els.map((e) => e.getAttribute('title')))
+      console.log('REORDER:', JSON.stringify(before), '->', JSON.stringify(after))
+      if (JSON.stringify(before) === JSON.stringify(after)) throw new Error('track order unchanged')
     })
   }
 
