@@ -375,7 +375,7 @@ try {
   if (only === 'separate-presets') {
     await step('separate presets', async () => {
       await rail('Separate').click()
-      const values = ['vocals', 'harmonic', 'drums', 'karaoke', '4stem']
+      const values = ['vocals', 'harmonic', 'drums', 'karaoke', '4stem', '6stem']
       for (const value of values) {
         await page.locator('#sep-preset').selectOption(value)
         await page.locator('#sep-tier').selectOption('draft')
@@ -1289,6 +1289,32 @@ try {
       await dialog.getByRole('button', { name: 'Pause', exact: true }).first().waitFor({ timeout: 10_000 })
       await page.keyboard.press('Escape')
       await dialog.waitFor({ state: 'detached', timeout: 5_000 })
+    })
+  }
+
+  if (only === 'misc3') {
+    await step('rail collapse, queue jump, version list', async () => {
+      await page.getByRole('button', { name: 'Hide navigation', exact: true }).click()
+      await page.locator('.shell.rail-collapsed').waitFor({ timeout: 5_000 })
+      await page.getByRole('button', { name: 'Expand navigation', exact: true }).click()
+      await page.locator('.shell.rail-collapsed').waitFor({ state: 'detached', timeout: 5_000 })
+
+      await rail('Import').click()
+      await page.getByRole('button', { name: /Go to Separate/i }).first().click()
+      await page.waitForTimeout(400)
+      if (!/Stem job on flow-tune\.wav/.test(await page.locator('#module-content').innerText())) {
+        throw new Error('queue jump did not open Separate')
+      }
+
+      await rail('Library').click()
+      await page.getByRole('button', { name: 'Add current file', exact: true }).click()
+      await page.getByText(/Songs \(1\)/).waitFor({ timeout: 30_000 })
+      await page.locator('#module-content button').filter({ hasText: 'flow-tune.wav' }).first().click()
+      await page.locator('#module-content button').filter({ hasText: 'Save version' }).first().click()
+      await page.waitForTimeout(500)
+      if (!/Versions:/i.test(await page.locator('#module-content').innerText())) {
+        throw new Error('versions list missing')
+      }
     })
   }
 
