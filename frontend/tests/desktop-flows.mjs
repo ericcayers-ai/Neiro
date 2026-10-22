@@ -672,6 +672,7 @@ try {
       }
       await page.keyboard.press('Escape')
       await dialog.waitFor({ state: 'detached', timeout: 5_000 })
+      await page.waitForTimeout(250)
       const focusAfter = await page.evaluate(
         () => (document.activeElement?.textContent || '').trim() || document.activeElement?.getAttribute('aria-label') || '',
       )

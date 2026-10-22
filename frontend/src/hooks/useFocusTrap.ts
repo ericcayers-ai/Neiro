@@ -11,7 +11,6 @@ export function useFocusTrap(ref: RefObject<HTMLElement | null>, active: boolean
   useEffect(() => {
     const root = ref.current
     if (!active || !root) return
-    const previous = document.activeElement as HTMLElement | null
     const items = () =>
       [...root.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
         (element) => element.offsetParent !== null && !element.hasAttribute('aria-hidden'),
@@ -42,8 +41,8 @@ export function useFocusTrap(ref: RefObject<HTMLElement | null>, active: boolean
     return () => {
       window.cancelAnimationFrame(frame)
       document.removeEventListener('keydown', onKey, true)
-      // Restore after React removes the dialog so focus is not dropped to <body>.
-      window.requestAnimationFrame(() => previous?.focus?.())
+      // The opening control restores focus itself; restoring here raced with it
+      // and could drop focus to <body> after the dialog closed.
     }
   }, [active, ref])
 }
