@@ -1390,6 +1390,22 @@ try {
     })
   }
 
+  if (only === 'session-empty') {
+    await step('open session without saved sessions', async () => {
+      const menuButton = page.locator('.session-menu > button').first()
+      await menuButton.click()
+      await page.getByRole('menuitem', { name: 'Open session' }).click()
+      await page.waitForFunction(
+        () => /No saved sessions/i.test(document.body.innerText),
+        undefined,
+        { timeout: 15_000 },
+      )
+      if (await page.getByRole('dialog', { name: 'Open session' }).count()) {
+        throw new Error('dialog opened with no sessions')
+      }
+    })
+  }
+
   if (only === 'midi-export' || only === 'tray') {
     // Both need a finished transcription; tray hides it afterwards.
   }
