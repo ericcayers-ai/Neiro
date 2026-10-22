@@ -1318,6 +1318,34 @@ try {
     })
   }
 
+  if (only === 'misc4') {
+    await step('restore recommendation and library player clips', async () => {
+      await rail('Restore').click()
+      await page.getByRole('button', { name: 'Use recommendation', exact: true }).click()
+      await page.waitForTimeout(400)
+      const chain = await page.locator('#restore-chain').inputValue()
+      if (chain === 'auto') throw new Error('recommendation did not pick a preset')
+      console.log('RESTORE PRESET:', chain)
+
+      await rail('Library').click()
+      await page.getByRole('button', { name: 'Add current file', exact: true }).click()
+      await page.getByText(/Songs \(1\)/).waitFor({ timeout: 30_000 })
+      await page.locator('#module-content button').filter({ hasText: 'flow-tune.wav' }).first().click()
+      await page.locator('#module-content button').filter({ hasText: /^Set A/ }).first().click()
+      await page.locator('#module-content').press('End')
+      await page.locator('#module-content button').filter({ hasText: /^Set B/ }).first().click()
+      const create = page.locator('#module-content button').filter({ hasText: /Create clip from A/i }).first()
+      if (await create.isEnabled()) {
+        await create.click()
+        await page.waitForTimeout(300)
+      }
+      await page.getByRole('button', { name: /Import player markers/i }).click()
+      await page.waitForTimeout(600)
+      const text = await page.locator('#module-content').innerText()
+      if (!/×1|clip/i.test(text)) throw new Error('player clip was not imported')
+    })
+  }
+
   if (only === 'midi-export' || only === 'tray') {
     // Both need a finished transcription; tray hides it afterwards.
   }
