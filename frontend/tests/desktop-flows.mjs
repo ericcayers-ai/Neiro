@@ -1316,9 +1316,11 @@ try {
       const href = await exportLink.getAttribute('href')
       const exported = await page.evaluate(async (url) => {
         const response = await fetch(url)
-        return { status: response.status, size: (await response.blob()).size }
+        const text = await response.text()
+        return { status: response.status, size: text.length, body: text }
       }, href)
       if (exported.status !== 200 || exported.size < 100) throw new Error('session export failed')
+      if (!exported.body.includes('QA session notes')) throw new Error('session export missing notes')
       await openDialog.getByRole('button', { name: 'Open', exact: true }).click()
       await openDialog.waitFor({ state: 'detached', timeout: 30_000 })
       await page.waitForFunction(
@@ -1327,6 +1329,14 @@ try {
         { timeout: 30_000 },
       )
       console.log('SESSION EXPORT:', JSON.stringify(exported))
+
+      await menuButton.click()
+      await page.getByRole('menuitem', { name: 'Save session' }).click()
+      const notesDialog = page.getByRole('dialog', { name: 'Save session' })
+      await notesDialog.waitFor({ timeout: 10_000 })
+      const notesValue = await notesDialog.getByLabel(/Notes/i).inputValue()
+      if (notesValue !== 'QA session notes') throw new Error(`session notes not restored: ${notesValue}`)
+      await notesDialog.getByRole('button', { name: 'Cancel', exact: true }).click()
 
       await page.reload()
       await page.waitForTimeout(1500)
