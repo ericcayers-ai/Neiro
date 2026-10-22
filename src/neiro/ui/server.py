@@ -2426,7 +2426,8 @@ def _make_handler(state: _State):
                 url = check_outbound_url(url)
                 cached = fetch_url_audio(url)
                 file_id = uuid.uuid4().hex[:12]
-                name = _safe_name(cached.stem + ".wav")
+                url_stem = Path(urlsplit(url).path).stem or cached.stem
+                name = _safe_name(url_stem + ".wav")
                 dest = state.workspace / "uploads" / file_id / name
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 dest.write_bytes(cached.read_bytes())

@@ -32,6 +32,7 @@ def test_fetch_url_audio_uses_cache(monkeypatch, tmp_path):
         return path, {"id": "vid", "title": "Test Track"}
 
     monkeypatch.setattr("neiro.io.url_ingest._download_with_ytdlp", fake_download)
+    monkeypatch.setattr("neiro.io.url_ingest.importlib.util.find_spec", lambda name: object())
 
     url = "https://example.com/watch?v=1"
     first = fetch_url_audio(url, dest_dir=tmp_path)
@@ -53,6 +54,7 @@ def test_fetch_url_audio_force_redownload(monkeypatch, tmp_path):
         return path, {"id": "vid", "title": "Again"}
 
     monkeypatch.setattr("neiro.io.url_ingest._download_with_ytdlp", fake_download)
+    monkeypatch.setattr("neiro.io.url_ingest.importlib.util.find_spec", lambda name: object())
 
     url = "https://example.com/v=2"
     fetch_url_audio(url, dest_dir=tmp_path)
@@ -106,3 +108,23 @@ def test_cli_analyze_accepts_url(monkeypatch, tmp_path, capsys):
     assert rc == 0
     out = json.loads(capsys.readouterr().out)
     assert out["sample_rate"] == 44100
+
+
+def test_direct_fallback_requires_audio_suffix(monkeypatch, tmp_path):
+    monkeypatch.setattr("neiro.io.url_ingest.importlib.util.find_spec", lambda name: None)
+    try:
+        fetch_url_audio("https://example.com/some/page", dest_dir=tmp_path)
+    except RuntimeError as exc:
+        assert "direct audio links" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("expected RuntimeError")
+
+
+def test_direct_fallback_blocks_loopback(monkeypatch, tmp_path):
+    monkeypatch.setattr("neiro.io.url_ingest.importlib.util.find_spec", lambda name: None)
+    try:
+        fetch_url_audio("http://127.0.0.1/secret.wav", dest_dir=tmp_path)
+    except Exception as exc:  # noqa: BLE001 — RequestRejected/ValueError
+        assert "not allowed" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("loopback URL must be rejected")

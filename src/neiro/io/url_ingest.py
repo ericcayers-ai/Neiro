@@ -10,10 +10,16 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import re
+import shutil
+import subprocess
+import tempfile
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
+from urllib.request import Request, urlopen
 
 from neiro.engine.downloader import default_neiro_home
+from neiro.ui.security import check_outbound_url
 
 __all__ = [
     "URL_PATTERN",
@@ -91,6 +97,80 @@ def _download_with_ytdlp(url: str, dest_dir: Path) -> tuple[Path, dict[str, Any]
     return path.resolve(), info
 
 
+AUDIO_SUFFIXES = {".wav", ".flac", ".ogg", ".oga", ".mp3", ".m4a", ".aac", ".opus", ".webm"}
+MAX_DIRECT_BYTES = 512 * 1024 * 1024
+
+
+def _download_direct(url: str, dest_dir: Path) -> Path:
+    """Fetch a direct audio link without yt-dlp, converting to WAV with ffmpeg.
+
+    Only used when yt-dlp is absent; the caller has already passed the URL
+    through ``check_outbound_url`` (repeated here for CLI callers).
+    """
+    check_outbound_url(url)
+    suffix = Path(urlsplit(url).path).suffix.lower()
+    if suffix not in AUDIO_SUFFIXES:
+        raise RuntimeError(
+            "yt-dlp is not installed — direct audio links (.wav/.flac/.ogg/.mp3/.m4a) "
+            "are supported, or install it with: pip install neiro[youtube]"
+        )
+    request = Request(url, headers={"User-Agent": "Neiro/1.2 (+local)"})
+    with tempfile.NamedTemporaryFile(dir=dest_dir, suffix=suffix, delete=False) as raw:
+        raw_path = Path(raw.name)
+        total = 0
+        with urlopen(request, timeout=60) as response:  # noqa: S310 — checked above
+            content_type = (response.headers.get_content_type() or "").lower()
+            if not (
+                content_type.startswith("audio/")
+                or content_type in {"application/ogg", "application/octet-stream"}
+            ):
+                raw.close()
+                raw_path.unlink(missing_ok=True)
+                raise RuntimeError(f"URL did not return audio ({content_type or 'unknown type'})")
+            while True:
+                chunk = response.read(1024 * 1024)
+                if not chunk:
+                    break
+                total += len(chunk)
+                if total > MAX_DIRECT_BYTES:
+                    raise RuntimeError("URL audio exceeds the 512 MB direct-download limit")
+                raw.write(chunk)
+    if total == 0:
+        raw_path.unlink(missing_ok=True)
+        raise RuntimeError("URL returned an empty file")
+
+    out = dest_dir / "audio.wav"
+    ffmpeg = shutil.which("ffmpeg")
+    if ffmpeg is None:
+        if suffix != ".wav":
+            raw_path.unlink(missing_ok=True)
+            raise RuntimeError("ffmpeg is required to decode this URL audio (direct .wav works)")
+        raw_path.replace(out)
+        return out.resolve()
+    result = subprocess.run(
+        [
+            ffmpeg,
+            "-y",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-i",
+            str(raw_path),
+            "-vn",
+            "-acodec",
+            "pcm_s16le",
+            str(out),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=300,
+    )
+    raw_path.unlink(missing_ok=True)
+    if result.returncode != 0 or not out.is_file():
+        raise RuntimeError(f"couldn't decode URL audio ({result.stderr.strip()[-200:]})")
+    return out.resolve()
+
+
 def fetch_url_audio(
     url: str,
     *,
@@ -112,7 +192,11 @@ def fetch_url_audio(
         return cached.resolve()
 
     work_dir.mkdir(parents=True, exist_ok=True)
-    raw_path, info = _download_with_ytdlp(url, work_dir)
+    if importlib.util.find_spec("yt_dlp") is None:
+        raw_path = _download_direct(url, work_dir)
+        info = {"title": Path(urlsplit(url).path).stem or "audio", "id": url_key}
+    else:
+        raw_path, info = _download_with_ytdlp(url, work_dir)
     title = info.get("title") or info.get("id") or "audio"
     safe = re.sub(r"[^A-Za-z0-9._-]+", "_", str(title)).strip("._") or "audio"
     if not safe.endswith(".wav"):

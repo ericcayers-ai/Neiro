@@ -839,3 +839,11 @@ document root; both exercised in the flow suite.
 
 The player metronome label and stored metronome tempo now use whole BPM (the pitch
 analysis value was printed with 15 decimals). Verified in the MIDI practice panel.
+
+## Ninety-third batch: direct URL audio without yt-dlp
+
+`fetch_url_audio` now falls back to an outbound-checked urllib download + ffmpeg
+decode for direct audio links when yt-dlp is absent (512 MB cap, audio content-type
+required); URL uploads are named from the URL path instead of `audio.wav`. Verified
+end to end with a public OGG and two new rejection-path tests (non-audio suffix,
+loopback blocked).

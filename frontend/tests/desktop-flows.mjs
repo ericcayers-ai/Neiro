@@ -124,6 +124,9 @@ try {
   page.on('response', (response) => {
     if (response.url().includes('/api/')) {
       console.log('API', response.status(), response.request().method(), new URL(response.url()).pathname)
+      if (response.url().includes('/api/ingest-url')) {
+        response.text().then((text) => console.log('INGEST BODY', response.status(), text.slice(0, 200))).catch(() => {})
+      }
     }
   })
   page.on('requestfailed', (request) => {
@@ -158,7 +161,7 @@ try {
     )
   }
 
-  if (only !== 'none' && only !== 'queue' && only !== 'packs') {
+  if (!['none', 'queue', 'packs', 'url-import'].includes(only)) {
     await step('import audio file', async () => {
       await page.locator('#module-content input[type=file]').first().setInputFiles(wav)
       await page.waitForFunction(
@@ -1034,6 +1037,22 @@ try {
       await muteButton.waitFor({ timeout: 5_000 })
       await openMenu()
       await page.getByRole('menuitem', { name: 'Unmute', exact: true }).click()
+    })
+  }
+
+  if (only === 'url-import') {
+    await step('import a public URL', async () => {
+      await rail('Import').click()
+      await page.locator('#import-url').fill('https://upload.wikimedia.org/wikipedia/commons/c/c8/Example.ogg')
+      await page.getByRole('button', { name: /Fetch URL/i }).click()
+      await page.waitForFunction(
+        () => !document.querySelector('.shell')?.innerText.includes('No file — Import a track'),
+        undefined,
+        { timeout: 180_000 },
+      )
+      const header = await page.locator('.shell').innerText()
+      if (!/Example/i.test(header)) throw new Error(`URL import did not load the file: ${header.slice(0, 160)}`)
+      console.log('URL IMPORT: loaded')
     })
   }
 
