@@ -549,6 +549,12 @@ try {
       }
       console.log('LIBRARY EXPORT:', exported.status, exported.size)
 
+      await page.getByRole('button', { name: 'Resume last', exact: true }).click()
+      await page.waitForTimeout(500)
+      if (!/flow-tune\.wav/.test(await page.locator('#module-content').innerText())) {
+        throw new Error('Resume last did not select the song')
+      }
+
       // Player-local markers can be imported into the library row.
       await page.locator('#module-content button').filter({ hasText: /^Add marker$/ }).first().click()
       await page.waitForTimeout(300)
@@ -1202,6 +1208,22 @@ try {
     })
   }
 
+  if (only === 'empty-states') {
+    await step('empty analysis links back to Import', async () => {
+      const menuButton = page.locator('.session-menu > button').first()
+      await menuButton.click()
+      await page.getByRole('menuitem', { name: 'New session' }).click()
+      await rail('Analysis').click()
+      const go = page.getByRole('button', { name: /Go to Import/i }).first()
+      await go.waitFor({ timeout: 10_000 })
+      await go.click()
+      await page.waitForTimeout(400)
+      if (!/Drop audio here/.test(await page.locator('#module-content').innerText())) {
+        throw new Error('Go to Import did not land on Import')
+      }
+    })
+  }
+
   if (only === 'midi-export' || only === 'tray') {
     // Both need a finished transcription; tray hides it afterwards.
   }
@@ -1305,6 +1327,12 @@ try {
         { timeout: 30_000 },
       )
       console.log('SESSION EXPORT:', JSON.stringify(exported))
+
+      await page.reload()
+      await page.waitForTimeout(1500)
+      if (/No file — Import a track/.test(await page.locator('.shell').innerText())) {
+        throw new Error('reload lost the opened session')
+      }
 
       await menuButton.click()
       await page.getByRole('menuitem', { name: 'New session' }).click()
