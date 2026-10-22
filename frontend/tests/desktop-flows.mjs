@@ -1464,6 +1464,28 @@ try {
     })
   }
 
+  if (only === 'rename-esc2') {
+    await step('rename Escape after explicit focus', async () => {
+      await rail('Studio').click()
+      const lane = page.locator('.studio-lane').first()
+      const box = await lane.boundingBox()
+      if (!box) throw new Error('no lane')
+      await page.mouse.click(box.x + box.width * 0.4, box.y + box.height * 0.5, { button: 'right' })
+      await page.locator('.studio-ctx-menu').waitFor({ timeout: 5_000 })
+      await page.getByRole('menuitem', { name: 'Rename…' }).click()
+      const rename = page.locator('.studio-rename-input')
+      await rename.fill('QA temp')
+      await rename.focus()
+      const focused = await page.evaluate(() => document.activeElement?.className || '')
+      console.log('FOCUSED:', focused)
+      await page.keyboard.press('Escape')
+      await page.waitForTimeout(400)
+      const detached = (await rename.count()) === 0
+      console.log('DETACHED:', detached)
+      if (!detached) throw new Error('Escape did not exit rename')
+    })
+  }
+
   if (only === 'midi-export' || only === 'tray') {
     // Both need a finished transcription; tray hides it afterwards.
   }
