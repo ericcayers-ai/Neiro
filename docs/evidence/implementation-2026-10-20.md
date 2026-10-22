@@ -872,3 +872,9 @@ engine). Covered by a server test and an E2E reload flow.
 Re-importing the same song created a second queue entry under a new file id; the
 queue now dedupes on name + duration. Verified by selecting the same file twice
 (queue stays at one entry).
+
+## Ninety-eighth batch: 200% font scale layout
+
+Verified the largest font scale keeps the page inside the viewport; the track
+rename Escape handler now calls preventDefault/stopPropagation (the keyboard exit
+itself is still unverified in automation and documented as such).

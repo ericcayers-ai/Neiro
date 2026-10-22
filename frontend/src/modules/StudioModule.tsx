@@ -2562,6 +2562,8 @@ export function StudioModule() {
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') commitRename()
                         if (e.key === 'Escape') {
+                          e.preventDefault()
+                          e.stopPropagation()
                           setRenameTrackId(null)
                           setRenameValue('')
                         }

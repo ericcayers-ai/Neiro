@@ -1431,6 +1431,21 @@ try {
     })
   }
 
+  if (only === 'misc5') {
+    await step('200% font scale layout', async () => {
+      await rail('Prefs').click()
+      await page.locator('#font-scale').selectOption('200')
+      await page.waitForTimeout(500)
+      const layout = await page.evaluate(() => ({
+        scale: document.documentElement.style.getPropertyValue('--font-scale').trim(),
+        overflow: document.documentElement.scrollWidth > window.innerWidth + 2,
+      }))
+      if (!layout.scale.startsWith('2')) throw new Error(`font scale not applied (${layout.scale})`)
+      if (layout.overflow) throw new Error('200% scale overflows the page')
+      await page.locator('#font-scale').selectOption('100')
+    })
+  }
+
   if (only === 'midi-export' || only === 'tray') {
     // Both need a finished transcription; tray hides it afterwards.
   }
