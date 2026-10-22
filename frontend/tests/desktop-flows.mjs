@@ -951,6 +951,54 @@ try {
     })
   }
 
+  if (only === 'corrections') {
+    await step('analysis corrections draft/apply/reset', async () => {
+      await rail('Analysis').click()
+      const key = page.getByLabel(/^Key$/).first()
+      const bpm = page.getByLabel(/^BPM$/).first()
+      await key.fill('F minor')
+      await bpm.fill('100')
+      await rail('MIDI').click()
+      await page.waitForTimeout(300)
+      await rail('Analysis').click()
+      await page.waitForTimeout(300)
+      if ((await page.getByLabel(/^Key$/).first().inputValue()) !== 'F minor') {
+        throw new Error('draft did not survive leaving the tab')
+      }
+      await page.getByRole('button', { name: 'Apply', exact: true }).click()
+      await page.waitForTimeout(500)
+      const applied = await page.locator('#module-content').innerText()
+      if (!/F minor/.test(applied)) throw new Error('correction not visible after apply')
+      await page.getByRole('button', { name: 'Reset to analysis', exact: true }).click()
+      await page.waitForTimeout(400)
+      const reset = await page.getByLabel(/^Key$/).first().inputValue()
+      if (reset === 'F minor') throw new Error('reset did not clear the correction')
+      console.log('CORRECTIONS: applied and reset')
+    })
+  }
+
+  if (only === 'remove-items') {
+    await step('queue item activate/remove and library remove', async () => {
+      await rail('Import').click()
+      const queued = page.locator('#module-content .stem-badge').first()
+      await queued.click()
+      await page.waitForTimeout(500)
+      const remove = page.getByRole('button', { name: /^Remove / }).first()
+      await remove.click()
+      await page.waitForTimeout(300)
+      if (/Import queue/.test(await page.locator('#module-content').innerText())) {
+        throw new Error('queue item did not remove')
+      }
+
+      await rail('Library').click()
+      await page.getByRole('button', { name: 'Add current file', exact: true }).click()
+      await page.getByText(/Songs \(1\)/).waitFor({ timeout: 30_000 })
+      await page.locator('#module-content button').filter({ hasText: 'flow-tune.wav' }).first().click()
+      await page.getByRole('button', { name: 'Remove from library', exact: true }).click()
+      await page.getByText(/Songs \(0\)/).waitFor({ timeout: 15_000 })
+    })
+  }
+
   if (only === 'midi-export' || only === 'tray') {
     // Both need a finished transcription; tray hides it afterwards.
   }
