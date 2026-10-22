@@ -148,7 +148,9 @@ try {
   const waitJobs = async (timeout = 240_000) => {
     await page.waitForFunction(
       () => {
-        const text = document.querySelector('.job-tray')?.innerText ?? ''
+        const tray = document.querySelector('.job-tray')
+        if (!tray || tray.classList.contains('collapsed')) return true
+        const text = tray.innerText ?? ''
         return /0 active/i.test(text) && !/running ·/i.test(text)
       },
       undefined,
@@ -156,7 +158,7 @@ try {
     )
   }
 
-  if (only !== 'none' && only !== 'queue') {
+  if (only !== 'none' && only !== 'queue' && only !== 'packs') {
     await step('import audio file', async () => {
       await page.locator('#module-content input[type=file]').first().setInputFiles(wav)
       await page.waitForFunction(
@@ -796,6 +798,21 @@ try {
         .getByRole('button', { name: 'Pause', exact: true })
         .first()
         .waitFor({ timeout: 10_000 })
+    })
+  }
+
+  if (only === 'packs') {
+    await step('separate queue into packs', async () => {
+      await rail('Import').click()
+      await page.locator('#module-content input[type=file]').first().setInputFiles([wav, wav2])
+      await page.getByText(/Import queue \(2\)/).waitFor({ timeout: 60_000 })
+      await rail('Separate').click()
+      await page.getByRole('button', { name: /Separate queue → packs/i }).click()
+      await page.waitForTimeout(500)
+      await waitJobs()
+      const text = await page.locator('#module-content').innerText()
+      console.log('PACKS TEXT:', text.slice(-500).replace(/\n+/g, ' | '))
+      if (!/pack|stems ready/i.test(text)) throw new Error('no pack result')
     })
   }
 

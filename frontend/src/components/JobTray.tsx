@@ -55,8 +55,19 @@ export function JobTray() {
     }
   }, [heightPx])
 
+  const autoExpanded = useRef(false)
   useEffect(() => {
-    if (runningCount > 0) setCollapsed(false)
+    if (runningCount > 0) {
+      autoExpanded.current = true
+      setCollapsed(false)
+      return
+    }
+    // Collapse back to the edge once the jobs that opened the tray finish, so it
+    // stops covering the Mix drawer and timeline controls.
+    if (autoExpanded.current) {
+      autoExpanded.current = false
+      setCollapsed(true)
+    }
   }, [runningCount])
 
   useEffect(() => {

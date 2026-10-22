@@ -806,3 +806,9 @@ validation; fixed the workflow's stale rail selectors found by the regression.
 Import now honours “Open the player after import” by switching to MIDI practice and
 focusing it (it previously only set a flag no mounted module consumed). Verified
 practice playback after import and Library “Resume: song” after a reload.
+
+## Eighty-seventh batch: track header width and tray auto-collapse
+
+Track heads widened so stem badges are readable, and the job tray collapses to its
+edge pill once the jobs that opened it finish (it was covering the Mix drawer).
+Flow idle detection now treats a collapsed tray as idle.
