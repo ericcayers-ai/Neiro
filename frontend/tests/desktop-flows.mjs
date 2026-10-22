@@ -1178,6 +1178,30 @@ try {
     })
   }
 
+  if (only === 'clear-reload') {
+    await step('new session stays empty after reload', async () => {
+      const menuButton = page.locator('.session-menu > button').first()
+      await menuButton.click()
+      const cleared = page.waitForResponse(
+        (response) => response.url().includes('/api/session/clear'),
+        { timeout: 10_000 },
+      )
+      await page.getByRole('menuitem', { name: 'New session' }).click()
+      await cleared
+      await page.waitForFunction(
+        () => document.querySelector('.shell')?.innerText.includes('No file — Import a track'),
+        undefined,
+        { timeout: 10_000 },
+      )
+      const current = await page.evaluate(async () => (await fetch('/api/session/current')).json())
+      console.log('CURRENT AFTER CLEAR:', JSON.stringify(current).slice(0, 160))
+      await page.reload()
+      await page.waitForTimeout(1500)
+      const header = await page.locator('.shell').innerText()
+      if (!/No file — Import a track/.test(header)) throw new Error('reload resurrected a cleared session')
+    })
+  }
+
   if (only === 'midi-export' || only === 'tray') {
     // Both need a finished transcription; tray hides it afterwards.
   }

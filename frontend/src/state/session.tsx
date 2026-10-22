@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { cancelJob, getCurrentSession, getJob } from '../api/client'
+import { cancelJob, clearCurrentSession, getCurrentSession, getJob } from '../api/client'
 import type {
   AnalysisCorrectionsPayload,
   AnalysisReport,
@@ -351,6 +351,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const clearSession = useCallback(() => {
+    // Tell the engine a reload should not resurrect the file we are clearing.
+    void clearCurrentSession().catch(() => undefined)
     setFile(null)
     setSeparateResult(null)
     setImportQueue([])

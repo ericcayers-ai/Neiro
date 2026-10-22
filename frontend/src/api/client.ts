@@ -171,6 +171,15 @@ export async function getCurrentSession(): Promise<{
   return readJson(res)
 }
 
+export async function clearCurrentSession(): Promise<void> {
+  const res = await fetch('/api/session/clear', {
+    method: 'POST',
+    headers: await apiHeaders(false),
+    keepalive: true,
+  })
+  if (!res.ok) throw new Error(`clear session failed: ${res.status}`)
+}
+
 export async function listSessions(): Promise<{ sessions: { name: string; path: string }[] }> {
   const res = await fetch('/api/session/list', { cache: 'no-store' })
   return readJson(res)

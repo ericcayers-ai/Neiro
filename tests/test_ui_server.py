@@ -508,3 +508,12 @@ def test_session_current_restores_latest_file(server):
     assert current["name"] == uploaded["name"]
     assert current["report"]["duration_seconds"] > 0
     assert current["audio_url"].startswith("/files/")
+
+
+def test_session_clear_stops_restore(server):
+    base, _ = server
+    _upload(base, _tone_wav_bytes(seconds=0.5))
+    cleared = _post(base + "/api/session/clear", b"{}", {"Content-Type": "application/json"})
+    assert cleared == {"ok": True}
+    _, body = _get(base + "/api/session/current")
+    assert json.loads(body) == {"file": None}

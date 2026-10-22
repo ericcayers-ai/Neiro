@@ -131,6 +131,7 @@ class _State:
         self.files: dict[str, Path] = {}
         self.reports: dict[str, dict] = {}  # file_id -> analysis report (for reload)
         self.names: dict[str, str] = {}  # file_id -> display name
+        self.current_file_id: str | None = None  # what a reload should restore
         self.parents: dict[str, str] = {}  # edited file_id -> file_id it derived from
         self.jobs: dict[str, dict] = {}
         self.job_contexts: dict[str, ExecutionContext] = {}
@@ -1586,6 +1587,10 @@ def _make_handler(state: _State):
                     self._handle_plugins_post()
                 elif self.path == "/api/compute":
                     self._handle_compute_post()
+                elif self.path == "/api/session/clear":
+                    with state.lock:
+                        state.current_file_id = None
+                    self._json({"ok": True})
                 elif self.path == "/api/session/save":
                     self._handle_session_save()
                 elif self.path == "/api/session/open":
@@ -2417,6 +2422,7 @@ def _make_handler(state: _State):
             }
             state.reports[file_id] = payload["report"]
             state.names[file_id] = display_name
+            state.current_file_id = file_id
             return payload
 
         def _handle_ingest_url(self) -> None:
@@ -2531,9 +2537,9 @@ def _start_ws_control_plane(state: _State, ws_port: int) -> None:
 
 
 def _current_session_payload(state: _State) -> dict:
-    """Latest analysed file, so a browser reload can restore the session."""
+    """Current analysed file, so a browser reload can restore the session."""
     with state.lock:
-        last = next(reversed(state.files), None)
+        last = state.current_file_id
         path = state.files.get(last) if last else None
         report = state.reports.get(last) if last else None
         name = state.names.get(last) if last else None
