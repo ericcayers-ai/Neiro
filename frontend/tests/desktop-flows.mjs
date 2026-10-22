@@ -856,6 +856,14 @@ try {
       await page.getByRole('button', { name: 'Flush + clear cache', exact: true }).click()
       await page.waitForTimeout(600)
       const budget = page.locator('#cache-budget')
+      const musePath = page.getByLabel('MuseScore executable path')
+      await musePath.fill('Z:\\definitely-missing\\mscore.exe')
+      await page.getByRole('button', { name: 'Set path', exact: true }).click()
+      await page.waitForTimeout(600)
+      if (!/not found|missing|invalid|couldn/i.test(await page.locator('#module-content').innerText())) {
+        throw new Error('invalid MuseScore path got no warning')
+      }
+
       await budget.fill('1')
       await page.getByRole('button', { name: 'Apply to engine', exact: true }).click()
       await page.waitForTimeout(900)
@@ -1029,10 +1037,15 @@ try {
       if ((await page.getByLabel(/^Key$/).first().inputValue()) !== 'F minor') {
         throw new Error('draft did not survive leaving the tab')
       }
+      const instrument = page.locator('#module-content select').first()
+      await instrument.selectOption('guitar')
+      await page.locator('#module-content button').filter({ hasText: /^Add$/ }).first().click()
+      await page.waitForTimeout(300)
       await page.getByRole('button', { name: 'Apply', exact: true }).click()
       await page.waitForTimeout(500)
       const applied = await page.locator('#module-content').innerText()
       if (!/F minor/.test(applied)) throw new Error('correction not visible after apply')
+      if (!/guitar/i.test(applied)) throw new Error('added instrument not applied')
       await page.getByRole('button', { name: 'Reset to analysis', exact: true }).click()
       await page.waitForTimeout(400)
       const reset = await page.getByLabel(/^Key$/).first().inputValue()
