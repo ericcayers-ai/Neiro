@@ -174,18 +174,24 @@ Gate: `python scripts/verify_goal.py --full` — **18/18 PASS** on 2026-10-20.
 - [x] **P6-5 Disk preflight.** `tests/test_disk_preflight.py`; low-disk states cap the
   live cache budget and reject unsafe preferences.
 
-## Closure assessment (2026-10-20)
+## Closure assessment (2026-10-23, after the QA sweep)
 
-The gate is green on 23 criteria, but the objective (literal Transpose parity) is
-not fully closed. The remaining gaps are owner/toolchain-gated:
+The gate is green on 23 criteria; the literal Transpose-parity objective is still
+not fully closed. Remaining gaps are owner/toolchain-gated:
 
-| Gap | Why it cannot close in this environment | Owner action |
+| Gap | State | Owner action |
 |---|---|---|
-| Studio per-stem real-time engine | Needs a multi-engine refactor of Studio playback; clock/loop/gain and a Real-time dialog exist | Approve the refactor as its own phase |
-| Neural chord/beat (ONNX) | No runtime/weights installed; inference contract needs upstream verification | Choose models, install runtime, provide weights |
-| Signing/updater/clean-VM | Installers build with the bundled engine and launch without Python, but signing keys, an update endpoint and a clean VM are owner-held | Sign, host updates, test install/uninstall on a clean VM |
-| Full i18n / RTL | Shell/player/Import/Library/Restore/Separate/Prefs/MIDI-shell are catalogued; Studio and module bodies plus RTL/plurals remain | Commission translations |
-| Live-site companion e2e, listening panel, manual a11y | Need a real browser profile, ears, screen reader and contrast tooling (axe smoke already passes) | Run the documented owner checks |
+| Studio per-stem real-time engine | Granular per-stem transpose/speed + EQ, queued phase-vocoder render; no per-stem real-time phase vocoder | Approve the multi-engine refactor |
+| Neural chord/beat (ONNX) | Labelled heuristic chord/beat timeline; no permissive ONNX model found | Choose/license weights, install runtime |
+| Signing / publish / clean VM | Signed MSI 58.2 MB + NSIS 39.9 MB, updater signatures + latest.json, no-Python launch; no trusted Authenticode cert, assets unpublished, no clean VM | Buy certificate, publish, test install/update/uninstall on a clean VM |
+| i18n / RTL | Every module catalogued in English, plurals implemented, `<html dir>` plumbing; no non-English catalogue and CSS not mirrored | Commission translations |
+| Live-site companion, listening, manual a11y | Companion pairing/upload e2e, capture error path, axe clean at 4 sizes/3 themes | Run live sites, ears, screen reader |
 
-Everything else in `HANDOFF.md` §7 (Phases 0–4 and most of 5) has a measured
-receipt in `docs/evidence/`.
+QA sweep (2026-10-22/23) exercised every module and fixed the defects it found:
+theme startup, rail a11y/contrast, dropzone, modal Escape/focus traps, tray
+click-through/auto-collapse, cancel auth (401), playlist refresh, clip select-drag,
+About update check, cache-budget honesty, open-player preference, track header
+width, stale-sidecar verification, reload session restore (+clear), URL audio
+without yt-dlp, metronome rounding. Evidence: `docs/evidence/qa-sweep-2026-10-22.md`.
+
+Everything else in `HANDOFF.md` has a measured receipt under `docs/evidence/`.
