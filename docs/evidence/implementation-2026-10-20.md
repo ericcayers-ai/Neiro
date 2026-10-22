@@ -818,3 +818,9 @@ Flow idle detection now treats a collapsed tray as idle.
 Gate, desktop smoke/workflow/updater, packaged and light/1024 axe sweeps, 19-step
 user flows, resume/preference, packs, companion e2e, worklets, backend CLI and the
 addon validator all pass on the rebuilt package.
+
+## Eighty-ninth batch: split/move/delete, export formats, settings persistence
+
+Verified split (clip count grows, undo restores), move, Delete→silence with undo;
+export magic for WAV16/WAV24/FLAC; and Library player transpose persisting across a
+page reload via the settings API.

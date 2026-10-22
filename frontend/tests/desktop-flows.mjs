@@ -267,15 +267,26 @@ try {
       const link = page.locator('#module-content a[href*="/api/export"]').first()
       await link.waitFor({ timeout: 15_000 })
       const href = await link.getAttribute('href')
-      const result = await page.evaluate(async (url) => {
-        const response = await fetch(url)
-        const blob = await response.blob()
-        return { status: response.status, size: blob.size }
-      }, href)
-      if (result.status !== 200 || result.size < 1000) {
-        throw new Error(`export failed: ${JSON.stringify(result)}`)
+      for (const format of ['wav16', 'wav24', 'flac']) {
+        const url = new URL(href, 'http://127.0.0.1/')
+        url.searchParams.set('format', format)
+        const result = await page.evaluate(async (target) => {
+          const response = await fetch(target)
+          const buffer = new Uint8Array(await (await response.blob()).arrayBuffer())
+          return {
+            status: response.status,
+            size: buffer.length,
+            magic: String.fromCharCode(...buffer.slice(0, 4)),
+          }
+        }, url.pathname + url.search)
+        if (result.status !== 200 || result.size < 1000) {
+          throw new Error(`export ${format} failed: ${JSON.stringify(result)}`)
+        }
+        if (format === 'flac' ? result.magic !== 'fLaC' : result.magic !== 'RIFF') {
+          throw new Error(`export ${format} has wrong magic ${result.magic}`)
+        }
+        console.log('EXPORT:', format, JSON.stringify(result))
       }
-      console.log('EXPORT:', JSON.stringify(result))
       await page.getByRole('button', { name: 'Mix', exact: true }).first().click()
     })
 
@@ -656,6 +667,46 @@ try {
     })
   }
 
+  if (only === 'studio-tools') {
+    await step('split, move and delete tools', async () => {
+      await rail('Studio').click()
+      await page.locator('.studio-track-head').first().click()
+      const clips = () => page.locator('.studio-clip').count()
+      const before = await clips()
+      await page.getByRole('button', { name: 'Split clip (C)', exact: true }).click()
+      const lane = page.locator('.studio-lane').first()
+      const box = await lane.boundingBox()
+      if (!box) throw new Error('no lane')
+      await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.5)
+      await page.waitForTimeout(400)
+      if ((await clips()) <= before) throw new Error('split did not create a clip')
+      await page.keyboard.press('Control+z')
+      await page.waitForTimeout(400)
+      if ((await clips()) !== before) throw new Error('undo after split failed')
+
+      await page.getByRole('button', { name: 'Move clip (B)', exact: true }).click()
+      await page.mouse.move(box.x + box.width * 0.3, box.y + box.height * 0.5)
+      await page.mouse.down()
+      await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.5, { steps: 8 })
+      await page.mouse.up()
+      await page.waitForTimeout(400)
+      await page.keyboard.press('Control+z')
+
+      await page.getByRole('button', { name: 'Select region (V)', exact: true }).click()
+      await page.mouse.move(box.x + box.width * 0.25, box.y + box.height * 0.5)
+      await page.mouse.down()
+      await page.mouse.move(box.x + box.width * 0.45, box.y + box.height * 0.5, { steps: 8 })
+      await page.mouse.up()
+      await page.waitForTimeout(300)
+      await page.keyboard.press('Delete')
+      await waitJobs()
+      await page.waitForTimeout(300)
+      const text = await page.locator('#module-content').innerText()
+      if (!/silence/i.test(text)) throw new Error('delete did not silence')
+      await page.keyboard.press('Control+z')
+    })
+  }
+
   if (only === 'studio-paths') {
     await step('restore and separate into Studio', async () => {
       await rail('Restore').click()
@@ -830,6 +881,36 @@ try {
       const fetchButton = page.getByRole('button', { name: /Fetch URL/i })
       if (!(await fetchButton.isDisabled())) throw new Error('empty URL should disable Fetch')
       console.log('ERROR TEXT:', (await page.locator('#module-content').innerText()).slice(0, 260).replace(/\n+/g, ' | '))
+    })
+  }
+
+  if (only === 'settings') {
+    await step('library player settings persist', async () => {
+      await rail('Library').click()
+      await page.getByRole('button', { name: 'Add current file', exact: true }).click()
+      await page.getByText(/Songs \(1\)/).waitFor({ timeout: 30_000 })
+      await page.locator('#module-content button').filter({ hasText: 'flow-tune.wav' }).first().click()
+      await page.locator('#module-content input[type=range]').nth(1).waitFor({ timeout: 15_000 })
+      const range = page.locator('#module-content input[type=range]').nth(1)
+      console.log('SETTINGS START:', await range.inputValue())
+      await range.focus()
+      for (let i = 0; i < 4; i += 1) await range.press('ArrowRight')
+      const changed = await range.inputValue()
+      const saved = page.waitForResponse(
+        (response) => response.url().includes('/settings') && response.request().method() === 'POST',
+        { timeout: 15_000 },
+      )
+      await saved
+      await page.waitForTimeout(300)
+      await page.reload()
+      await page.waitForTimeout(1200)
+      await rail('Library').click()
+      await page.locator('#module-content button').filter({ hasText: 'flow-tune.wav' }).first().click()
+      const reloaded = page.locator('#module-content input[type=range]').nth(1)
+      await reloaded.waitFor({ timeout: 15_000 })
+      const after = await reloaded.inputValue()
+      console.log('SETTINGS CHANGED:', changed, 'AFTER RELOAD:', after)
+      if (after !== changed) throw new Error('player setting did not persist')
     })
   }
 
