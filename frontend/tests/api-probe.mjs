@@ -10,7 +10,9 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const repo = fileURLToPath(new URL('../..', import.meta.url))
-const python = join(repo, '.venv', 'Scripts', 'python.exe')
+const python =
+  process.env.NEIRO_PYTHON ||
+  join(repo, '.venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python')
 const home = mkdtempSync(join(tmpdir(), 'neiro-probe-'))
 const portFile = join(home, 'port.txt')
 
