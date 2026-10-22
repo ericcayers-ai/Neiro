@@ -1446,6 +1446,24 @@ try {
     })
   }
 
+  if (only === 'rename-blur') {
+    await step('rename commits on blur', async () => {
+      await rail('Studio').click()
+      const lane = page.locator('.studio-lane').first()
+      const box = await lane.boundingBox()
+      if (!box) throw new Error('no lane')
+      await page.mouse.click(box.x + box.width * 0.4, box.y + box.height * 0.5, { button: 'right' })
+      await page.locator('.studio-ctx-menu').waitFor({ timeout: 5_000 })
+      await page.getByRole('menuitem', { name: 'Rename…' }).click()
+      const rename = page.locator('.studio-rename-input')
+      await rename.fill('Blurred stem')
+      await page.locator('.studio-intent').click()
+      await rename.waitFor({ state: 'detached', timeout: 5_000 })
+      const title = await page.locator('.studio-track-badge').first().getAttribute('title')
+      if (title !== 'Blurred stem') throw new Error(`blur did not commit: ${title}`)
+    })
+  }
+
   if (only === 'midi-export' || only === 'tray') {
     // Both need a finished transcription; tray hides it afterwards.
   }
