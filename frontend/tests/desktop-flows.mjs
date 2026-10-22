@@ -1224,6 +1224,47 @@ try {
     })
   }
 
+  if (only === 'studio-misc2') {
+    await step('per-track export and bypass DSP', async () => {
+      await rail('Separate').click()
+      await page.getByRole('button', { name: 'Separate', exact: true }).last().click()
+      await waitJobs()
+      await page.getByText(/Stems ready/i).first().waitFor({ timeout: 60_000 })
+      await page.getByRole('button', { name: /Add as mashup pack/i }).first().click()
+      await page.waitForTimeout(700)
+      await rail('Studio').click()
+      const drawer = page.locator('.studio-mix-drawer')
+      if (!(await drawer.isVisible().catch(() => false))) {
+        await page.getByRole('button', { name: 'Mix', exact: true }).first().click()
+      }
+      await drawer.waitFor({ timeout: 10_000 })
+      console.log('MIX TEXT:', (await page.locator('.studio-mix-drawer').innerText()).slice(0, 300).replace(/\n+/g, ' | '))
+      const links = page.locator('#module-content a[href*="/api/export"]')
+      const count = await links.count()
+      console.log('EXPORT LINKS:', count, await links.evaluateAll((els) => els.slice(0, 4).map((e) => ({ title: e.getAttribute('title'), text: e.textContent }))))
+      if (count === 0) throw new Error('no per-track export links')
+      const href = await links.first().getAttribute('href')
+      const result = await page.evaluate(async (url) => {
+        const response = await fetch(url)
+        return { status: response.status, size: (await response.blob()).size }
+      }, href)
+      if (result.status !== 200 || result.size < 1000) throw new Error('stem export failed')
+      console.log('STEM EXPORT:', JSON.stringify(result))
+
+      await page.locator('.studio-track-head').first().click()
+      await page.getByRole('button', { name: 'Real-time', exact: true }).click()
+      const dialog = page.locator('.realtime-player')
+      await dialog.waitFor({ timeout: 10_000 })
+      const bypass = dialog.locator('button').filter({ hasText: /Bypass DSP/i }).first()
+      await bypass.click()
+      await page.waitForTimeout(300)
+      await dialog.getByRole('button', { name: 'Play', exact: true }).first().click()
+      await dialog.getByRole('button', { name: 'Pause', exact: true }).first().waitFor({ timeout: 10_000 })
+      await page.keyboard.press('Escape')
+      await dialog.waitFor({ state: 'detached', timeout: 5_000 })
+    })
+  }
+
   if (only === 'midi-export' || only === 'tray') {
     // Both need a finished transcription; tray hides it afterwards.
   }
