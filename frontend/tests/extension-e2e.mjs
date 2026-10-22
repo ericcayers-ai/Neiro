@@ -133,6 +133,23 @@ try {
     throw error
   }
 
+  // Capture start must fail gracefully in a panel tab (no capturable tab/media).
+  await panel.click('#capture-start')
+  await panel.waitForFunction(
+    () => {
+      const text = document.getElementById('media-state')?.textContent ?? ''
+      return text !== 'checking…' && text.length > 0
+    },
+    undefined,
+    { timeout: 15_000 },
+  )
+  const captureState = await panel.textContent('#media-state')
+  console.log('capture-state:', captureState)
+  if (/capturing tab audio/.test(captureState)) {
+    throw new Error('panel captured without a real tab media permission')
+  }
+  if (!(await panel.isEnabled('#engine-check'))) throw new Error('panel broke after capture start')
+
   const queued = await panel.textContent('#queued-status')
   console.log(JSON.stringify({ extensionId, port, queued }, null, 2))
   console.log('PASS: companion paired, health-checked and uploaded to the dynamic-port engine')
