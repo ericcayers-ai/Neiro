@@ -216,8 +216,14 @@ try {
       await page.getByRole('button', { name: 'Chords', exact: true }).click()
       await page.locator('.studio-chords').waitFor({ timeout: 10_000 })
       const spectro = page.getByRole('button', { name: 'Spectrogram lane', exact: true })
+      const spectroResponse = page.waitForResponse(
+        (response) => response.url().includes('/api/spectrogram'),
+        { timeout: 30_000 },
+      )
       await spectro.click()
-      await page.waitForTimeout(200)
+      const spec = await spectroResponse
+      if (spec.status() !== 200) throw new Error(`spectrogram ${spec.status()}`)
+      await page.locator('.studio-lane.has-spec').first().waitFor({ timeout: 15_000 })
       await spectro.click()
 
       await page.getByRole('button', { name: 'Save scene', exact: true }).click()
@@ -447,6 +453,13 @@ try {
       await practice.locator('button').filter({ hasText: 'Set A' }).first().click()
       await practice.getByRole('button', { name: 'Set B', exact: false }).first().click()
       await page.waitForTimeout(300)
+      const waitMode = practice.locator('select').filter({ hasText: /Continuous play|Step with/ }).first()
+      await waitMode.selectOption({ label: 'Step with Space / Enter' })
+      if (!/Step with/.test(await waitMode.inputValue().catch(() => '')) &&
+          !(await waitMode.evaluate((select) => select.selectedOptions[0]?.textContent || '')).includes('Step')) {
+        throw new Error('wait mode did not change')
+      }
+      await waitMode.selectOption({ label: 'Continuous play' })
       await practice.getByRole('button', { name: /Render with Neiro/i }).first().click()
       await page.waitForFunction(
         () => /render(ed|ing)|ready|failed/i.test(document.getElementById('module-content')?.innerText ?? ''),
@@ -562,7 +575,11 @@ try {
       await page.waitForFunction(() => document.documentElement.dataset.reducedMotion === 'true')
       await page.locator('#motion').selectOption('system')
       await page.getByRole('button', { name: 'Refresh', exact: true }).click()
-      await page.waitForTimeout(800)
+      await page.waitForTimeout(1200)
+      const modelText = await page.locator('#module-content').innerText()
+      if (!/Model\s+Task\s+Status|needs download|ready|installed/i.test(modelText)) {
+        throw new Error('model list did not render')
+      }
     })
   }
 
