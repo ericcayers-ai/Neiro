@@ -89,3 +89,26 @@ Every automated check that exists in this repo passes. The owner-gated list is
 unchanged: trusted cert/hosting, clean-VM install/update, listening quality,
 per-stem phase-vocoder engine, neural models, non-English/RTL CSS, live-site capture.
 
+## QA suite after UI fixes (2026-10-22)
+
+Rebuilt sidecar + desktop, then ran 14 checks — all exit 0:
+
+| Check | Result |
+|---|---|
+| Gate 23/23 | PASS |
+| Desktop smoke (9 modules) | PASS |
+| Desktop workflow (import → analysis → player) | PASS |
+| Updater runtime (Tauri IPC) | PASS |
+| Desktop axe/overflow (packaged) | PASS (0 violations) |
+| Engine axe/overflow — light theme | PASS |
+| Engine axe/overflow — 1024×700 | PASS |
+| Full user flows (19 steps) | PASS |
+| Library resume + open-player preference | PASS |
+| Separate queue → packs | PASS |
+| Companion e2e | PASS |
+| Chromium worklets | PASS |
+| Backend CLI (analyze/transcribe/enhance/separate) | PASS |
+| Addon validator 49/49 | PASS |
+
+Defects fixed during the sweep are recorded in `qa-sweep-2026-10-22.md`.
+

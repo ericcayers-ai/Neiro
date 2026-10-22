@@ -18,7 +18,9 @@
     "test:desktop-smoke": "node tests/desktop-smoke.mjs",
     "test:desktop-workflow": "node tests/desktop-workflow.mjs",
     "test:player": "node --test src/player/tests/player.test.mjs src/player/tests/logic.test.mjs src/player/tests/abx.test.mjs src/player/tests/stemShift.test.mjs src/player/tests/scenes.test.mjs",
-    "test:backend": "node tests/backend-cli.mjs"
+    "test:backend": "node tests/backend-cli.mjs",
+    "test:flows": "node tests/desktop-flows.mjs",
+    "test:qa": "node tests/desktop-qa.mjs"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.2.7",

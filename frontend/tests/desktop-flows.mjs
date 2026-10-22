@@ -816,6 +816,23 @@ try {
     })
   }
 
+  if (only === 'errors') {
+    await step('invalid import and empty url states', async () => {
+      await rail('Import').click()
+      const bad = join(tempHome, 'not-audio.txt')
+      writeFileSync(bad, 'this is not audio')
+      await page.locator('#module-content input[type=file]').first().setInputFiles(bad)
+      await page.waitForFunction(
+        () => /couldn.t read|unsupported|failed|error/i.test(document.getElementById('module-content')?.innerText ?? ''),
+        undefined,
+        { timeout: 30_000 },
+      )
+      const fetchButton = page.getByRole('button', { name: /Fetch URL/i })
+      if (!(await fetchButton.isDisabled())) throw new Error('empty URL should disable Fetch')
+      console.log('ERROR TEXT:', (await page.locator('#module-content').innerText()).slice(0, 260).replace(/\n+/g, ' | '))
+    })
+  }
+
   if (only === 'midi-export' || only === 'tray') {
     // Both need a finished transcription; tray hides it afterwards.
   }

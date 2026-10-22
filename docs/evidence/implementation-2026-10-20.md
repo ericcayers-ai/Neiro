@@ -812,3 +812,9 @@ practice playback after import and Library “Resume: song” after a reload.
 Track heads widened so stem badges are readable, and the job tray collapses to its
 edge pill once the jobs that opened it finish (it was covering the Mix drawer).
 Flow idle detection now treats a collapsed tray as idle.
+
+## Eighty-eighth batch: final QA suite (14 checks)
+
+Gate, desktop smoke/workflow/updater, packaged and light/1024 axe sweeps, 19-step
+user flows, resume/preference, packs, companion e2e, worklets, backend CLI and the
+addon validator all pass on the rebuilt package.

@@ -96,7 +96,13 @@ try {
   } else {
     const bound = await engineReady()
     browser = await chromium.launch({ headless: true })
-    const context = await browser.newContext({ viewport: { width: 1280, height: 800 } })
+    const width = Number(process.env.QA_WIDTH || 1280)
+    const height = Number(process.env.QA_HEIGHT || 800)
+    const context = await browser.newContext({ viewport: { width, height } })
+    const theme = process.env.QA_THEME
+    if (theme) {
+      await context.addInitScript((value) => localStorage.setItem('neiro.pref.theme', value), theme)
+    }
     var page = await context.newPage()
     await page.goto(`http://127.0.0.1:${bound}/`)
     await page.waitForLoadState('domcontentloaded')
@@ -113,7 +119,7 @@ try {
   for (const [label, slug] of modules) {
     await page.locator('.rail-item').filter({ hasText: label }).first().click()
     await page.waitForTimeout(600)
-    const shot = join(outDir, `${slug}.png`)
+    const shot = join(outDir, `${slug}${process.env.QA_THEME ? `-${process.env.QA_THEME}` : ''}.png`)
     await page.screenshot({ path: shot, fullPage: true })
 
     const metrics = await page.evaluate(() => {
