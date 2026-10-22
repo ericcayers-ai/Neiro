@@ -23,18 +23,25 @@ export function useFocusTrap(ref: RefObject<HTMLElement | null>, active: boolean
       if (!focusable.length) return
       const first = focusable[0]
       const last = focusable[focusable.length - 1]
-      if (event.shiftKey && document.activeElement === first) {
+      const current = document.activeElement as HTMLElement | null
+      if (!current || !root.contains(current)) {
+        // Focus already escaped (or never entered): pull it back.
+        event.preventDefault()
+        ;(event.shiftKey ? last : first).focus()
+        return
+      }
+      if (event.shiftKey && (current === first || current === root)) {
         event.preventDefault()
         last.focus()
-      } else if (!event.shiftKey && document.activeElement === last) {
+      } else if (!event.shiftKey && current === last) {
         event.preventDefault()
         first.focus()
       }
     }
-    root.addEventListener('keydown', onKey)
+    document.addEventListener('keydown', onKey, true)
     return () => {
       window.cancelAnimationFrame(frame)
-      root.removeEventListener('keydown', onKey)
+      document.removeEventListener('keydown', onKey, true)
       // Restore after React removes the dialog so focus is not dropped to <body>.
       window.requestAnimationFrame(() => previous?.focus?.())
     }

@@ -22,6 +22,7 @@ import {
 } from '../state/sessionGraph'
 import { useDawBridge } from '../hooks/useDawBridge'
 import { useAppearance } from '../hooks/useAppearance'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 import { fmtTime } from '../constants/options'
 import './shell.css'
 
@@ -79,6 +80,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [railCollapsed, setRailCollapsed] = useState(readRailCollapsed)
   const [menuOpen, setMenuOpen] = useState(false)
   const [sessionDialog, setSessionDialog] = useState<null | 'save' | 'open'>(null)
+  const sessionDialogRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(sessionDialogRef, sessionDialog !== null)
   const [sessionName, setSessionName] = useState('')
   const [sessionNotes, setSessionNotes] = useState('')
   const [sessionList, setSessionList] = useState<{ name: string }[]>([])
@@ -467,6 +470,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           }}
         >
           <div
+            ref={sessionDialogRef}
             className="session-dialog"
             role="dialog"
             aria-modal="true"

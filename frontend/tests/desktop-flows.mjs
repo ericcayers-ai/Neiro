@@ -587,6 +587,11 @@ try {
     await step('shell palette, help, rail, shortcuts', async () => {
       await page.locator('.rail-search').click()
       await page.locator('.palette-input').waitFor({ timeout: 10_000 })
+      for (let i = 0; i < 12; i += 1) {
+        await page.keyboard.press('Tab')
+        const inside = await page.evaluate(() => Boolean(document.activeElement?.closest('.palette')))
+        if (!inside) throw new Error(`palette focus escaped on Tab ${i + 1}`)
+      }
       await page.locator('.palette-input').fill('Studio')
       await page.keyboard.press('Enter')
       await page.waitForTimeout(400)
@@ -1170,6 +1175,11 @@ try {
       const dialog = page.getByRole('dialog', { name: 'Save session' })
       await dialog.waitFor({ timeout: 10_000 })
       const saveButton = dialog.getByRole('button', { name: 'Save', exact: true })
+      for (let i = 0; i < 15; i += 1) {
+        await page.keyboard.press('Tab')
+        const inside = await page.evaluate(() => Boolean(document.activeElement?.closest('.session-dialog')))
+        if (!inside) throw new Error(`session dialog focus escaped on Tab ${i + 1}`)
+      }
       const nameField = dialog.getByLabel('Name')
       if (!(await nameField.inputValue()).trim()) throw new Error('name should be prefilled')
       await nameField.fill('')

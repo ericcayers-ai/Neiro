@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ModuleId } from '../api/types'
 import { useSession } from '../state/session'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 
 export interface PaletteAction {
   id: string
@@ -30,6 +31,8 @@ export function CommandPalette({
   onClose: () => void
   extraActions?: PaletteAction[]
 }) {
+  const paletteRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(paletteRef, open)
   const { setModule, openStudioMix, clearSession, module, requestPracticeFocus } = useSession()
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
@@ -117,6 +120,7 @@ export function CommandPalette({
       }}
     >
       <div
+        ref={paletteRef}
         className="palette"
         role="dialog"
         aria-modal="true"
