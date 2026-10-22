@@ -1406,6 +1406,28 @@ try {
     })
   }
 
+  if (only === 'player-scenes') {
+    await step('player scene save and clear player data', async () => {
+      await rail('Library').click()
+      await page.getByRole('button', { name: 'Add current file', exact: true }).click()
+      await page.getByText(/Songs \(1\)/).waitFor({ timeout: 30_000 })
+      await page.locator('#module-content button').filter({ hasText: 'flow-tune.wav' }).first().click()
+      const saveScene = page.locator('#module-content button').filter({ hasText: /^Save scene$/ }).first()
+      await saveScene.waitFor({ timeout: 15_000 })
+      await saveScene.click()
+      await page.waitForTimeout(400)
+      await rail('Prefs').click()
+      await page.getByRole('button', { name: 'Clear player data', exact: true }).click()
+      await page.waitForTimeout(500)
+      await rail('Library').click()
+      await page.locator('#module-content button').filter({ hasText: 'flow-tune.wav' }).first().click()
+      await page.getByRole('button', { name: /Import player markers/i }).click()
+      await page.waitForTimeout(500)
+      const text = await page.locator('#module-content').innerText()
+      if (!/No player markers or clips/i.test(text)) throw new Error('player data was not cleared')
+    })
+  }
+
   if (only === 'midi-export' || only === 'tray') {
     // Both need a finished transcription; tray hides it afterwards.
   }
