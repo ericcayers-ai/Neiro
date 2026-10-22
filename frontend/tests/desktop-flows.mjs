@@ -5,7 +5,7 @@
  * Run: node tests/desktop-flows.mjs [step]
  */
 import { execFile, spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -313,6 +313,8 @@ try {
       await page.getByRole('button', { name: 'Undo', exact: true }).click()
       await page.getByRole('button', { name: 'Redo', exact: true }).click()
       await page.getByRole('button', { name: 'Compact', exact: true }).click()
+      await page.waitForTimeout(300)
+      await page.locator('.studio-timeline.is-compact').waitFor({ timeout: 5_000 })
       await page.getByRole('button', { name: 'Real-time', exact: true }).click()
       await page.keyboard.press('Escape')
       await page.waitForTimeout(300)
@@ -512,10 +514,15 @@ try {
       const exportHref = await page.locator('#module-content a[href="/api/library/export"]').getAttribute('href')
       const exported = await page.evaluate(async (url) => {
         const response = await fetch(url)
-        return { status: response.status, size: (await response.blob()).size }
+        const text = await response.text()
+        return { status: response.status, size: text.length, body: JSON.parse(text) }
       }, exportHref)
       if (exported.status !== 200 || exported.size < 50) throw new Error('library export failed')
-      console.log('LIBRARY EXPORT:', JSON.stringify(exported))
+      const exportedSong = exported.body?.songs?.[0]
+      if (!exportedSong || !String(exportedSong.notes || '').includes('QA note')) {
+        throw new Error('library export missing the saved note')
+      }
+      console.log('LIBRARY EXPORT:', exported.status, exported.size)
 
       await page.getByRole('button', { name: 'Reset library', exact: true }).click()
       await page.getByText(/Songs \(0\)/).waitFor({ timeout: 15_000 })
@@ -911,6 +918,29 @@ try {
       const after = await reloaded.inputValue()
       console.log('SETTINGS CHANGED:', changed, 'AFTER RELOAD:', after)
       if (after !== changed) throw new Error('player setting did not persist')
+    })
+  }
+
+  if (only === 'session-missing') {
+    await step('session open when the source is gone', async () => {
+      const menuButton = page.locator('.session-menu > button').first()
+      await menuButton.click()
+      await page.getByRole('menuitem', { name: 'Save session' }).click()
+      const dialog = page.getByRole('dialog', { name: 'Save session' })
+      await dialog.getByLabel('Name').fill('missing-source')
+      await dialog.getByRole('button', { name: 'Save', exact: true }).click()
+      await dialog.waitFor({ state: 'detached', timeout: 20_000 })
+
+      rmSync(wav, { force: true })
+      await menuButton.click()
+      await page.getByRole('menuitem', { name: 'Open session' }).click()
+      const openDialog = page.getByRole('dialog', { name: 'Open session' })
+      await openDialog.getByLabel('Session').selectOption('missing-source')
+      await openDialog.getByRole('button', { name: 'Open', exact: true }).click()
+      await page.waitForTimeout(1500)
+      const text = await page.locator('.shell').innerText()
+      if (!/re-import/i.test(text)) throw new Error('no re-import hint after a missing source')
+      console.log('MISSING SOURCE: re-import hint shown')
     })
   }
 

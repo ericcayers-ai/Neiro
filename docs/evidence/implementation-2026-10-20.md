@@ -824,3 +824,8 @@ addon validator all pass on the rebuilt package.
 Verified split (clip count grows, undo restores), move, Delete→silence with undo;
 export magic for WAV16/WAV24/FLAC; and Library player transpose persisting across a
 page reload via the settings API.
+
+## Ninetieth batch: compact, export content, missing-source session
+
+Verified Compact mode's timeline class, Library JSON export content (saved note),
+and session open after deleting the source (metadata restores with a re-import hint).
