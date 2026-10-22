@@ -292,6 +292,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const addToImportQueue = useCallback((f: SessionFile) => {
     setImportQueue((prev) => {
       if (prev.some((x) => x.fileId === f.fileId)) return prev
+      // Re-importing the same song creates a new file id; keep one queue entry.
+      const duration = f.report?.duration_seconds ?? 0
+      if (
+        prev.some(
+          (x) =>
+            x.name === f.name &&
+            Math.abs((x.report?.duration_seconds ?? 0) - duration) < 0.01,
+        )
+      ) {
+        return prev
+      }
       return [...prev, f]
     })
   }, [])

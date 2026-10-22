@@ -1550,6 +1550,13 @@ try {
       if (/Import queue/i.test(await page.locator('#module-content').innerText())) {
         throw new Error('queue did not clear')
       }
+
+      // Importing the same song twice keeps a single queue entry.
+      await page.locator('#module-content input[type=file]').first().setInputFiles([wav, wav])
+      await page.getByText(/Import queue \(1\)/).waitFor({ timeout: 60_000 })
+      if (/Import queue \(2\)/.test(await page.locator('#module-content').innerText())) {
+        throw new Error('duplicate queue entries')
+      }
     })
   }
 

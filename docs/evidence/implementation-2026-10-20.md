@@ -866,3 +866,9 @@ The server records report/name per registered file and exposes
 `GET /api/session/current`; the shell restores that file on load. A browser refresh
 no longer loses the imported audio (it only did because the UI never asked the
 engine). Covered by a server test and an E2E reload flow.
+
+## Ninety-seventh batch: import queue dedupe
+
+Re-importing the same song created a second queue entry under a new file id; the
+queue now dedupes on name + duration. Verified by selecting the same file twice
+(queue stays at one entry).
