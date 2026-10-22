@@ -81,7 +81,21 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [sessionDialog, setSessionDialog] = useState<null | 'save' | 'open'>(null)
   const sessionDialogRef = useRef<HTMLDivElement>(null)
+  const sessionButtonRef = useRef<HTMLButtonElement>(null)
+  const railSearchRef = useRef<HTMLButtonElement>(null)
+  const prevPaletteRef = useRef(false)
+  const prevDialogRef = useRef(false)
   useFocusTrap(sessionDialogRef, sessionDialog !== null)
+
+  useEffect(() => {
+    if (prevPaletteRef.current && !paletteOpen) railSearchRef.current?.focus()
+    prevPaletteRef.current = paletteOpen
+  }, [paletteOpen])
+
+  useEffect(() => {
+    if (prevDialogRef.current && sessionDialog === null) sessionButtonRef.current?.focus()
+    prevDialogRef.current = sessionDialog !== null
+  }, [sessionDialog])
   const [sessionName, setSessionName] = useState('')
   const [sessionNotes, setSessionNotes] = useState('')
   const [sessionList, setSessionList] = useState<{ name: string }[]>([])
@@ -306,6 +320,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
 
         <button
+          ref={railSearchRef}
           type="button"
           className="rail-search"
           onClick={() => setPaletteOpen(true)}
@@ -419,6 +434,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             )}
             <div className="session-menu" ref={menuRef}>
               <button
+                ref={sessionButtonRef}
                 type="button"
                 className="ghost"
                 aria-expanded={menuOpen}

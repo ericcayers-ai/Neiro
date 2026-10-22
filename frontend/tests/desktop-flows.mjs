@@ -840,6 +840,19 @@ try {
       }
       await page.keyboard.press('Escape')
       await page.locator('.studio-help-sheet').waitFor({ state: 'detached', timeout: 5_000 })
+
+      // Palette close restores focus to the rail search button.
+      await page.locator('.rail-search').click()
+      await page.locator('.palette-input').waitFor({ timeout: 5_000 })
+      await page.keyboard.press('Escape')
+      await page.locator('.palette-input').waitFor({ state: 'detached', timeout: 5_000 })
+      await page.waitForTimeout(150)
+      const paletteFocus = await page.evaluate(
+        () => document.activeElement?.className || document.activeElement?.tagName,
+      )
+      if (!String(paletteFocus).includes('rail-search')) {
+        throw new Error(`palette focus not restored (${paletteFocus})`)
+      }
     })
   }
 
@@ -1392,6 +1405,10 @@ try {
       const notesValue = await notesDialog.getByLabel(/Notes/i).inputValue()
       if (notesValue !== 'QA session notes') throw new Error(`session notes not restored: ${notesValue}`)
       await notesDialog.getByRole('button', { name: 'Cancel', exact: true }).click()
+      await notesDialog.waitFor({ state: 'detached', timeout: 5_000 })
+      await page.waitForTimeout(150)
+      const dialogFocus = await page.evaluate(() => document.activeElement?.getAttribute('aria-controls') || '')
+      if (!dialogFocus) throw new Error('session dialog focus not restored to the menu button')
 
       await page.reload()
       await page.waitForTimeout(1500)
