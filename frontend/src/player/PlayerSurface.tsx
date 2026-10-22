@@ -232,7 +232,7 @@ export function PlayerSurface({
   }, [src])
 
   useEffect(() => {
-    if (bpm && Math.abs(bpm - params.metronomeBpm) > 0.5) update({ metronomeBpm: bpm })
+    if (bpm && Math.abs(Math.round(bpm) - params.metronomeBpm) >= 1) update({ metronomeBpm: Math.round(bpm) })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bpm])
 
@@ -872,7 +872,7 @@ export function PlayerSurface({
             checked={params.metronome}
             onChange={(event) => update({ metronome: event.target.checked })}
           />
-          Metronome ({params.metronomeBpm} BPM)
+          Metronome ({Math.round(params.metronomeBpm)} BPM)
         </label>
         <label className="field-inline">
           {t('player.waitMode')}

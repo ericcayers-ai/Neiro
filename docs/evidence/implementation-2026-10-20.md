@@ -834,3 +834,8 @@ and session open after deleting the source (metadata restores with a re-import h
 
 Player EQ panel toggles cleanly and the reduced-motion preference applies to the
 document root; both exercised in the flow suite.
+
+## Ninety-second batch: metronome BPM rounding
+
+The player metronome label and stored metronome tempo now use whole BPM (the pitch
+analysis value was printed with 15 decimals). Verified in the MIDI practice panel.
