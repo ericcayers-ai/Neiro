@@ -112,3 +112,9 @@ Rebuilt sidecar + desktop, then ran 14 checks — all exit 0:
 
 Defects fixed during the sweep are recorded in `qa-sweep-2026-10-22.md`.
 
+## Round-88 regression (QA additions)
+
+Gate plus ten focused checks — per-module axe, full flows, clip context menu,
+settings persistence, session validation, packs, resume preference, companion e2e,
+worklets and addon validator — all exit 0 after the latest test additions.
+
