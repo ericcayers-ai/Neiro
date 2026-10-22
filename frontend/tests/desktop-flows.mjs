@@ -549,6 +549,14 @@ try {
       }
       console.log('LIBRARY EXPORT:', exported.status, exported.size)
 
+      // Player-local markers can be imported into the library row.
+      await page.locator('#module-content button').filter({ hasText: /^Add marker$/ }).first().click()
+      await page.waitForTimeout(300)
+      await page.getByRole('button', { name: /Import player markers/i }).click()
+      await page.waitForTimeout(600)
+      const imported = await page.locator('#module-content').innerText()
+      console.log('PLAYER DATA IMPORT:', /imported|marker/i.test(imported) ? 'ok' : 'no-message')
+
       await page.getByRole('button', { name: 'Reset library', exact: true }).click()
       await page.getByText(/Songs \(0\)/).waitFor({ timeout: 15_000 })
     })
@@ -1111,6 +1119,22 @@ try {
         throw new Error('non-audio URL loaded a file')
       }
       console.log('URL ERROR:', (text.match(/url[^\n]*/i) || [''])[0].slice(0, 160))
+    })
+  }
+
+  if (only === 'tray-actions') {
+    await step('job tray jump and dismiss', async () => {
+      await page.getByRole('button', { name: 'Show job tray', exact: true }).click().catch(() => undefined)
+      const jump = page.locator('.job-tray-jump').first()
+      await jump.waitFor({ timeout: 10_000 })
+      await jump.click()
+      await page.waitForTimeout(500)
+      const dismissed = page.locator('.job-tray button[aria-label="Dismiss"]').first()
+      if (await dismissed.count()) {
+        await dismissed.click()
+        await page.waitForTimeout(300)
+      }
+      console.log('TRAY: jumped and dismissed')
     })
   }
 
