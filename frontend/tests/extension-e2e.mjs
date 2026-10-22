@@ -91,6 +91,16 @@ try {
   const panel = await context.newPage()
   await panel.goto(`chrome-extension://${extensionId}/src/sidepanel/index.html`)
 
+  await panel.fill('#engine-url', 'not-a-url')
+  await panel.click('#engine-save')
+  await panel.waitForFunction(
+    () => /engine urls only|127\.0\.0\.1/i.test(document.getElementById('engine-url-status')?.textContent ?? ''),
+    undefined,
+    { timeout: 10_000 },
+  )
+  const invalidStatus = await panel.textContent('#engine-url-status')
+  console.log('invalid-engine-url:', invalidStatus)
+
   await panel.fill('#engine-url', base)
   await panel.click('#engine-save')
   await panel.waitForFunction(
