@@ -161,7 +161,7 @@ try {
     )
   }
 
-  if (!['none', 'queue', 'packs', 'url-import'].includes(only)) {
+  if (!['none', 'queue', 'packs', 'url-import', 'url-error'].includes(only)) {
     await step('import audio file', async () => {
       await page.locator('#module-content input[type=file]').first().setInputFiles(wav)
       await page.waitForFunction(
@@ -1053,6 +1053,26 @@ try {
       const header = await page.locator('.shell').innerText()
       if (!/Example/i.test(header)) throw new Error(`URL import did not load the file: ${header.slice(0, 160)}`)
       console.log('URL IMPORT: loaded')
+    })
+  }
+
+  if (only === 'url-error') {
+    await step('non-audio URL reports a clear error', async () => {
+      await rail('Import').click()
+      await page.locator('#import-url').fill('https://example.com/')
+      await page.getByRole('button', { name: /Fetch URL/i }).click()
+      await page.waitForFunction(
+        () => /not return audio|html|couldn.t|failed|error/i.test(document.getElementById('module-content')?.innerText ?? ''),
+        undefined,
+        { timeout: 60_000 },
+      )
+      const text = await page.locator('#module-content').innerText()
+      if (/No file — Import a track/.test(await page.locator('.shell').innerText())) {
+        // expected: nothing loaded
+      } else {
+        throw new Error('non-audio URL loaded a file')
+      }
+      console.log('URL ERROR:', (text.match(/url[^\n]*/i) || [''])[0].slice(0, 160))
     })
   }
 
