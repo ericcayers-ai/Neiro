@@ -546,6 +546,9 @@ try {
         () => document.documentElement.style.getPropertyValue('--font-scale').trim() === '1.25',
       )
       await page.locator('#font-scale').selectOption('100')
+      await page.locator('#motion').selectOption('reduce')
+      await page.waitForFunction(() => document.documentElement.dataset.reducedMotion === 'true')
+      await page.locator('#motion').selectOption('system')
       await page.getByRole('button', { name: 'Refresh', exact: true }).click()
       await page.waitForTimeout(800)
     })
@@ -608,6 +611,10 @@ try {
       }
       await dialog.getByRole('button', { name: /Add marker/i }).first().click()
       await page.waitForTimeout(300)
+      await dialog.getByRole('button', { name: /Equalizer/i }).first().click()
+      await dialog.locator('.player-eq').waitFor({ timeout: 5_000 })
+      await dialog.getByRole('button', { name: /Equalizer/i }).first().click()
+      await dialog.locator('.player-eq').waitFor({ state: 'detached', timeout: 5_000 })
       await page.keyboard.press('Escape')
       await dialog.waitFor({ state: 'detached', timeout: 5_000 })
     })

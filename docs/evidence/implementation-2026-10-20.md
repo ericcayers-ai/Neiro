@@ -829,3 +829,8 @@ page reload via the settings API.
 
 Verified Compact mode's timeline class, Library JSON export content (saved note),
 and session open after deleting the source (metadata restores with a re-import hint).
+
+## Ninety-first batch: EQ panel and motion preference
+
+Player EQ panel toggles cleanly and the reduced-motion preference applies to the
+document root; both exercised in the flow suite.
