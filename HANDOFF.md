@@ -611,6 +611,23 @@ revocation; **clean-VM** install (WebView2 preinstalled here); signed installers
 updater and uninstall; WCAG/axe and screen-reader passes; any neural chord/beat
 model; a unified **per-stem** Studio engine; full i18n/RTL.
 
+### Parity matrix was stale — corrected 2026-10-24
+
+Several detailed rows in `docs/AUDIT.md` still said "None" for player features that
+had shipped. After reading the code, these are now recorded as implemented with
+their constants and tests: transpose ±36 st, ±100¢ fine pitch, speed 0.25–4×,
+formant 0.2–2.0×, varispeed, 6-band EQ with presets, tuning presets (440/415/430/
+466/432), live A4 readout + method label, low-latency toggle, A–B loop, count-in,
+markers, clips (per-clip transpose/cents/speed/formant/varispeed/enable/loop count),
+ramp generator, sequence playback, wait gate, scenes (player + Studio layout),
+target/backing vocal-focus cross-fade, `AnalysisLanes` chord/beat lanes, Studio chord
+lane, and the player chord/beat overlay.
+
+The genuinely open items are unchanged and listed above plus: per-stem real-time
+phase vocoder; per-clip effects (EQ/reducer); modal vocal-reducer variants; per-band
+EQ filter types; panel/widget arrangement in scenes; per-stem chord attribution; a
+zoomable (rather than proportional) analysis timeline.
+
 ### Operational notes
 
 - **Gate basetemp.** `scripts/verify_goal.py` runs pytest with
