@@ -611,6 +611,19 @@ revocation; **clean-VM** install (WebView2 preinstalled here); signed installers
 updater and uninstall; WCAG/axe and screen-reader passes; any neural chord/beat
 model; a unified **per-stem** Studio engine; full i18n/RTL.
 
+### Operational notes
+
+- **Gate basetemp.** `scripts/verify_goal.py` runs pytest with
+  `--basetemp C:\np` (override: `NEIRO_GATE_BASETEMP`). A stale or locked `C:\np`
+  makes pytest fail to clear it, which surfaces as many `error`s across unrelated
+  tests — a real sighting was `GATE FAIL 19/23` with `194 passed, 3 skipped,
+  93 errors` while C3/C4 and C7–C23 still passed. Deleting `C:\np` restored
+  `GATE PASS 23/23` (`287 passed, 3 skipped`) on the same tree. If a run reports
+  errors rather than failures, clear the basetemp before investigating code.
+- **Staged sidecar is untracked.** `build_sidecar.py --install` leaves
+  `src-tauri/resources/engine/{neiro-engine.exe,_internal/}` in the tree; delete
+  them after packaging experiments so `git status` stays limited to real changes.
+
 ### Next actions (ordered)
 
 1. Studio per-stem engine unification (a Real-time dialog already opens a track in
