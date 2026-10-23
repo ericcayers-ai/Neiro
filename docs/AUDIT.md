@@ -961,32 +961,32 @@ player, **Q** queued Neiro engine, **RT+Q** hybrid, **Addon** extension surface,
 
 | ID | Transpose capability | Neiro today | Stat | Target | Mode | Pr |
 |---|---|---|---|---|---|---|
-| T-01 | Real-time transpose ±12 / extended ±36 | Offline `pitch_shift` only; no player control; no extended-range UI | P | Shared Neiro Player | RT+Q | P1 |
-| T-02 | Fine pitch in cents/Hz | None | M | Player pitch control | RT | P1 |
-| T-03 | Speed 25-400%, independent of pitch | Practice 25-200%; whole-file `/api/edit`; 6.91 s for 4 s | P | Player speed 25-400% + queued render of current settings | RT+Q | P1 |
-| T-04 | Formant 0.2-2.0 | None | M | Player formant | RT | P1 |
-| T-05 | Varispeed link | None; browser `playbackRate` is only a failure fallback | M | Player varispeed toggle | RT | P2 |
-| T-06 | Vocal reducer (current/legacy/hybrid, center/range) | Offline karaoke separation; no live reducer | M | Player reducer; optional Q karaoke | RT+Q | P1 |
-| T-07 | 6-band EQ, presets/filter types | Studio Mix has gain/pan only | M | Player EQ | RT | P1 |
-| T-08 | Pitch/tuning presets (Baroque/Classical/etc.) | None | M | Player tuning reference | RT | P2 |
-| T-09 | Pitch display (cents/Hz) | None | M | Player readout | RT | P2 |
-| T-10 | Premium audio / low-latency mode | None | M | Player quality modes; label trade-off | RT | P1 |
-| T-11 | Time-stretch provenance/quality indicator | API returns provenance; practice UI ignores it and always says "pitch-preserving" | P | Show method + quality; no false claim | RT+Q | P1 |
+| T-01 | Real-time transpose ±12 / extended ±36 | Player transpose slider over ±36 st (`TRANSPOSE_RANGE`), worklet phase vocoder; queued render of current settings | N | Per-stem real-time engine still absent | RT+Q | P1 |
+| T-02 | Fine pitch in cents/Hz | Player ±100¢ fine-pitch control feeding the same transpose path | N | — | RT | P1 |
+| T-03 | Speed 25-400%, independent of pitch | Player speed slider 0.25–4× (`SPEED_RANGE`), pitch held; queued `/api/render` writes the current settings | N | — | RT+Q | P1 |
+| T-04 | Formant 0.2-2.0 | Player formant slider 0.2–2.0× (`FORMANT_RANGE`), cepstral warp; dropped in low-latency mode (labelled) | N | — | RT | P1 |
+| T-05 | Varispeed link | `varispeed` flag joins speed and pitch like tape; method label says "varispeed" | N | — | RT | P2 |
+| T-06 | Vocal reducer (current/legacy/hybrid, center/range) | Player vocal-reducer amount 0–100% (centre-channel removal); no legacy/hybrid modes | P | Modal variants; Q karaoke via separation | RT+Q | P1 |
+| T-07 | 6-band EQ, presets/filter types | Player 6-band EQ with presets (`EQ_PRESETS`); per-stem 3-band in Studio Mix | P | Per-band filter-type selection absent | RT | P1 |
+| T-08 | Pitch/tuning presets (Baroque/Classical/etc.) | Tuning select with Concert 440 / Baroque 415 / Classical 430 / Chorton 466 / Scientific 432 mapped to cents; custom offset kept | N | — | RT | P2 |
+| T-09 | Pitch display (cents/Hz) | Live `player-readout`: sounding A4 in Hz plus the active method; fine pitch in cents is a control | N | — | RT | P2 |
+| T-10 | Premium audio / low-latency mode | Player low-latency toggle (formant off), honest method label, measured latency readout | N | No premium bitrate tier; the local engine is the ceiling | RT | P1 |
+| T-11 | Time-stretch provenance/quality indicator | `describeMethod` labels the running DSP (phase-vocoder / low-latency / varispeed / bypass / fallback / rendered); the readout shows it live and a render reports its provenance | N | No separate quality score | RT+Q | P1 |
 | T-12 | Per-note pitch correction (Neiro strength) | Native job; works (6.8 s for 4 s) | N | Q export + preview tuner readout (autocorrelation) | Q+RT | P2 |
-| T-13 | Local playback/transport | Native `<audio>`/Studio transport; no shared clock | N | Player + Studio dialog; granular transpose/speed + queued per-stem render; full engine open | RT | P1 |
+| T-13 | Local playback/transport | Shared player (AudioWorklet clock) drives practice, the library player, the Studio Real-time dialog and the compact bar; Studio keeps its own timeline transport | P | One clock shared with the Studio timeline | RT | P1 |
 | T-14 | Waveform/spectrogram | Native in Studio | N | Keep; share analysis view | Q | P3 |
-| T-15 | A-B loop | Native in Studio selection (`loopSel`/`sel`); practice panel loops whole file | P | Shared Player A-B; blind ABX discrimination panel | RT | P1 |
-| T-16 | Count-in | Dead `countIn` toggle; no scheduler use | S | Player/clip count-in | RT | P1 |
-| T-17 | Markers (add/list/blocks/jump/convert A-B) | None | M | Library + Player + timeline | RT | P1 |
-| T-18 | Clips (range, per-clip transpose/pitch/formant/speed/effects, enable, loop count) | Studio audio clips, not practice clips | M | Practice clip model + Player | RT | P1 |
-| T-19 | Practice ramp (chromatic/circle/scale, tempo range, repetitions) | None | M | Clip sequence generator | RT | P2 |
-| T-20 | Scenes (standard/timeline/clip sequence, widget layout) | None | M | Studio layout scenes + player scenes; widget layouts absent | RT | P2 |
+| T-15 | A-B loop | Player A–B loop (Set A/B at the playhead, loop toggle, clear) sharing the engine clock, plus the blind ABX panel; Studio keeps its own selection loop | N | — | RT | P1 |
+| T-16 | Count-in | Player count-in toggle that leads the loop/transport start and shows a count-in state | N | — | RT | P1 |
+| T-17 | Markers (add/list/blocks/jump/convert A-B) | Player markers with add/list, prev/next transport, marker↔A–B conversion, persisted per file and importable into the library | N | Block markers in a timeline view | RT | P1 |
+| T-18 | Clips (range, per-clip transpose/pitch/formant/speed/effects, enable, loop count) | Player clip model (`makeClip`) from A–B with loop count, enable, and sequence playback; per-clip DSP values ride on the track params | P | Per-clip independent DSP chain | RT | P1 |
+| T-19 | Practice ramp (chromatic/circle/scale, tempo range, repetitions) | Ramp generator with chromatic/fifths/scale modes, semitone range and repetitions, created as clips from the UI | N | Tempo-range scheduling | RT | P2 |
+| T-20 | Scenes (standard/timeline/clip sequence, widget layout) | Player scenes capture params/loop/markers/clips with kind labels and persist per file; library exposes a scenes API | P | Studio widget-layout scenes | RT | P2 |
 | T-21 | Stem Mix (4 stems, solo/mute, target/backing crossfade, chord/waveform) | Native offline stems; Studio Mix gain/pan/mute/solo/A-B/null; no target crossfade/chord view | P | Crossfade/chord view + per-stem 3-band EQ; Q stems | RT+Q | P1 |
-| T-22 | Clip sequence playback/loop counts | None | M | Player scheduler | RT | P2 |
+| T-22 | Clip sequence playback/loop counts | `sequenceAt`/`sequenceDuration` schedule the concatenated timeline honouring each clip's loop count; Play sequence drives the player | N | — | RT | P2 |
 | T-23 | Transport first/prev/next/ad wait | Studio transport; no site/ad state | P | Core + Addon transport | RT+Addon | P2 |
-| T-24 | Wait mode actually pauses at notes/chords | Counter advances; audio never pauses | S | Gate Player; hands/tracks choices | RT | P1 |
+| T-24 | Wait mode actually pauses at notes/chords | Player wait modes (off / Space-Enter step / WebMIDI pitch match) gate the transport and show what it is waiting for; a wait note is spoken in the status line | N | Hands/tracks selection for wait targets | RT | P1 |
 | T-25 | Metronome/tempo sync | Native phase-locked metronome in MIDI practice | N | Keep; share with Player | RT | P2 |
-| T-26 | Loop/count-in set from current time | None | M | Player + clips | RT | P1 |
+| T-26 | Loop/count-in set from current time | Set A / Set B at the playhead, Clear loop, and a count-in toggle that leads the loop start | N | — | RT | P1 |
 | T-27 | DAW MIDI wait | VST2 forwards MIDI; practice does not gate audio | P | Gate Player; DAW capture | RT+Q | P2 |
 | T-28 | Record/upload a take | VST2 capture/upload; no browser tab capture | P | Addon tab capture; keep VST2 | RT+Q+Addon | P2 |
 
@@ -1043,7 +1043,7 @@ player, **Q** queued Neiro engine, **RT+Q** hybrid, **Addon** extension surface,
 | T-65 | Custom keyboard shortcuts | Fixed shortcuts + command palette; not remappable | P | Shortcut service + conflict UI | — | P2 |
 | T-66 | MIDI learn/mappings (note/CC/program/transport/MMC) | WebMIDI wait only; no mapping | M | MIDI service + persist | RT | P1 |
 | T-67 | Studio modes compact/side/wide | Responsive UI; no scenes/wide; wide is an extension limitation | P | Compact track mode; scenes/wide remain; do not promise wide | RT | P2 |
-| T-68 | Premium/low-latency settings | None | M | Player quality mode | RT | P1 |
+| T-68 | Premium/low-latency settings | Player low-latency toggle persisted per file; measured latency shown in the player | N | No separate quality selector; preview/rendered/fallback is reported rather than chosen | RT | P1 |
 | T-69 | Music/chord/rhythm analysis toggles/WebGPU | Server analysis always on; no WebGPU | P | Per-lane toggles (key/tempo, chords, beats) with persistence; Q analysis | Q | P2 |
 | T-70 | Data/reset (history/stems/audio/models/permissions/settings/scenes) | Prefs/cache/model/tools partial; no library/permissions/scenes | P | Central data manager | Q | P2 |
 | T-71 | Help/guide/what's new/support/onboarding tours | About, Studio help, command palette; no tours/what's new/support | P | Quick start + What's new in About; tours/support still absent | — | P2 |
@@ -1735,7 +1735,7 @@ The matrix above is the audit-time baseline. Post-pass status:
 |---|---|---|---|
 | T-01, T-03, T-04, T-05, T-06, T-07, T-08, T-15, T-16, T-24, T-26 | P/S/M | **RT native** | Shared player |
 | T-02, T-09 | M | **RT native** | Fine pitch, cents and a sounding-A4 Hz readout |
-| T-10, T-68 | M | **M** | Preview only; no low-latency/quality mode toggle |
+| T-10, T-68 | M | **N (honest)** | Low-latency toggle (formant off), method label, measured latency readout, persisted per file; no premium tier |
 | T-11 | P | **N** | Method label reflects actual DSP |
 | T-17, T-18, T-19, T-22 | M | **RT native** | Markers (+ prev/next transport), clips, ramp, sequence |
 | T-20 | M | **partial** | Player scenes (params/loop/markers/clips) + library scenes API; no Studio widget-layout scenes |
