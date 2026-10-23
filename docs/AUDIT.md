@@ -983,11 +983,11 @@ player, **Q** queued Neiro engine, **RT+Q** hybrid, **Addon** extension surface,
 | T-20 | Scenes (standard/timeline/clip sequence, widget layout) | Player scenes (params/loop/markers/clips, kind labels) and Studio layout scenes (tracks, loop, view window, transpose, speed; persisted as `neiro.studio.scenes`); library scenes API | P | Panel/widget arrangement is not captured | RT | P2 |
 | T-21 | Stem Mix (4 stems, solo/mute, target/backing crossfade, chord/waveform) | Native offline stems; Studio Mix gain/pan/mute/solo/A-B/null, target-vs-backing vocal-focus cross-fade (`focusGain`/`isTargetStem`), per-stem 3-band EQ, waveform and chord lanes | P | No per-stem real-time phase vocoder; Q stems | RT+Q | P1 |
 | T-22 | Clip sequence playback/loop counts | `sequenceAt`/`sequenceDuration` schedule the concatenated timeline honouring each clip's loop count; Play sequence drives the player | N | — | RT | P2 |
-| T-23 | Transport first/prev/next/ad wait | Studio transport; no site/ad state | P | Core + Addon transport | RT+Addon | P2 |
+| T-23 | Transport first/prev/next/ad wait | Player ⏮ Start / ‹ Marker / Marker › buttons plus Studio transport; ad state is handled by the addon adapter layer | P | Ad-aware transport on live sites stays owner-run | RT+Addon | P2 |
 | T-24 | Wait mode actually pauses at notes/chords | Player wait modes (off / Space-Enter step / WebMIDI pitch match) gate the transport and show what it is waiting for; a wait note is spoken in the status line | N | Hands/tracks selection for wait targets | RT | P1 |
 | T-25 | Metronome/tempo sync | Native phase-locked metronome in MIDI practice | N | Keep; share with Player | RT | P2 |
 | T-26 | Loop/count-in set from current time | Set A / Set B at the playhead, Clear loop, and a count-in toggle that leads the loop start | N | — | RT | P1 |
-| T-27 | DAW MIDI wait | VST2 forwards MIDI; practice does not gate audio | P | Gate Player; DAW capture | RT+Q | P2 |
+| T-27 | DAW MIDI wait | Player wait mode gates its own transport on WebMIDI pitch matches; the VST2 bridge forwards MIDI on the DAW side | P | DAW-side audio gating remains with the native bridge | RT+Q | P2 |
 | T-28 | Record/upload a take | VST2 capture/upload; no browser tab capture | P | Addon tab capture; keep VST2 | RT+Q+Addon | P2 |
 
 ### 4.2 Analysis, stems, models
