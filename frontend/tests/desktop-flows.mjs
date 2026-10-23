@@ -1027,16 +1027,42 @@ try {
       await dialog.getByRole('button', { name: 'Save', exact: true }).click()
       await dialog.waitFor({ state: 'detached', timeout: 20_000 })
 
-      rmSync(wav, { force: true })
+      // Delete the engine's own copy: the session points at the workspace upload,
+      // so removing the client-side WAV would never reach the guard.
+      const sourcePath = await page.evaluate(async (sessionName) => {
+        const response = await fetch(
+          `/api/session/export?name=${encodeURIComponent(sessionName)}`,
+        )
+        const doc = await response.json()
+        return doc?.source?.path || ''
+      }, 'missing-source')
+      if (!sourcePath) throw new Error('session has no source path')
+      if (!existsSync(sourcePath)) throw new Error(`session source not on disk: ${sourcePath}`)
+      rmSync(sourcePath, { force: true })
+
+      // Clear first, otherwise the previously loaded file stays in the shell and
+      // the "No file" check could never be satisfied.
+      await menuButton.click()
+      await page.getByRole('menuitem', { name: 'New session' }).click()
+      await page.waitForFunction(
+        () => document.querySelector('.shell')?.innerText.includes('No file — Import a track'),
+        undefined,
+        { timeout: 10_000 },
+      )
+
       await menuButton.click()
       await page.getByRole('menuitem', { name: 'Open session' }).click()
       const openDialog = page.getByRole('dialog', { name: 'Open session' })
       await openDialog.getByLabel('Session').selectOption('missing-source')
       await openDialog.getByRole('button', { name: 'Open', exact: true }).click()
+      await openDialog.waitFor({ state: 'detached', timeout: 20_000 })
       await page.waitForTimeout(1500)
       const text = await page.locator('.shell').innerText()
       if (!/re-import/i.test(text)) throw new Error('no re-import hint after a missing source')
-      console.log('MISSING SOURCE: re-import hint shown')
+      if (!/No file — Import a track/.test(text)) {
+        throw new Error('a deleted source was still restored into the session')
+      }
+      console.log('MISSING SOURCE: engine copy deleted, hint shown, no file loaded')
     })
   }
 
