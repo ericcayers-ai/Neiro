@@ -1039,7 +1039,7 @@ player, **Q** queued Neiro engine, **RT+Q** hybrid, **Addon** extension surface,
 |---|---|---|---|---|---|---|
 | T-62 | Themes system/light/dark | Native + high contrast/density/motion | N | Keep | — | P3 |
 | T-63 | UI + terminology language, 55 locales | English-only strings; no i18n | M | i18next/ICU; en first, community locales | — | P1 |
-| T-64 | Seek interval/scrub preview/wheel | Studio wheel zoom; no settings/scrub preview | P | Player settings | RT | P2 |
+| T-64 | Seek interval/scrub preview/wheel | Player seek-step select (±5/±10/±30 s) persisted per file and used by the arrow shortcuts; Studio keeps wheel zoom | P | Drag-scrub preview and wheel seek in the player | RT | P2 |
 | T-65 | Custom keyboard shortcuts | Fixed shortcuts + command palette; not remappable | P | Shortcut service + conflict UI | — | P2 |
 | T-66 | MIDI learn/mappings (note/CC/program/transport/MMC) | WebMIDI wait only; no mapping | M | MIDI service + persist | RT | P1 |
 | T-67 | Studio modes compact/side/wide | Responsive UI; no scenes/wide; wide is an extension limitation | P | Compact track mode; scenes/wide remain; do not promise wide | RT | P2 |
