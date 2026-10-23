@@ -623,6 +623,13 @@ model; a unified **per-stem** Studio engine; full i18n/RTL.
 - **Staged sidecar is untracked.** `build_sidecar.py --install` leaves
   `src-tauri/resources/engine/{neiro-engine.exe,_internal/}` in the tree; delete
   them after packaging experiments so `git status` stays limited to real changes.
+- **Low disk surfaces as 507, not as a clear error.** When free space drops below
+  the server's upload reserve, `POST /api/upload` answers `507 Insufficient
+  Storage` and any test that uploads fails with `urllib.error.HTTPError: HTTP
+  Error 507` — a real sighting was `C2: 5 failed, 282 passed` growing to 18 failed
+  on unchanged code after local builds filled the volume. Clear `dist/`,
+  `C:\np*`, `%TEMP%\neiro-*` and (if needed) `src-tauri/target` before diagnosing
+  those failures as code bugs.
 
 ### Next actions (ordered)
 
