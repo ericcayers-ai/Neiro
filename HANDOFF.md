@@ -589,6 +589,20 @@ builds; MSI/NSIS installers build with the bundled engine. Receipts: `docs/evide
   ports; site-access + ad-wait; updater plugin/UI + signed artifacts + latest.json;
   remote-IPC scoping; CSP/security headers; desktop smoke/workflow tests; CI and
   release automation.
+- **QA sweep (2026-10-22/23):** every module driven against the real engine with
+  axe + overflow checks at four widths and three themes, plus a live HTTP security
+  probe and a companion/worklet/backend pass. Fixed: theme only applied in Prefs,
+  rail a11y + hint contrast, nested dropzone input, modal Escape and focus traps
+  (focus now returns to the opening control), job-tray click-through and collapsed
+  reopen, cancel without the token (401), stale playlist count, clip select-drag,
+  About update check under CSP, cache-budget honesty, “open player after import”
+  preference, truncated track names, metronome rounding, duplicate import-queue
+  entries, URL audio without yt-dlp. Added: reload restores the current session
+  (`GET /api/session/current`) and New session clears it (`POST /api/session/clear`);
+  opening a saved session re-registers its source from the engine workspace and
+  restores module, audio, MIDI mode and the corrections draft. Signed RC rebuilt from
+  this tree (MSI 58.2 MB, NSIS 39.9 MB, updater signatures) and twelve packaged
+  checks pass.
 
 ### What is still not proven
 
