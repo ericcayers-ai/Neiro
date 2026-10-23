@@ -1010,19 +1010,19 @@ player, **Q** queued Neiro engine, **RT+Q** hybrid, **Addon** extension surface,
 
 | ID | Transpose capability | Neiro today | Stat | Target | Mode | Pr |
 |---|---|---|---|---|---|---|
-| T-40 | Recent history / auto-save | Corrections autosave; no song recents/library | P | Library + recents | Q | P1 |
-| T-41 | Saved songs / library | Session save/list only; no song library | P | SQLite library; import/export | Q | P1 |
-| T-42 | Playlists / favorites / list management | None | M | Library playlists | Q | P1 |
-| T-43 | Versions/update existing/save as new | Session save only; no version chain | P | Versioned library entries | Q | P2 |
-| T-44 | Per-song settings/loops/markers/clips | Session graph config; no per-song artifacts | P | Library schema + Player + import | Q+RT | P1 |
-| T-45 | Notes (5,000 chars) | API field only; string becomes char list; no UI | S | Scalar text field + notes pane | Q | P1 |
-| T-46 | Song identity/title/source metadata | Filename + optional URL ingest; no library identity | P | Library metadata + source URL | Q | P1 |
-| T-47 | Storage quotas/eviction/recent-save errors | Entry-bounded artifact cache; 20 GB budget > disk; no library quota | P | Byte budget, preflight, eviction, clear errors | Q | P1 |
+| T-40 | Recent history / auto-save | Library songs carry `last_played`/`updated` for ordering; the shell and Library expose resume; the analysis corrections draft autosaves per tab | N | No separate history log | Q | P1 |
+| T-41 | Saved songs / library | SQLite `songs` table (title, artist, source_url, path, duration, fingerprint, notes, settings) with API and UI list/add/remove/export | N | — | Q | P1 |
+| T-42 | Playlists / favorites / list management | `playlists` + `playlist_items` tables with API and Library add/remove, including the Favorites list | P | No per-song favourite flag outside playlists | Q | P1 |
+| T-43 | Versions/update existing/save as new | `versions` table with “Save version” and a versions list per song | P | No diff or branching between versions | Q | P2 |
+| T-44 | Per-song settings/loops/markers/clips | `settings_json`, `markers`, `clips` and `scenes` tables per song; the player imports and exports them | N | — | Q+RT | P1 |
+| T-45 | Notes (5,000 chars) | `songs.notes` text with a live 5,000-character counter in the Library | N | — | Q | P1 |
+| T-46 | Song identity/title/source metadata | `songs` stores title, artist, source_url, path, duration and a fingerprint used to match files | N | — | Q | P1 |
+| T-47 | Storage quotas/eviction/recent-save errors | Exact-byte cache budget with a disk preflight and explicit 507/insufficient-storage errors surfaced in Prefs | P | No per-library eviction policy | Q | P1 |
 | T-48 | Session save/open | Native UI/CLI/API; docs stale | N | Keep; add notes/migration | Q | P3 |
-| T-49 | Session share/export | Session JSON; no share link | P | Local `.neiro.json` export; optional peer share | Q | P2 |
+| T-49 | Session share/export | Session JSON export endpoint plus a per-session `.neiro.json` download; no cloud share link (deliberate) | N | Optional peer-to-peer share | Q | P2 |
 | T-50 | Resume card | Shell resume banner (`shell.resume`: "Resume: {title}") plus the Library "Resume last" action and per-song resume/reset | N | — | Q | P3 |
 | T-51 | Cloud-saved versions/account sync | None (deliberate) | N/A | Do not port; local export/backup | N/A | P3 |
-| T-52 | Local file Player | Native Studio/Import; no compact bar | N | Shared Player + compact bar | RT | P2 |
+| T-52 | Local file Player | Shared player opens from Import, the Library and the Studio Real-time dialog, with a compact bar mode that hides markers/clips/scenes/MIDI panels | N | — | RT | P2 |
 | T-53 | Supported-site playback | yt-dlp ingest optional/absent; no streaming/player integration | M | Addon adapters; pairing/upload e2e verified in Chromium; live sites owner-run | Addon | P1 |
 | T-54 | Tab Audio capture | None | M | Addon offscreen/tabCapture | Addon | P1 |
 | T-55 | Site permissions/connection diagnostics | None | M | Addon site-access + engine health probe | Addon | P2 |
@@ -1038,7 +1038,7 @@ player, **Q** queued Neiro engine, **RT+Q** hybrid, **Addon** extension surface,
 | ID | Transpose capability | Neiro today | Stat | Target | Mode | Pr |
 |---|---|---|---|---|---|---|
 | T-62 | Themes system/light/dark | Native + high contrast/density/motion | N | Keep | — | P3 |
-| T-63 | UI + terminology language, 55 locales | English-only strings; no i18n | M | i18next/ICU; en first, community locales | — | P1 |
+| T-63 | UI + terminology language, 55 locales | English catalogue with `t()`/`tr()`, provider + fallback, plural selection and `<html dir>` plumbing across shell, player, Import, Library, Restore, Separate, Preferences, MIDI and Studio help/messages | P | No non-English catalogues; CSS not mirrored for RTL | — | P1 |
 | T-64 | Seek interval/scrub preview/wheel | Player seek-step select (±5/±10/±30 s) persisted per file and used by the arrow shortcuts; Studio keeps wheel zoom | P | Drag-scrub preview and wheel seek in the player | RT | P2 |
 | T-65 | Custom keyboard shortcuts | Fixed shortcuts + command palette; not remappable | P | Shortcut service + conflict UI | — | P2 |
 | T-66 | MIDI learn/mappings (note/CC/program/transport/MMC) | WebMIDI wait only; no mapping | M | MIDI service + persist | RT | P1 |
