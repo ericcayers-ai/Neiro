@@ -980,8 +980,8 @@ player, **Q** queued Neiro engine, **RT+Q** hybrid, **Addon** extension surface,
 | T-17 | Markers (add/list/blocks/jump/convert A-B) | Player markers with add/list, prev/next transport, marker↔A–B conversion, persisted per file and importable into the library | N | Block markers in a timeline view | RT | P1 |
 | T-18 | Clips (range, per-clip transpose/pitch/formant/speed/effects, enable, loop count) | Player clip model (`makeClip`) from A–B with loop count, enable, and sequence playback; per-clip DSP values ride on the track params | P | Per-clip independent DSP chain | RT | P1 |
 | T-19 | Practice ramp (chromatic/circle/scale, tempo range, repetitions) | Ramp generator with chromatic/fifths/scale modes, semitone range and repetitions, created as clips from the UI | N | Tempo-range scheduling | RT | P2 |
-| T-20 | Scenes (standard/timeline/clip sequence, widget layout) | Player scenes capture params/loop/markers/clips with kind labels and persist per file; library exposes a scenes API | P | Studio widget-layout scenes | RT | P2 |
-| T-21 | Stem Mix (4 stems, solo/mute, target/backing crossfade, chord/waveform) | Native offline stems; Studio Mix gain/pan/mute/solo/A-B/null; no target crossfade/chord view | P | Crossfade/chord view + per-stem 3-band EQ; Q stems | RT+Q | P1 |
+| T-20 | Scenes (standard/timeline/clip sequence, widget layout) | Player scenes (params/loop/markers/clips, kind labels) and Studio layout scenes (tracks, loop, view window, transpose, speed; persisted as `neiro.studio.scenes`); library scenes API | P | Panel/widget arrangement is not captured | RT | P2 |
+| T-21 | Stem Mix (4 stems, solo/mute, target/backing crossfade, chord/waveform) | Native offline stems; Studio Mix gain/pan/mute/solo/A-B/null, target-vs-backing vocal-focus cross-fade (`focusGain`/`isTargetStem`), per-stem 3-band EQ, waveform and chord lanes | P | No per-stem real-time phase vocoder; Q stems | RT+Q | P1 |
 | T-22 | Clip sequence playback/loop counts | `sequenceAt`/`sequenceDuration` schedule the concatenated timeline honouring each clip's loop count; Play sequence drives the player | N | — | RT | P2 |
 | T-23 | Transport first/prev/next/ad wait | Studio transport; no site/ad state | P | Core + Addon transport | RT+Addon | P2 |
 | T-24 | Wait mode actually pauses at notes/chords | Player wait modes (off / Space-Enter step / WebMIDI pitch match) gate the transport and show what it is waiting for; a wait note is spoken in the status line | N | Hands/tracks selection for wait targets | RT | P1 |
@@ -997,14 +997,14 @@ player, **Q** queued Neiro engine, **RT+Q** hybrid, **Addon** extension surface,
 | T-29 | Chord changes + key | One global chord from 6 templates; key estimate; no chord timeline/UI | P | ChordMini/BTC-class ONNX or equivalent; confidence; timeline | Q | P1 |
 | T-30 | Beats/tempo/downbeats | Tempo estimate; fixed 4/4 downbeats; no beat grid/UI | P | Beat This-class tracker; meter/phase; confidence; UI | Q | P1 |
 | T-31 | Section boundaries | Energy-block heuristic; no UI/practice use | P | Real segmentation or clearly label heuristic | Q | P2 |
-| T-32 | Analysis timeline (waveform/chords/beats) | Waveform/spectrogram yes; no chord/beat lane | P | Shared analysis timeline | Q+RT | P1 |
+| T-32 | Analysis timeline (waveform/chords/beats) | Studio draws the waveform/spectrogram plus a chord lane (`chordLane`); the player draws a chord/beat overlay from the same report | P | Analysis module itself has no timeline lane; beats are overlaid but not a separate lane | Q+RT | P1 |
 | T-33 | Install/status/no-result for analysis models | Model registry exists; no chord/beat models; Prefs model view | P | Model manifests, install/remove, no-result state | Q | P1 |
 | T-34 | 4-stem UMX-HQ | Neiro has 4/6-stem models (optional); different model zoo | P | Keep Neiro models; add UMX-HQ only if licensing/quality demands | Q | P2 |
 | T-35 | WebGPU in-browser stems | N/A for Neiro; CPU/optional GPU Python | N/A | Prefer Q; optional Addon WebGPU only if justified | Q/Addon | P3 |
-| T-36 | Stem target/backing crossfade | Studio has gain/pan/solo/mute; no target crossfade | P | Add crossfade to Mix | RT+Q | P2 |
+| T-36 | Stem target/backing crossfade | Studio Mix “Vocal focus” 0–100% cross-fades target stems against backing via `focusGain(isTargetStem(name), focus)`, applied in the preview bus and the bounce | N | — | RT+Q | P2 |
 | T-37 | Stem A/B + null test | Native | N | Keep | Q | P3 |
-| T-38 | Stem chord view | None | M | Chord timeline on stem view | Q+RT | P2 |
-| T-39 | Real-time chord/beat display from precomputed analysis | None | M | Player timeline overlay | RT+Q | P2 |
+| T-38 | Stem chord view | Studio chord lane over the timeline (heuristic, first track's analysis) | P | No per-stem chord attribution | Q+RT | P2 |
+| T-39 | Real-time chord/beat display from precomputed analysis | Player overlay renders the report's chords and beats with progress (`player-analysis`, `role="img"` labels; SSR-tested) | N | — | RT+Q | P2 |
 
 ### 4.3 Library, notes, data, sites
 
@@ -1741,7 +1741,7 @@ The matrix above is the audit-time baseline. Post-pass status:
 | T-20 | M | **partial** | Player scenes (params/loop/markers/clips) + library scenes API; no Studio widget-layout scenes |
 | T-21 | P | **partial** | Studio Mix adds a target/backing focus cross-fade; no stem WebGPU/target model |
 | T-29, T-30 | P | **P (honest)** | Real timestamped heuristic + confidence, not transformer |
-| T-31, T-32, T-33 | P | **partial/N** | Sections labelled heuristic; lanes in Analysis, the player and Studio; model install states unchanged |
+| T-31, T-32, T-33 | P | **partial/N** | Sections labelled heuristic; chord lane in Studio and chord/beat overlay in the player (no lane in the Analysis module itself); model install states unchanged |
 | T-40–T-47 | P/M | **N/partial** | Library, notes, markers, clips, resume/reset, versions (save + list) |
 | T-49 | P | **N** | Local JSON export + per-session `.neiro.json` download |
 | T-53–T-57, T-59 | M | **Addon source** | Adapters + capture + panel; live e2e owner-run |
