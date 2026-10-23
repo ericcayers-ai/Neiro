@@ -1020,7 +1020,7 @@ player, **Q** queued Neiro engine, **RT+Q** hybrid, **Addon** extension surface,
 | T-47 | Storage quotas/eviction/recent-save errors | Entry-bounded artifact cache; 20 GB budget > disk; no library quota | P | Byte budget, preflight, eviction, clear errors | Q | P1 |
 | T-48 | Session save/open | Native UI/CLI/API; docs stale | N | Keep; add notes/migration | Q | P3 |
 | T-49 | Session share/export | Session JSON; no share link | P | Local `.neiro.json` export; optional peer share | Q | P2 |
-| T-50 | Resume card | None | M | Shell Resume card + Library recent/resume | Q | P3 |
+| T-50 | Resume card | Shell resume banner (`shell.resume`: "Resume: {title}") plus the Library "Resume last" action and per-song resume/reset | N | — | Q | P3 |
 | T-51 | Cloud-saved versions/account sync | None (deliberate) | N/A | Do not port; local export/backup | N/A | P3 |
 | T-52 | Local file Player | Native Studio/Import; no compact bar | N | Shared Player + compact bar | RT | P2 |
 | T-53 | Supported-site playback | yt-dlp ingest optional/absent; no streaming/player integration | M | Addon adapters; pairing/upload e2e verified in Chromium; live sites owner-run | Addon | P1 |
@@ -1044,7 +1044,7 @@ player, **Q** queued Neiro engine, **RT+Q** hybrid, **Addon** extension surface,
 | T-66 | MIDI learn/mappings (note/CC/program/transport/MMC) | WebMIDI wait only; no mapping | M | MIDI service + persist | RT | P1 |
 | T-67 | Studio modes compact/side/wide | Responsive UI; no scenes/wide; wide is an extension limitation | P | Compact track mode; scenes/wide remain; do not promise wide | RT | P2 |
 | T-68 | Premium/low-latency settings | Player low-latency toggle persisted per file; measured latency shown in the player | N | No separate quality selector; preview/rendered/fallback is reported rather than chosen | RT | P1 |
-| T-69 | Music/chord/rhythm analysis toggles/WebGPU | Server analysis always on; no WebGPU | P | Per-lane toggles (key/tempo, chords, beats) with persistence; Q analysis | Q | P2 |
+| T-69 | Music/chord/rhythm analysis toggles/WebGPU | Per-lane key/chord/beat toggles in `AnalysisLanes`, persisted in `neiro.analysis.lanes`; analysis itself always runs on the engine | P | No WebGPU path; no way to skip analysis on the server | Q | P2 |
 | T-70 | Data/reset (history/stems/audio/models/permissions/settings/scenes) | Prefs/cache/model/tools partial; no library/permissions/scenes | P | Central data manager | Q | P2 |
 | T-71 | Help/guide/what's new/support/onboarding tours | About, Studio help, command palette; no tours/what's new/support | P | Quick start + What's new in About; tours/support still absent | — | P2 |
 | T-72 | Trial/resume/product education | No subscription; no trial/upsell | N/A | Do not port paid funnel; local onboarding only | N/A | P3 |
