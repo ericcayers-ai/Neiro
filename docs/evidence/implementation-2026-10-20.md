@@ -883,6 +883,6 @@ itself is still unverified in automation and documented as such).
 
 `POST /api/session/open` re-registers the source when it still lives inside the
 engine workspace (path confined to the workspace), returning the analysed file; the
-shell sets it so opening a session restores module + audio + MIDI mode. The
-corrections draft is retargeted to the new file id but still returns empty (logged
-as unresolved, not claimed).
+shell sets it so opening a session restores module + audio + MIDI mode. The draft is retargeted to the new file id and
+restores with the session (an earlier "empty draft" reading was a test race, since
+corrected by polling the Key input).

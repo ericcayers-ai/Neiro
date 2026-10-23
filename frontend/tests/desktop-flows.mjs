@@ -1525,8 +1525,15 @@ try {
       const sessionHeader = await page.locator('.shell').innerText()
       if (!/flow-tune\.wav/.test(sessionHeader)) throw new Error('source audio was not reloaded')
       await rail('Analysis').click()
-      const keyDraft = await page.getByLabel(/^Key$/).first().inputValue()
-      console.log('DRAFT AFTER OPEN:', JSON.stringify(keyDraft))
+      const keyInput = page.getByLabel(/^Key$/).first()
+      await keyInput.waitFor({ timeout: 10_000 })
+      let keyDraft = ''
+      for (let attempt = 0; attempt < 30; attempt += 1) {
+        keyDraft = await keyInput.inputValue()
+        if (keyDraft === 'F minor') break
+        await page.waitForTimeout(100)
+      }
+      if (keyDraft !== 'F minor') throw new Error(`analysis draft not restored: ${keyDraft}`)
     })
   }
 
