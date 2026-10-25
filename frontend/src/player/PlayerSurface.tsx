@@ -55,8 +55,22 @@ export interface PlayerSurfaceProps {
   compact?: boolean
   /** Increment to resume a wait gate from an external controller (DAW MIDI). */
   resumeToken?: number
+  /** External practice request (practice leg C): set the existing A–B loop to
+   * these bounds and restart the transport from `start`. Each new `token` is
+   * applied once; the same token never re-applies. Bounds come from the
+   * practice engine's `Section` — no second loop model lives here. */
+  practiceLoop?: { start: number; end: number; token: number } | null
   /** Reports wait state and the pitch the player is waiting for. */
   onWaitChange?: (waiting: boolean, expectedPitch: number | null) => void
+  /** Reports the engine's transport position whenever it lands in React state
+   * (status messages while playing, wait stops, seeks). One clock: consumers
+   * like the practice roll must read the position through this, never run
+   * their own timer. */
+  onPosition?: (position: number) => void
+  /** Reports the transport's playing state whenever it changes in React state
+   * (play, pause, wait stop, end). The practice summary shows only when the
+   * run is stopped. */
+  onPlayingChange?: (playing: boolean) => void
   /** Optional analysis report; renders chord/beat lanes under the transport. */
   analysis?: AnalysisReport | null
   /** Durable per-song settings (library) override local scratch values. */
@@ -104,6 +118,9 @@ export function PlayerSurface({
   compact,
   resumeToken,
   onWaitChange,
+  onPosition,
+  onPlayingChange,
+  practiceLoop,
   analysis,
   initialParams,
   onParamsChange,
@@ -155,6 +172,15 @@ export function PlayerSurface({
   const lastParamsRef = useRef('')
   const positionRef = useRef(0)
   positionRef.current = position
+  const positionNotifyRef = useRef(onPosition)
+  positionNotifyRef.current = onPosition
+  const playingChangeRef = useRef(onPlayingChange)
+  playingChangeRef.current = onPlayingChange
+
+  // The engine/worklet is the clock; this only reflects its position upward.
+  useEffect(() => {
+    positionNotifyRef.current?.(position)
+  }, [position])
 
   const waitPoints = useMemo(() => waitPointsFromNotes(notes), [notes])
   const effectiveDuration = durationState || duration || 0
@@ -333,6 +359,36 @@ export function PlayerSurface({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resumeToken])
 
+  // External practice loop (leg C): same pattern as resumeToken — apply the
+  // requested A–B bounds once per token, then restart the transport from the
+  // section start. Mirrors playClip's direct engine calls (setLoop, seek,
+  // play) rather than waiting on the React loop state to flush.
+  const appliedPracticeLoopRef = useRef(0)
+  useEffect(() => {
+    if (!practiceLoop || practiceLoop.token === appliedPracticeLoopRef.current) return
+    appliedPracticeLoopRef.current = practiceLoop.token
+    if (!(practiceLoop.end > practiceLoop.start)) return
+    setLoopA(practiceLoop.start)
+    setLoopB(practiceLoop.end)
+    update({ loopEnabled: true })
+    const engine = engineRef.current
+    if (engine) {
+      clipRunRef.current = null
+      engine.setLoop({ enabled: true, start: practiceLoop.start, end: practiceLoop.end })
+      engine.seek(practiceLoop.start)
+      engine.play({ from: practiceLoop.start, countInBeats: 0, bpm: bpm ?? 100 })
+      setPlaying(true)
+    }
+    // The token is the trigger; bounds/bpm are read once per token.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [practiceLoop])
+
+  // Playing state out to the practice panel: one effect on the React state
+  // covers every path that sets it (onStatus, wait, ended, play, pause).
+  useEffect(() => {
+    playingChangeRef.current?.(playing)
+  }, [playing])
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null
@@ -418,6 +474,7 @@ export function PlayerSurface({
     loop: { enabled: params.loopEnabled, start: loopA, end: loopB },
     markers,
     clips,
+    ui: { compact: compactMode, eq: showEq },
   })
 
   const saveSceneNow = () => {
@@ -434,6 +491,11 @@ export function PlayerSurface({
     setLoopB(state.loop.end)
     setMarkers(state.markers)
     setClips(state.clips)
+    // Older scenes carry no panel arrangement; leave the current one alone then.
+    if (state.ui) {
+      setCompactMode(state.ui.compact)
+      setShowEq(state.ui.eq)
+    }
     setMessage(t('player.sceneApplied', { name: scene.name }))
   }
 
