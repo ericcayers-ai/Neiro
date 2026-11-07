@@ -1,7 +1,7 @@
 @echo off
 setlocal
 set "TESTROOT=%LOCALAPPDATA%\neiro-live-test"
-set "REPO=C:\Users\ericc\OneDrive\Desktop\Programs\music-assistant"
+set "REPO=%~dp0.."
 if exist "%TESTROOT%" rmdir /s /q "%TESTROOT%"
 mkdir "%TESTROOT%\wheels"
 xcopy /y /q "%REPO%\packaging\launchers\*" "%TESTROOT%\"

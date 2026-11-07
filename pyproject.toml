@@ -126,3 +126,30 @@ ignore = [
 
 [tool.ruff.lint.isort]
 known-first-party = ["neiro"]
+
+# numpy 2 split in the optional heavy extras.
+# `separation` and `all` pull audio-separator>=0.44, which requires numpy>=2.
+# Four other extras pin numpy below 2 and therefore cannot be resolved in the same
+# environment as those two:
+#   clap          -> laion-clap 1.1.7        requires numpy<2.0.0
+#   deepfilternet -> deepfilternet 0.5.6     requires numpy>=1.22,<2.0
+#   superres      -> audiosr 0.0.7           requires numpy<=1.23.5 (also Python <=3.11)
+#   demucs        -> demucs 4.1.0            requires numpy<2 on darwin/x86_64
+# These are genuine upstream constraints, not something this project can relax.
+# uv's supported mechanism for mutually-exclusive extras is a conflicts declaration;
+# every extra still installs correctly on its own.
+# Full stack: uv sync --all-extras --no-extra clap --no-extra deepfilternet --no-extra superres --no-extra demucs
+[tool.uv]
+# madmom 0.16.1 (pulled in by the `basicpitch` extra) needs Cython at build time but does
+# not declare it, so isolated builds fail. uv's documented remedy:
+extra-build-dependencies = { madmom = ["Cython", "numpy"] }
+conflicts = [
+    [{ extra = "separation" }, { extra = "clap" }],
+    [{ extra = "separation" }, { extra = "deepfilternet" }],
+    [{ extra = "separation" }, { extra = "superres" }],
+    [{ extra = "separation" }, { extra = "demucs" }],
+    [{ extra = "all" }, { extra = "clap" }],
+    [{ extra = "all" }, { extra = "deepfilternet" }],
+    [{ extra = "all" }, { extra = "superres" }],
+    [{ extra = "all" }, { extra = "demucs" }],
+]
