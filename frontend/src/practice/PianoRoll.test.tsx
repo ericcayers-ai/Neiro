@@ -218,4 +218,58 @@ describe('PianoRoll drawing (jsdom, injected fake context)', () => {
     expect(lines).toHaveLength(1)
     expect(lines[0].args).toEqual([JUDGEMENT_X - 1, 0, 2, 160])
   })
+
+  it('applies noteAlpha to a note, so leg D can fade a mastered bar', () => {
+    const capture = fakeContext()
+    const now = 5
+    const layout = rollLayout({ now, pixelsPerSecond: PPS, judgementX: JUDGEMENT_X, height: 160 })
+    // A pending note is filled; half alpha must reach globalAlpha at the fill.
+    const alphas: number[] = []
+    const spy = capture.raw as unknown as { globalAlpha: number }
+    const original = Object.getOwnPropertyDescriptor(spy, 'globalAlpha')
+    Object.defineProperty(spy, 'globalAlpha', {
+      get: () => (original?.get ? original.get.call(spy) : 1),
+      set: (value: number) => {
+        alphas.push(value)
+      },
+      configurable: true,
+    })
+
+    drawRoll(capture.ctx, [judged('pending', now - 1, now)], layout, {
+      width: WIDTH,
+      dpr: 1,
+      showHands: false,
+      noteAlpha: () => 0.25,
+    })
+
+    // The judgement line is drawn at alpha 1 first, then the note at paint.fillAlpha * 0.25.
+    expect(alphas).toContain(1)
+    expect(alphas.some((value) => value > 0 && value < 0.3)).toBe(true)
+  })
+
+  it('clamps a bad noteAlpha instead of making the note invisible or too bright', () => {
+    const capture = fakeContext()
+    const now = 5
+    const layout = rollLayout({ now, pixelsPerSecond: PPS, judgementX: JUDGEMENT_X, height: 160 })
+    const seen: number[] = []
+    const spy = capture.raw as unknown as { globalAlpha: number }
+    Object.defineProperty(spy, 'globalAlpha', {
+      get: () => 1,
+      set: (value: number) => {
+        seen.push(value)
+      },
+      configurable: true,
+    })
+    for (const bad of [Number.NaN, -3, 9]) {
+      seen.length = 0
+      drawRoll(capture.ctx, [judged('pending', now - 1, now)], layout, {
+        width: WIDTH,
+        dpr: 1,
+        showHands: false,
+        noteAlpha: () => bad,
+      })
+      // NaN falls back to 1, -3 clamps to 0, 9 clamps to 1; none may exceed the paint alpha.
+      expect(seen.every((value) => Number.isFinite(value) && value >= 0 && value <= 1)).toBe(true)
+    }
+  })
 })

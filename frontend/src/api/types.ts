@@ -306,3 +306,21 @@ export interface LibraryPlaylist {
   is_default: boolean
   songs: { id: string; title: string }[]
 }
+
+/**
+ * A user's `.mid` imported as a practice target (PianoVision adoption leg F).
+ *
+ * `tracks` is the same `Record<string, MidiEvent[]>` the transcription result and the
+ * practice panel already use, so an imported file needs no new player path. The
+ * descriptor a card shows is derived from these notes (`frontend/src/practice/library.ts`),
+ * never stored, so it cannot drift from the notes.
+ */
+export interface MidiTarget {
+  id: string
+  title: string
+  path?: string | null
+  tempo_bpm?: number | null
+  tracks: Record<string, MidiEvent[]>
+  created: number
+  updated: number
+}

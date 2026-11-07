@@ -41,6 +41,14 @@ export interface PianoRollProps {
   /** Colour notes by hand (default true); off draws everything in one hue. */
   showHands?: boolean
   height?: number
+  /**
+   * Per-note opacity multiplier in 0..1, for PianoVision adoption leg D (memory fade).
+   *
+   * The roll deliberately does NOT know what a bar is: the caller maps a note to the bar it belongs to
+   * and returns `opacityForBar(memory, bar)` from `./memory.ts`. Keeping that mapping outside is what
+   * lets the same roll serve a target with no bar map at all.
+   */
+  noteAlpha?: (judged: JudgedNote) => number
   /** Reports the measured logical canvas size (CSS px). */
   onSizeChange?: (widthPx: number, heightPx: number) => void
   /** Test seam: jsdom has no 2d context, so tests inject a fake here instead of
@@ -53,6 +61,14 @@ export interface RollDrawOptions {
   width: number
   dpr: number
   showHands: boolean
+  /** See `PianoRollProps.noteAlpha`. Absent means fully opaque, which is the old behaviour. */
+  noteAlpha?: (judged: JudgedNote) => number
+}
+
+/** Clamp an externally supplied alpha so a bad callback cannot make a note invisible or brighter than 1. */
+function clampAlpha(value: number): number {
+  if (!Number.isFinite(value)) return 1
+  return value < 0 ? 0 : value > 1 ? 1 : value
 }
 
 /**
@@ -92,13 +108,14 @@ export function drawRoll(
     if (rect.x + rect.w < 0 || rect.x > width || rect.y > layout.height) continue
     const colour = showHands ? HAND_COLOURS[rect.hand] : NEUTRAL_COLOUR
     const paint = notePaint(rect.state)
+    const fade = options.noteAlpha ? clampAlpha(options.noteAlpha(judged)) : 1
     if (paint.fillAlpha > 0) {
-      ctx.globalAlpha = paint.fillAlpha
+      ctx.globalAlpha = paint.fillAlpha * fade
       ctx.fillStyle = colour
       ctx.fillRect(rect.x, rect.y, rect.w, rect.h)
     }
     if (paint.strokeWidth > 0) {
-      ctx.globalAlpha = 1
+      ctx.globalAlpha = fade
       ctx.lineWidth = paint.strokeWidth
       ctx.strokeStyle = colour
       ctx.strokeRect(rect.x, rect.y, rect.w, rect.h)
@@ -114,6 +131,7 @@ export function PianoRoll({
   pixelsPerSecond = DEFAULT_PIXELS_PER_SECOND,
   showHands = true,
   height = ROLL_HEIGHT_PX,
+  noteAlpha,
   onSizeChange,
   createContext,
   ariaLabel = 'Practice roll',
@@ -157,8 +175,9 @@ export function PianoRoll({
       width,
       dpr,
       showHands,
+      noteAlpha,
     })
-  }, [notes, nowSec, pixelsPerSecond, showHands, height, width, createContext])
+  }, [notes, nowSec, pixelsPerSecond, showHands, height, width, createContext, noteAlpha])
 
   return (
     <canvas

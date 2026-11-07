@@ -1484,6 +1484,23 @@ def _make_handler(state: _State):
                     return
                 self._send(200, target.read_bytes(), self._ctype_for(target))
                 return
+            if path.startswith("/api/library/midi-file/"):
+                # The imported .mid itself, so an imported target behaves like a transcribed
+                # one: the MIDI Studio download link and any later re-parse read the bytes
+                # rather than a re-encode of the stored notes.
+                from neiro.library.store import LibraryStore
+
+                target_id = path.rstrip("/").rsplit("/", 1)[-1]
+                midi_target = LibraryStore().get_midi_target(target_id)
+                if not midi_target or not midi_target.get("path"):
+                    self._error(404, "MIDI target has no local file")
+                    return
+                midi_path = Path(midi_target["path"])
+                if not midi_path.is_file():
+                    self._error(404, "MIDI file is missing from disk")
+                    return
+                self._send(200, midi_path.read_bytes(), "audio/midi")
+                return
             if path.startswith("/api/library/"):
                 from neiro.ui.library_api import handle_library
 

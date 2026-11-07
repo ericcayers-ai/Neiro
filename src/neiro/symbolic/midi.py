@@ -109,7 +109,7 @@ def _read_varlen(data: bytes, pos: int) -> tuple[int, int]:
     return value, pos
 
 
-def read_midi_notes(path: str | Path, *, track: str = "midi") -> NoteStream:
+def read_midi_notes(path: str | Path, *, track: str | None = None) -> NoteStream:
     """Read a Standard MIDI File back into a :class:`NoteStream`, in seconds.
 
     Dependency-free counterpart to :func:`write_midi`, used to round-trip
@@ -118,6 +118,12 @@ def read_midi_notes(path: str | Path, *, track: str = "midi") -> NoteStream:
     ``"{track}.drums"``, everything else with ``track``. Tempo-map aware: uses
     each track's own tempo meta-events (falling back to 120 BPM) to convert
     ticks to seconds, so multi-tempo files still land on the right onset.
+
+    ``track`` names every event, and is what the adapters pass because a model's own MIDI
+    output carries no useful track names. Left as ``None``, the file's ``MTrk`` name meta is
+    used instead (falling back to ``"midi"``), which is what a user's own ``.mid`` should
+    be called on a library card. When a tempo meta event is present the stream reports it,
+    so a practice target knows the file's BPM rather than assuming 120.
     """
     data = Path(path).read_bytes()
     if data[:4] != b"MThd":
@@ -126,6 +132,11 @@ def read_midi_notes(path: str | Path, *, track: str = "midi") -> NoteStream:
     pos = 14
 
     events: list[NoteEvent] = []
+    # First tempo meta event in the file, in microseconds per quarter note. Read so the
+    # returned :class:`NoteStream` carries the file's own tempo: a MIDI-imported practice
+    # target needs a BPM to place bars (the note times are already in seconds), and
+    # inventing 120 there would mis-place every bar line of a faster or slower file.
+    file_us_per_qn: int | None = None
     for _ in range(n_tracks):
         if data[pos : pos + 4] != b"MTrk":
             raise ValueError("malformed MIDI: expected MTrk")
@@ -139,6 +150,11 @@ def read_midi_notes(path: str | Path, *, track: str = "midi") -> NoteStream:
         tempo_state = {"seconds": 0.0, "us_per_qn": 500_000, "last_tick": 0}
         running_status = 0
         pending: dict[tuple[int, int], tuple[float, int]] = {}  # (channel,pitch)->(onset_s,vel)
+        # This track's notes as (channel, onset, offset, pitch, velocity). They are named
+        # only after the whole MTrk is read, because the name meta event is not required to
+        # be the track's first event.
+        track_events: list[tuple[int, float, float, int, int]] = []
+        track_name: str | None = None
 
         def tick_to_seconds(t: int, _st: dict = tempo_state) -> float:
             return _st["seconds"] + (t - _st["last_tick"]) * (_st["us_per_qn"] / ppq) / 1_000_000
@@ -160,6 +176,10 @@ def read_midi_notes(path: str | Path, *, track: str = "midi") -> NoteStream:
                     tempo_state["seconds"] = tick_to_seconds(tick)
                     tempo_state["last_tick"] = tick
                     tempo_state["us_per_qn"] = int.from_bytes(payload, "big")
+                    if file_us_per_qn is None:
+                        file_us_per_qn = tempo_state["us_per_qn"]
+                elif meta_type == 0x03 and meta_len:
+                    track_name = payload.decode("utf-8", "replace").strip() or None
                 p = p2 + meta_len
             elif status in (0xF0, 0xF7):  # sysex
                 sys_len, p2 = _read_varlen(data, p)
@@ -182,17 +202,28 @@ def read_midi_notes(path: str | Path, *, track: str = "midi") -> NoteStream:
                     key = (channel, d1)
                     if key in pending:
                         onset, vel = pending.pop(key)
-                        name = f"{track}.drums" if channel == 9 else track
-                        events.append(
-                            NoteEvent(
-                                onset=round(onset, 6),
-                                offset=round(max(t_s, onset + 1e-4), 6),
-                                pitch=d1,
-                                velocity=vel,
-                                track=name,
+                        track_events.append(
+                            (
+                                channel,
+                                round(onset, 6),
+                                round(max(t_s, onset + 1e-4), 6),
+                                d1,
+                                vel,
                             )
                         )
+        resolved = (track or track_name or "midi").strip() or "midi"
+        for channel, onset, offset, pitch, velocity in track_events:
+            events.append(
+                NoteEvent(
+                    onset=onset,
+                    offset=offset,
+                    pitch=pitch,
+                    velocity=velocity,
+                    track=f"{resolved}.drums" if channel == 9 else resolved,
+                )
+            )
         pos = end
 
     events.sort(key=lambda e: (e.onset, e.pitch))
-    return NoteStream(tuple(events), source="midi-import")
+    tempo_bpm = round(60_000_000 / file_us_per_qn, 3) if file_us_per_qn else None
+    return NoteStream(tuple(events), tempo_bpm=tempo_bpm, source="midi-import")

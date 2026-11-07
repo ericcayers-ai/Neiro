@@ -2,14 +2,93 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
+import hashlib
+import struct
 from pathlib import Path
 from typing import Any
 
 from neiro.library.store import LibraryStore
 
+# A Standard MIDI File is tiny (a 10-minute piano piece is well under 100 kB). The cap
+# exists so a wrong file picked in the dialog cannot be base64'd into the JSON body.
+MIDI_IMPORT_LIMIT_BYTES = 4 * 1024 * 1024
+MIDI_SUFFIXES = (".mid", ".midi")
+
 
 def _store() -> LibraryStore:
     return LibraryStore()
+
+
+def _import_midi_target(
+    store: LibraryStore, state: Any, body: dict
+) -> tuple[int, dict]:
+    """Store a user's ``.mid`` as a practice target (PianoVision adoption leg F).
+
+    Bytes arrive base64-encoded in the JSON body rather than as a multipart upload: the
+    library POST route already speaks JSON (``POST /api/library/...`` reads ``_read_json``),
+    and the existing ``/api/upload`` decodes audio, so a ``.mid`` there is a 422.
+
+    The response carries the parsed target only. The practice descriptor (difficulty,
+    notes/second, channels) is derived by the frontend from these notes, so there is one
+    implementation of that arithmetic rather than two that can disagree.
+    """
+    name = str(body.get("name") or "target.mid")
+    # A dialogs-supplied name is a name, never a path: collapsing to the basename keeps
+    # the write inside the workspace.
+    name = Path(name.replace("\\", "/")).name
+    if Path(name).suffix.lower() not in MIDI_SUFFIXES:
+        return 400, {"error": "a MIDI target must be a .mid or .midi file"}
+    encoded = body.get("midi_base64")
+    if not isinstance(encoded, str) or not encoded:
+        return 400, {"error": "midi_base64 is required (the .mid bytes, base64-encoded)"}
+    try:
+        data = base64.b64decode(encoded, validate=True)
+    except (binascii.Error, ValueError):
+        return 400, {"error": "midi_base64 is not valid base64"}
+    if not data:
+        return 400, {"error": "empty upload"}
+    if len(data) > MIDI_IMPORT_LIMIT_BYTES:
+        return 400, {"error": f"MIDI file too large (max {MIDI_IMPORT_LIMIT_BYTES} bytes)"}
+
+    from neiro.symbolic.midi import read_midi_notes
+
+    workspace = getattr(state, "workspace", None)
+    # Content-addressed directory: re-importing the same file lands on the same path, so the
+    # store's path key updates one row instead of stacking a duplicate per click.
+    digest = hashlib.sha256(data).hexdigest()[:16]
+    target_dir = Path(workspace or ".") / "midi" / digest
+    target_dir.mkdir(parents=True, exist_ok=True)
+    dest = target_dir / name
+    dest.write_bytes(data)
+    try:
+        stream = read_midi_notes(dest)
+    except (ValueError, struct.error, IndexError) as exc:
+        # The bytes are not a readable SMF: nothing is registered, and the message names
+        # the reason rather than a stack trace.
+        return 400, {"error": f"couldn't read the MIDI file: {exc}"}
+    if not stream.events:
+        return 400, {"error": "this file carries no notes"}
+
+    tracks: dict[str, list[dict[str, Any]]] = {}
+    for event in stream.events:
+        tracks.setdefault(event.track, []).append(
+            {
+                "onset": event.onset,
+                "offset": event.offset,
+                "pitch": event.pitch,
+                "velocity": event.velocity,
+                "confidence": event.confidence,
+            }
+        )
+    target = store.upsert_midi_target(
+        title=str(body.get("title") or Path(name).stem),
+        path=str(dest),
+        tempo_bpm=stream.tempo_bpm,
+        tracks=tracks,
+    )
+    return 200, {"ok": True, "target": target}
 
 
 def _duration_of(path: Path) -> float | None:
@@ -157,6 +236,19 @@ def handle_library(
                 conn.execute("DELETE FROM playlist_items")
                 conn.execute("DELETE FROM scenes")
             return 200, {"ok": True, "removed_songs": songs}
+        if resource == "midi-targets":
+            if method == "GET" and not rest:
+                return 200, {"targets": store.list_midi_targets()}
+            if method == "GET" and rest:
+                target = store.get_midi_target(rest[0])
+                if target is None:
+                    return 404, {"error": "midi target not found"}
+                return 200, {"target": target}
+            if method == "DELETE" and rest:
+                return 200, {"ok": store.delete_midi_target(rest[0])}
+            if method == "POST" and not rest:
+                return _import_midi_target(store, state, body)
+
         if resource == "export" and method == "GET":
             return 200, {
                 "version": 1,

@@ -22,6 +22,7 @@ import { libraryWrites, playerStorageKey, readPlayerArtifacts } from '../player/
 import type { PlayerParams } from '../player/params'
 import { useSession } from '../state/session'
 import { ModuleHeader } from '../components/ModuleHeader'
+import { MidiTargets } from '../library/MidiTargets'
 import { usePlural, useT } from '../i18n'
 
 const NOTES_LIMIT = 5000
@@ -440,6 +441,8 @@ export function LibraryModule() {
           )}
         </div>
       </div>
+
+      <MidiTargets />
     </div>
   )
 }

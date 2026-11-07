@@ -28,8 +28,10 @@ Gate: `python scripts/verify_goal.py --full` — **18/18 PASS** on 2026-10-20.
   wired to `npm test` and gate C22.
 - [x] **P0-12 CSP on the served UI.** Same-origin script/media/worklet directives,
   no framing/objects; tested and exercised by desktop/worklet checks.
-- [ ] **P0-11 Short-basetemp note in test docs.** `pytest` still needs
+- [x] **P0-11 Short-basetemp note in test docs.** `pytest` still needs
   `--basetemp C:\np` on Windows; document it in the contributing guide.
+  Receipt: `docs/evidence/autofix2-2026-10-26.md` (appendix, 2026-10-26); rule lives at
+  `CONTRIBUTING.md:67-89` and the documented command was run (exit 0).
 
 ## Phase 1 — shared real-time player
 
@@ -195,3 +197,13 @@ width, stale-sidecar verification, reload session restore (+clear), URL audio
 without yt-dlp, metronome rounding. Evidence: `docs/evidence/qa-sweep-2026-10-22.md`.
 
 Everything else in `HANDOFF.md` has a measured receipt under `docs/evidence/`.
+
+
+## Phase 7 — PianoVision VR / MR Stage & Complete Practice Loop (2026-10-31)
+
+- [x] **P7-1 Practice engine core (Leg A) + 2D falling-note roll (Leg B) + Scoring summary (Leg C) + Memory fade (Leg D) + MIDI target library (Leg F).** `frontend/src/practice/{engine,geometry,PianoRoll,ScoreSummary,memory,library}.ts(x)` + `src/neiro/library/store.py`.
+- [x] **P7-2 VR / MR Physical Keyboard Calibration & 3D Waterfall Stage.** `frontend/src/practice/vrCalibration.ts` + `PianoVisionVRView.tsx` wired into `MidiPracticePanel.tsx` (88/76/61/49-key physical layouts, 2-point `A0->C8` spatial anchor transform, WebXR `immersive-ar` passthrough cutout / `immersive-vr` concert hall & studio environments, LH/RH hand filter).
+- [x] **P7-3 Synchronized Grand Staff Sheet Music HUD & Ergonomic Fingering 1–5 (Leg E).** `frontend/src/practice/fingering.ts` + floating SVG Grand Staff HUD inside `PianoVisionVRView.tsx`.
+- [x] **P7-4 Acoustic Piano Microphone Pitch Input (Leg G).** `frontend/src/practice/acousticPitch.ts` (CMNDF YIN pitch estimator + latency-compensated `AcousticNoteDetector` emitting `ObservedNote` events).
+- [x] **P7-5 Tests & Typecheck Gate.** `frontend/src/practice/pianovisionVr.test.tsx` — `npx tsc -b` exit 0, `npx vitest run` **13 files / 141 passed**.
+- [x] **P7-6 MIDI target transport (leg F's open seam, closed 2026-11-07).** An imported `.mid` target had no clock of its own: the roll followed `PlayerSurface`, which only mounts when audio is open, so a target-only session was gated behind "import a track". `frontend/src/modules/midi/MidiTargetTransport.tsx` now drives the repo's existing `Transport` state machine (`player/Transport.ts` — same play/pause/seek/tick/loop/ended semantics) from a wall clock and feeds the panel the same `onPosition` / `onPlayingChange` / `practiceLoop` seams the player uses; `targetEndSec` in `frontend/src/practice/library.ts` gives it the target's absolute length. Never mounted alongside the player. Tests: `MidiTargetTransport.test.tsx` (7), two target-only cases added to `MidiPracticePanel.test.tsx`, three for `targetEndSec` in `library.test.ts`. Gate: `npx --no-install vitest run` → **14 files / 153 passed**, `tsc -b` exit 0. Evidence: `docs/evidence/orchestrate-2026-11-07.md`.

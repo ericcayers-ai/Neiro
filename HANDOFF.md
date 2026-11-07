@@ -658,3 +658,35 @@ zoomable (rather than proportional) analysis timeline.
 4. Extract module-body strings into the i18n catalogue; RTL/plural support;
    owner-run axe/screen-reader/contrast.
 5. Companion live-site e2e and a listening panel.
+
+---
+
+## 15. Orchestrated run — 2026-11-07 (measured state)
+
+**Tree:** `main` @ `00f9373` (PianoVision legs A–C), 60 uncommitted paths. Legs D (memory
+fade), E (fingering + staff HUD), F (MIDI target library), G (acoustic pitch input) are
+present in the worktree and had never been committed; they are committed by this run.
+
+**Gate (run, not remembered):**
+
+```
+cd frontend && npx --no-install vitest run        # 13 files / 141 tests passed
+cd frontend && npx --no-install vitest run src/practice   # 7 files / 114 tests passed
+```
+
+The `13 files / 141 tests` figure quoted in `tasks/WORKLIST.md` P7-5 is the **whole**
+frontend suite; the practice subtree alone is 7 files / 114 tests.
+
+**Measured open items at run start**
+
+| Item | Status found | Evidence |
+|---|---|---|
+| PianoVision legs D–G uncommitted | open | `git status --porcelain` lists the 9 practice files + `PianoRoll.tsx` |
+| P3-3 ONNX chord/beat adapters | open, **blocked** | `tasks/WORKLIST.md:108`; 7.3 GB free, no torch/onnx, weights not obtainable here |
+| MIDI target has no transport | open | `frontend/src/library/MidiTargets.tsx:138` (`library.midiNeedsAudio`); `PlayerSurface` mounts only when `file` exists |
+| A3 learning-studio plugin thread | open, not started | `docs/REEL-ADOPTION-2026-10-27.md` prior-backlog row A3 — no contract, no code |
+
+**Closed by this run:** see `docs/evidence/orchestrate-2026-11-07.md`.
+**Next action:** the only unchecked WORKLIST row is P3-3, which needs a weights download
+the owner has to approve; otherwise the open rows are the owner decisions in
+`docs/REEL-ADOPTION-2026-10-27.md`.

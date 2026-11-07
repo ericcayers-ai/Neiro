@@ -7,7 +7,8 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: 'node',
-    include: ['src/**/*.test.tsx'],
+    // .test.tsx for React modules, .test.ts for pure logic (practice engine).
+    include: ['src/**/*.{test.ts,test.tsx}'],
     reporters: 'default',
   },
 })

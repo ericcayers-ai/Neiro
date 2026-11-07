@@ -12,6 +12,7 @@ import type {
   TranscribeResult,
   LibraryPlaylist,
   LibrarySong,
+  MidiTarget,
   UploadResponse,
   VersionResponse,
   WaveformData,
@@ -681,5 +682,51 @@ export function libraryAudioUrl(songId: string): string {
   return `/api/library/audio/${encodeURIComponent(songId)}`
 }
 
-export type { LibrarySong, LibraryPlaylist }
+// --------------------------------------------------------------- MIDI targets
+export async function listMidiTargets(): Promise<{ targets: MidiTarget[] }> {
+  const res = await fetch('/api/library/midi-targets', { cache: 'no-store' })
+  return readJson(res)
+}
+
+/**
+ * The imported `.mid` itself, for the MIDI download link an imported target deserves to
+ * have. Byte-identical to the file the user picked.
+ */
+export function midiTargetFileUrl(targetId: string): string {
+  return `/api/library/midi-file/${encodeURIComponent(targetId)}`
+}
+
+/**
+ * Base64 in the JSON body, not multipart: `POST /api/library/...` already reads a JSON body,
+ * and `/api/upload` decodes audio (a `.mid` there is a 422). A MIDI file is small, so the
+ * encoding cost is not worth a second upload route.
+ */
+async function fileToBase64(file: File): Promise<string> {
+  const bytes = new Uint8Array(await file.arrayBuffer())
+  let binary = ''
+  const chunk = 0x8000
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk))
+  }
+  return btoa(binary)
+}
+
+export async function importMidiTarget(file: File): Promise<{ ok: boolean; target: MidiTarget }> {
+  const res = await fetch('/api/library/midi-targets', {
+    method: 'POST',
+    headers: await apiHeaders(),
+    body: JSON.stringify({ name: file.name, midi_base64: await fileToBase64(file) }),
+  })
+  return readJson(res)
+}
+
+export async function deleteMidiTarget(targetId: string): Promise<{ ok: boolean }> {
+  const res = await fetch(`/api/library/midi-targets/${encodeURIComponent(targetId)}`, {
+    method: 'DELETE',
+    headers: await apiHeaders(),
+  })
+  return readJson(res)
+}
+
+export type { LibrarySong, LibraryPlaylist, MidiTarget }
 

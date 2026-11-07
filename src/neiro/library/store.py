@@ -117,6 +117,17 @@ CREATE TABLE IF NOT EXISTS versions (
   settings_json TEXT NOT NULL DEFAULT '{}',
   created REAL NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS midi_targets (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  path TEXT,
+  tempo_bpm REAL,
+  tracks_json TEXT NOT NULL DEFAULT '{}',
+  created REAL NOT NULL,
+  updated REAL NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS midi_targets_path ON midi_targets(path) WHERE path IS NOT NULL;
 """
 
 
@@ -463,7 +474,79 @@ class LibraryStore:
             "settings": settings or {},
         }
 
+    # -- MIDI practice targets (PianoVision adoption leg F) -----------------
+    def upsert_midi_target(
+        self,
+        *,
+        title: str,
+        path: str | None = None,
+        tempo_bpm: float | None = None,
+        tracks: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Register a parsed MIDI target, keyed by its file path when it has one.
+
+        Only the target is persisted — ``tracks`` (name -> note list) and the tempo. The
+        practice descriptor (difficulty, density, channels) is DERIVED and recomputed by
+        ``frontend/src/practice/library.ts`` on read, so the numbers cannot drift from the
+        notes they describe.
+        """
+        if not isinstance(tracks, dict):
+            raise ValueError("tracks must map track names to note lists")
+        if not str(title or "").strip():
+            raise ValueError("a MIDI target needs a title")
+        payload = json.dumps(tracks)
+        now = _now()
+        with self._connect() as conn:
+            existing = None
+            if path:
+                existing = conn.execute(
+                    "SELECT id FROM midi_targets WHERE path = ?", (path,)
+                ).fetchone()
+            if existing:
+                target_id = existing["id"]
+                conn.execute(
+                    """UPDATE midi_targets SET title=?, tempo_bpm=COALESCE(?, tempo_bpm),
+                       tracks_json=?, updated=? WHERE id=?""",
+                    (title, tempo_bpm, payload, now, target_id),
+                )
+            else:
+                target_id = _new_id("mid")
+                conn.execute(
+                    """INSERT INTO midi_targets
+                       (id, title, path, tempo_bpm, tracks_json, created, updated)
+                       VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                    (target_id, title, path, tempo_bpm, payload, now, now),
+                )
+        return self.get_midi_target(target_id) or {}
+
+    def list_midi_targets(self) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute("SELECT * FROM midi_targets ORDER BY updated DESC").fetchall()
+        return [self._midi_target_row(row) for row in rows]
+
+    def get_midi_target(self, target_id: str) -> dict[str, Any] | None:
+        with self._connect() as conn:
+            row = conn.execute("SELECT * FROM midi_targets WHERE id = ?", (target_id,)).fetchone()
+        return None if row is None else self._midi_target_row(row)
+
+    def delete_midi_target(self, target_id: str) -> bool:
+        with self._connect() as conn:
+            cursor = conn.execute("DELETE FROM midi_targets WHERE id = ?", (target_id,))
+        return cursor.rowcount > 0
+
     # -- row mapping -------------------------------------------------------
+    @staticmethod
+    def _midi_target_row(row: sqlite3.Row) -> dict[str, Any]:
+        return {
+            "id": row["id"],
+            "title": row["title"],
+            "path": row["path"],
+            "tempo_bpm": row["tempo_bpm"],
+            "tracks": json.loads(row["tracks_json"] or "{}"),
+            "created": row["created"],
+            "updated": row["updated"],
+        }
+
     @staticmethod
     def _song_row(row: sqlite3.Row) -> dict[str, Any]:
         return {
