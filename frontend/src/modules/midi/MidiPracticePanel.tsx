@@ -137,6 +137,9 @@ export function MidiPracticePanel({ focus }: { focus: boolean }) {
   // Practice engine (leg A): the same transcribeResult.tracks the player uses,
   // matched against notes played through the DAW injector at wait gates.
   const practiceNotes = useMemo(() => parseTarget(transcribeResult?.tracks ?? {}), [transcribeResult])
+  // Stable identity for the wall-clock transport: it parks itself whenever `tracks` changes, so a
+  // fresh empty object every render would reset practice time on every keystroke elsewhere.
+  const targetTracks = useMemo(() => transcribeResult?.tracks ?? {}, [transcribeResult])
   const practiceStreamRef = useRef<ObservedNote[]>([])
   const gateOnsetRef = useRef(0)
 
@@ -454,7 +457,7 @@ export function MidiPracticePanel({ focus }: { focus: boolean }) {
       {!file && practiceNotes.length > 0 && (
         <>
           <MidiTargetTransport
-            tracks={transcribeResult?.tracks ?? {}}
+            tracks={targetTracks}
             bpm={bpm}
             onPosition={onRollPosition}
             practiceLoop={practiceLoopRequest}
