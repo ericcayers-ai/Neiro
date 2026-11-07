@@ -49,3 +49,18 @@ Thumbs.db
 # Local test artifacts / session transcripts (never commit)
 input_*.wav
 2026-07-13-*.txt
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+/graft/
+# graphify graph/cache directories are regenerable local state (rebuild with `graphify build`);
+# the hook also writes per-directory AST caches beside the files it reads.
+.graphify/
+# Marker files written by the graph hooks' installers.
+.graphify_hook_installed
+.graphify_claude_hook_installed
+# Local environment files (never commit real ones)
+.env
+.env.*
+!.env.example
+# Staged PyInstaller sidecar from packaging/build_sidecar.py --install (131 MiB, regenerated).
+/src-tauri/resources/engine/

@@ -64,6 +64,30 @@ npm run tauri:dev                  # builds the frontend, launches the desktop s
 The shell needs a working Python environment with `neiro` importable on `PATH`
 (the same one you set up above); it spawns `python -m neiro.cli ui --no-browser`.
 
+### Testing on Windows: always pass a short `--basetemp`
+
+`pytest` on Windows must be run with a short basetemp outside OneDrive:
+
+```bash
+python -m pytest -q -m "not slow" --basetemp C:\np
+```
+
+- **Why.** This repo usually lives under OneDrive (`…\Desktop\Programs\music-assistant`).
+  pytest derives per-test temp dirs from the basetemp with long node-id names; under
+  OneDrive those paths grow past Windows `MAX_PATH` and sync locks can stall or
+  corrupt writes (the suite has hit `MemoryError`/stale-write failures there). A
+  short, non-synced basetemp like `C:\np` avoids both.
+- **The repo's own scripts already follow this rule** — `scripts/verify_goal.py`
+  runs pytest with `--basetemp C:\np` (override via the `NEIRO_GATE_BASETEMP`
+  environment variable), so gate runs are covered automatically.
+- **Cleanup.** pytest wipes the basetemp directory at the start of every session and
+  prunes old numbered runs; if disk is tight, leftover `C:\np\test_*` / `pytest-of-*`
+  directories from crashed runs can be deleted by hand — never delete another
+  project's directories.
+
+Do not point `--basetemp` inside the repo or inside `C:\np` subdirectories you keep
+files in: pytest **deletes the basetemp's contents** at session start.
+
 ## Before you open a PR
 
 Run the same checks CI runs, for whichever part of the stack you touched:
@@ -72,7 +96,7 @@ Run the same checks CI runs, for whichever part of the stack you touched:
 # Python
 ruff check .          # lint
 ruff format .         # format (or --check to verify)
-pytest                # tests
+pytest                # tests (Windows: pytest -m "not slow" --basetemp C:\np)
 pytest --cov=neiro    # with coverage
 python scripts/verify_models.py   # manifest sanity check
 

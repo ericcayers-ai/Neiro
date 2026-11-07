@@ -1,0 +1,92 @@
+{
+  "app": "neiro.exe",
+  "label": "Neiro desktop shell + live webview (music-assistant)",
+  "launch": {
+    "app": "C:\\Users\\ericc\\OneDrive\\Desktop\\Programs\\music-assistant\\src-tauri\\target\\release\\neiro.exe",
+    "activate": true,
+    "timeout_ms": 45000,
+    "settle_ms": 3000
+  },
+  "snapshot": {
+    "interactive_only": false,
+    "compact": true,
+    "timeout_ms": 15000
+  },
+  "assert": [
+    {
+      "label": "top-level window is titled Neiro",
+      "window": {
+        "title_re": "^Neiro$"
+      }
+    },
+    {
+      "label": "window chrome exposes window controls",
+      "present": {
+        "role": "button",
+        "name_re": "^(Minimise|Minimize)$"
+      }
+    },
+    {
+      "label": "no unresponsive or crash dialog",
+      "absent": {
+        "name_re": "not responding|unhandled exception|has stopped working"
+      }
+    }
+  ],
+  "webview": {
+    "port": 9333,
+    "ready_timeout_ms": 25000,
+    "page_url_re": "^http://127\\.0\\.0\\.1:\\d+/",
+    "checks": [
+      {
+        "label": "document title",
+        "expr": "document.title",
+        "equals": "Neiro"
+      },
+      {
+        "label": "renderer finished loading",
+        "expr": "document.readyState",
+        "equals": "complete"
+      },
+      {
+        "label": "React root mounted",
+        "expr": "!!document.getElementById('root')"
+      },
+      {
+        "label": "UI tree populated",
+        "expr": "document.querySelectorAll('#root *').length",
+        "min": 80
+      },
+      {
+        "label": "interactive controls present",
+        "expr": "document.querySelectorAll('button,[role=button],a[href]').length",
+        "min": 10
+      },
+      {
+        "label": "navigation landmarks present",
+        "expr": "document.querySelectorAll('nav,[role=navigation],header,aside').length",
+        "min": 3
+      },
+      {
+        "label": "core sections rendered",
+        "expr": "['Import','Library','Studio','Prefs'].filter(t=>(document.body.innerText||'').includes(t)).length",
+        "min": 4
+      },
+      {
+        "label": "local-first promise still on screen",
+        "expr": "(document.body.innerText||'').includes('Audio never leaves it')"
+      },
+      {
+        "label": "no uncaught error text in the DOM",
+        "expr": "/(TypeError|Cannot read propert|Unhandled|Failed to fetch)/.test(document.body.innerText||'')",
+        "equals": "false"
+      }
+    ],
+    "console_errors": 0
+  },
+  "close": true,
+  "force_close": true,
+  "close_extra": [
+    "neiro-engine.exe"
+  ]
+}
