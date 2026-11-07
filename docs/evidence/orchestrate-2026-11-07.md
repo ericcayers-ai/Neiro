@@ -194,3 +194,12 @@ Not checked in this run, stated plainly: no audio was listened to, so no claim i
 metronome clock *feels* against a real performance; no live engine was started, so the Python side is
 verified by its test suite only; `vitest` ran in `node`/`jsdom`, so the WebXR stage's device paths are
 covered by the existing unit tests, not by a headset.
+
+### Follow-up inside the same run
+
+`f8862af fix(practice)` memoises the `tracks` object the panel hands the transport. `Transport` parks
+itself whenever its input identity changes, so `transcribeResult?.tracks ?? {}` was handing a fresh
+empty object on every render — practice time would have reset on any unrelated re-render. The served
+bundle was rebuilt again (`index-DKuRWTvF.js`) and the gate re-run: `vitest run` 14 files / 153 passed,
+`tsc -b` exit 0, `npm run build` exit 0. `14e9b98 docs(reel)` records the re-verified backlog rows.
+Final `git status --porcelain`: empty.
