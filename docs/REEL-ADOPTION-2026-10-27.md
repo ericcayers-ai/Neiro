@@ -85,3 +85,14 @@ already bars copying Transpose code, UI, locales, images, CDN artefacts or rb.wa
 may never cite a copied asset as its evidence. The reel work does lean on one open row - the new
 criterion joins the same CRITERIA table in verify_goal.py whose --full run is still an owner
 decision. A3 is untouched.
+
+### Status re-verified 2026-11-07
+
+| # | Item | Status |
+|---|---|---|
+| A3 | Learning-studio plugin thread | **OPEN, not started** - re-verified: still no plugin code, and no bridge-contract change was requested. Starting it would invent scope; `learning-studio` consumes this repo's contract, it is not edited here. |
+| - | PianoVision legs D-G | **DONE** - committed as `2d55ed7`; `npx vitest run` 14 files / 153 passed, `tsc -b` 0. |
+| - | Honest gap: an imported MIDI target has no transport of its own | **CLOSED** - `frontend/src/modules/midi/MidiTargetTransport.tsx` drives the shared `Transport` state machine on a wall clock when no audio is open, on the same seams the player exposes; the `library.midiNeedsAudio` copy that recorded the gap is gone. `2d55ed7`, tests 7 + 2 + 3. |
+| - | P3-3 ONNX chord/beat adapters | **OPEN, blocked externally** - no ChordMini/BTC or Beat This-class weights obtainable on this machine (7.1 GB free, no torch/onnx). |
+
+Receipt: `docs/evidence/orchestrate-2026-11-07.md`.
