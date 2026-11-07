@@ -11,6 +11,11 @@ export interface SceneLoop {
   end: number | null
 }
 
+export interface SceneUi {
+  compact: boolean
+  eq: boolean
+}
+
 export interface SceneSnapshot {
   id: string
   name: string
@@ -19,6 +24,8 @@ export interface SceneSnapshot {
   loop: SceneLoop
   markers: Marker[]
   clips: Clip[]
+  /** Panel arrangement captured with the scene; absent in older scenes. */
+  ui?: SceneUi
   createdAt: number
 }
 
@@ -27,6 +34,7 @@ export interface SceneState {
   loop: SceneLoop
   markers: Marker[]
   clips: Clip[]
+  ui?: SceneUi
 }
 
 function sceneId(): string {
@@ -46,6 +54,7 @@ export function makeScene(
     loop: { ...state.loop },
     markers: state.markers.map((marker) => ({ ...marker })),
     clips: state.clips.map((clip) => ({ ...clip })),
+    ui: state.ui ? { ...state.ui } : undefined,
     createdAt: Date.now(),
   }
 }
@@ -65,6 +74,7 @@ export function applyScene(scene: SceneSnapshot): SceneState {
     loop: { ...scene.loop },
     markers: scene.markers.map((marker) => ({ ...marker })),
     clips: scene.clips.map((clip) => ({ ...clip })),
+    ui: scene.ui ? { ...scene.ui } : undefined,
   }
 }
 

@@ -191,6 +191,23 @@ test('scenes snapshot, replace by name, apply and remove', () => {
   assert.equal(scenes.length, 1)
 })
 
+test('scenes capture the panel arrangement and tolerate older scenes', () => {
+  const state = {
+    params: normalizeParams({ transpose: 2 }),
+    loop: { enabled: false, start: null, end: null },
+    markers: [],
+    clips: [],
+    ui: { compact: true, eq: true },
+  }
+  const scene = makeScene('Compact EQ', state)
+  assert.deepEqual(scene.ui, { compact: true, eq: true })
+  assert.deepEqual(applyScene(scene).ui, { compact: true, eq: true })
+  assert.notEqual(applyScene(scene).ui, scene.ui, 'apply returns a copy')
+
+  const legacy = { ...scene, ui: undefined }
+  assert.equal(applyScene(legacy).ui, undefined, 'older scenes carry no arrangement')
+})
+
 test('midi parsing, learn, matching and persistence format', () => {
   assert.deepEqual(parseMidiMessage([0x90, 60, 100]), { type: 'note', channel: 0, number: 60, value: 100 })
   assert.deepEqual(parseMidiMessage([0xb2, 7, 64]), { type: 'cc', channel: 2, number: 7, value: 64 })
