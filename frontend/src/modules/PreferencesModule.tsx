@@ -17,20 +17,23 @@ import {
 import { useLocalPref } from '../api/hooks'
 import { IntentField } from '../components/IntentField'
 import { ModuleHeader } from '../components/ModuleHeader'
-import { useT } from '../i18n'
+import { usePlural, useT } from '../i18n'
 import { CompanionCard } from './CompanionCard'
 import { DataResetCard } from './DataResetCard'
 import './modules.css'
 
-const PACK_LABELS: Record<string, string> = {
-  separation: 'Separation',
-  piano: 'Piano',
-  restore: 'Restore',
-  transcription: 'Transcription',
+/** Pack id → catalogue key; unknown pack ids fall back to their raw name. */
+const PACK_KEYS: Record<string, string> = {
+  separation: 'prefs.pack.separation',
+  piano: 'prefs.pack.piano',
+  restore: 'prefs.pack.restore',
+  transcription: 'prefs.pack.transcription',
 }
 
 export function PreferencesModule() {
   const t = useT()
+  const plural = usePlural()
+  const packLabel = (pack: string) => (PACK_KEYS[pack] ? t(PACK_KEYS[pack]) : pack)
   const [theme, setTheme] = useLocalPref('neiro.pref.theme', 'dark')
   const [density, setDensity] = useLocalPref('neiro.pref.density', 'comfortable')
   const [fontScale, setFontScale] = useLocalPref('neiro.pref.fontScale', '100')
@@ -136,10 +139,10 @@ export function PreferencesModule() {
           setDownloadJobId(null)
           setStatus(
             j.status === 'done'
-              ? 'Download finished.'
+              ? t('prefs.status.downloadFinished')
               : j.status === 'cancelled'
-                ? 'Download cancelled.'
-                : `Download failed: ${j.error || 'unknown'}`,
+                ? t('prefs.status.downloadCancelled')
+                : t('prefs.status.downloadFailed', { error: j.error || t('prefs.status.unknown') }),
           )
           void refreshModels()
           if (pollRef.current) window.clearInterval(pollRef.current)
@@ -155,7 +158,7 @@ export function PreferencesModule() {
       if (pollRef.current) window.clearInterval(pollRef.current)
       pollRef.current = null
     }
-  }, [downloadJobId, refreshModels])
+  }, [downloadJobId, refreshModels, t])
 
   const filteredModels = useMemo(() => {
     if (taskFilter === 'all') return models
@@ -169,7 +172,7 @@ export function PreferencesModule() {
 
   const syncCompute = async () => {
     setEngineBusy(true)
-    setStatus('Saving compute prefs…')
+    setStatus(t('prefs.status.savingCompute'))
     try {
       const p = await updatePrefs({
         cache_budget_gb: Number(cacheBudget),
@@ -179,10 +182,13 @@ export function PreferencesModule() {
       setCacheEffective(Number(p.cache_budget_effective_gb))
       setDiskFree(Number(p.disk_free_gb))
       setStatus(
-        `Engine prefs applied — cache budget ${p.cache_budget_gb} GB, warm-pool TTL ${p.warm_pool_ttl_s}s.`,
+        t('prefs.status.computeApplied', {
+          gb: p.cache_budget_gb,
+          ttl: p.warm_pool_ttl_s,
+        }),
       )
     } catch (err) {
-      setStatus(`Couldn't update engine prefs: ${err instanceof Error ? err.message : err}`)
+      setStatus(t('prefs.status.computeFailed', { error: err instanceof Error ? err.message : String(err) }))
     } finally {
       setEngineBusy(false)
     }
@@ -190,33 +196,33 @@ export function PreferencesModule() {
 
   const onFlush = async (clearCache = false) => {
     setEngineBusy(true)
-    setStatus(clearCache ? 'Flushing warm pool and clearing cache…' : 'Flushing warm pool…')
+    setStatus(clearCache ? t('prefs.status.flushingClear') : t('prefs.status.flushing'))
     try {
       const p = await flushPrefs(clearCache)
       setResidents(p.resident_models || [])
       const n = p.flushed_models?.length ?? 0
       const parts = [
-        n
-          ? `Flushed ${n} resident model${n === 1 ? '' : 's'}`
-          : 'Warm pool was already empty',
+        n ? plural('prefs.status.flushed', n) : t('prefs.status.poolEmpty'),
       ]
-      if (p.cache_cleared) parts.push('artifact cache cleared')
+      if (p.cache_cleared) parts.push(t('prefs.status.cacheCleared'))
       setStatus(`${parts.join('; ')}.`)
     } catch (err) {
-      setStatus(`Couldn't flush warm pool: ${err instanceof Error ? err.message : err}`)
+      setStatus(t('prefs.status.flushFailed', { error: err instanceof Error ? err.message : String(err) }))
     } finally {
       setEngineBusy(false)
     }
   }
 
   const removeOne = async (modelId: string) => {
-    if (!window.confirm(`Remove cached weights for ${modelId}? The model stays listed; you can download it again.`)) {
+    if (!window.confirm(t('prefs.removeWeightsConfirm', { name: modelId }))) {
       return
     }
-    setStatus(`Removing ${modelId}…`)
+    setStatus(t('prefs.status.removing', { name: modelId }))
     try {
       const result = await removeModel(modelId)
-      setStatus(`Removed ${modelId} (${Math.round(result.freed_bytes / 1e6)} MB freed).`)
+      setStatus(
+        t('prefs.status.removed', { name: modelId, mb: Math.round(result.freed_bytes / 1e6) }),
+      )
       await refreshModels()
     } catch (err) {
       setStatus(err instanceof Error ? err.message : String(err))
@@ -224,24 +230,24 @@ export function PreferencesModule() {
   }
 
   const downloadOne = async (modelId: string) => {
-    setStatus(`Starting download: ${modelId}…`)
+    setStatus(t('prefs.status.downloadStarting', { name: modelId }))
     try {
       const { job_id } = await startModelDownload({ model_id: modelId })
       setDownloadJobId(job_id)
       setDownloadProgress([])
     } catch (err) {
-      setStatus(`Download failed: ${err instanceof Error ? err.message : err}`)
+      setStatus(t('prefs.status.downloadFailed', { error: err instanceof Error ? err.message : String(err) }))
     }
   }
 
   const downloadPack = async (pack: string) => {
-    setStatus(`Starting ${PACK_LABELS[pack] || pack} pack…`)
+    setStatus(t('prefs.status.packStarting', { label: packLabel(pack) }))
     try {
       const { job_id } = await startModelDownload({ pack })
       setDownloadJobId(job_id)
       setDownloadProgress([])
     } catch (err) {
-      setStatus(`Pack download failed: ${err instanceof Error ? err.message : err}`)
+      setStatus(t('prefs.status.packFailed', { error: err instanceof Error ? err.message : String(err) }))
     }
   }
 
@@ -249,21 +255,25 @@ export function PreferencesModule() {
     if (!downloadJobId) return
     try {
       await cancelJob(downloadJobId)
-      setStatus('Cancel requested…')
+      setStatus(t('prefs.status.cancelRequested'))
     } catch (err) {
-      setStatus(`Couldn't cancel: ${err instanceof Error ? err.message : err}`)
+      setStatus(t('prefs.status.cancelFailed', { error: err instanceof Error ? err.message : String(err) }))
     }
   }
 
   const onInstallVerovio = async () => {
     setEngineBusy(true)
-    setStatus('Installing verovio via pip…')
+    setStatus(t('prefs.status.installingVerovio'))
     try {
       const r = await installTool('verovio')
       if (r.status) setTools(r.status)
-      setStatus(r.ok ? 'Verovio installed.' : `Verovio install failed: ${r.error || 'see engine log'}`)
+      setStatus(
+        r.ok
+          ? t('prefs.status.verovioInstalled')
+          : t('prefs.status.verovioFailed', { error: r.error || t('prefs.status.seeEngineLog') }),
+      )
     } catch (err) {
-      setStatus(`Verovio install failed: ${err instanceof Error ? err.message : err}`)
+      setStatus(t('prefs.status.verovioFailed', { error: err instanceof Error ? err.message : String(err) }))
     } finally {
       setEngineBusy(false)
       void refreshTools()
@@ -272,17 +282,17 @@ export function PreferencesModule() {
 
   const onInstallSoundfont = async () => {
     setEngineBusy(true)
-    setStatus('Downloading TimGM6mb.sf2 (GM soundfont)…')
+    setStatus(t('prefs.status.downloadingSoundfont'))
     try {
       const r = await installTool('soundfont')
       if (r.status) setTools(r.status)
       setStatus(
         r.ok
-          ? `Soundfont ready${r.path ? `: ${r.path}` : ''}. Browser piano uses FluidR3 GM samples; SF2 stays on disk for MuseScore.`
-          : `Soundfont download failed: ${r.error || 'see engine log'}`,
+          ? t('prefs.status.soundfontReady', { path: r.path ? `: ${r.path}` : '' })
+          : t('prefs.status.soundfontFailed', { error: r.error || t('prefs.status.seeEngineLog') }),
       )
     } catch (err) {
-      setStatus(`Soundfont download failed: ${err instanceof Error ? err.message : err}`)
+      setStatus(t('prefs.status.soundfontFailed', { error: err instanceof Error ? err.message : String(err) }))
     } finally {
       setEngineBusy(false)
       void refreshTools()
@@ -296,12 +306,16 @@ export function PreferencesModule() {
       if (r.status) setTools(r.status)
       if (r.ok) {
         setMuseScorePathDraft(r.path || '')
-        setStatus(r.path ? `MuseScore path set: ${r.path}` : 'MuseScore override cleared (using PATH).')
+        setStatus(
+          r.path
+            ? t('prefs.status.musePathSet', { path: r.path })
+            : t('prefs.status.musePathCleared'),
+        )
       } else {
-        setStatus(`Couldn't set MuseScore path: ${r.error || 'unknown'}`)
+        setStatus(t('prefs.status.musePathFailed', { error: r.error || t('prefs.status.unknown') }))
       }
     } catch (err) {
-      setStatus(`Couldn't set MuseScore path: ${err instanceof Error ? err.message : err}`)
+      setStatus(t('prefs.status.musePathFailed', { error: err instanceof Error ? err.message : String(err) }))
     } finally {
       setEngineBusy(false)
       void refreshTools()
@@ -373,13 +387,13 @@ export function PreferencesModule() {
             }
           }}
         />{' '}
-        Open the player after import
+        {t('prefs.openPlayer')}
       </label>
       </div>
 
       <h3 id="prefs-models">{t('prefs.models')}</h3>
       <p className="intent" style={{ marginTop: 0 }}>
-        Download weights for available backends. Packs pull a starter set for each workflow.
+        {t('prefs.modelsIntent')}
       </p>
       <div className="row" style={{ marginBottom: '0.75rem' }}>
         {Object.keys(packs).map((pack) => (
@@ -388,18 +402,18 @@ export function PreferencesModule() {
             type="button"
             disabled={Boolean(downloadJobId)}
             onClick={() => void downloadPack(pack)}
-            title={`Download: ${(packs[pack] || []).join(', ')}`}
+            title={t('prefs.packDownloadTitle', { list: (packs[pack] || []).join(', ') })}
           >
-            {PACK_LABELS[pack] || pack} pack
+            {t('prefs.packLabel', { label: packLabel(pack) })}
           </button>
         ))}
         {downloadJobId && (
           <button type="button" onClick={() => void cancelDownload()}>
-            Cancel download
+            {t('prefs.cancelDownload')}
           </button>
         )}
         <button type="button" onClick={() => void refreshModels()}>
-          Refresh
+          {t('prefs.refresh')}
         </button>
       </div>
       {downloadProgress.length > 0 && (
@@ -409,7 +423,7 @@ export function PreferencesModule() {
       )}
       <div className="row" style={{ marginBottom: '0.5rem' }}>
         <label className="field">
-          Task filter
+          {t('prefs.taskFilter')}
           <select value={taskFilter} onChange={(e) => setTaskFilter(e.target.value)}>
             {tasks.map((t) => (
               <option key={t} value={t}>
@@ -480,7 +494,7 @@ export function PreferencesModule() {
         <p>
           {tools?.verovio.installed
             ? t('prefs.verovioReady')
-            : tools?.verovio.hint || 'pip install verovio'}
+            : tools?.verovio.hint || t('prefs.verovioHint')}
         </p>
         {!tools?.verovio.installed && (
           <button type="button" disabled={engineBusy} onClick={() => void onInstallVerovio()}>
@@ -544,7 +558,7 @@ export function PreferencesModule() {
               void onSaveMuseScorePath(full)
             } else {
               setStatus(
-                `Selected “${f.name}” — browsers hide full paths. Paste the full path to MuseScore4.exe and click Set path.`,
+                t('prefs.status.museFileHint', { name: f.name }),
               )
               setMuseScorePathDraft(f.name)
             }
@@ -556,7 +570,7 @@ export function PreferencesModule() {
         <p>
           {tools?.soundfont.installed
             ? t('prefs.soundfontReady', { files: tools.soundfont.files.join(', ') })
-            : tools?.soundfont.hint || 'GM SF2 for MIDI Studio.'}
+            : tools?.soundfont.hint || t('prefs.soundfontHint')}
         </p>
         {!tools?.soundfont.installed && (
           <button type="button" disabled={engineBusy} onClick={() => void onInstallSoundfont()}>
@@ -585,9 +599,10 @@ export function PreferencesModule() {
         </IntentField>
         {cacheEffective !== null && (
           <p className="intent" role="status">
-            Effective budget: {cacheEffective.toFixed(2)} GB
-            {diskFree !== null ? ` (disk free ${diskFree.toFixed(1)} GB)` : ''}. A request above
-            90% of free space is rejected.
+            {t('prefs.effectiveBudget', {
+              gb: cacheEffective.toFixed(2),
+              free: diskFree !== null ? t('prefs.diskFree', { free: diskFree.toFixed(1) }) : '',
+            })}
           </p>
         )}
         <IntentField
