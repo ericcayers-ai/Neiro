@@ -5,8 +5,8 @@ keep the Python engine as the queued quality path, and port every Transpose 6.5.
 *capability* clean-room — without accounts, cloud, subscription, share links, or
 copied proprietary code/assets/locales/`rb.wasm`.
 
-- Owner: ericc
-- Repo: `C:\Users\ericc\OneDrive\Desktop\Programs\music-assistant`
+- Owner: the Neiro maintainers
+- Repo: `<repo>`
 - Baseline: `main` @ `c3cc5c0`, tag `v1.2.1`, 2026-10-20
 - Execution register: `docs/EXECUTION-TRACKER.md`
 - Live work list: `tasks/WORKLIST.md`

@@ -42,7 +42,7 @@ That is the first finding of the run: the `13 files / 141 passed` figure recorde
 Reel digest (read-only, its own interpreter):
 
 ```
-$ cd C:/Users/ericc/.pi/agent/reelkit && ./venv/Scripts/python.exe rq.py project music-assistant
+$ cd the private reel toolkit && ./venv/Scripts/python.exe rq.py project music-assistant
 # 42 Oct 28, 2026 note  task-note   Reimplement the entirety of PianoVision in VR
 # 82 Oct 24, 2026 reel  adopt       gokayfem/shader-skills: 186 pre-tested GLSL shader functions …
 #246 May 27, 2026 other-url reference   Scribd document of Michael Jackson multitracks (stems reference)

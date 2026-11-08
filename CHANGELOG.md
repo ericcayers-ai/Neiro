@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased — public release hardening
+
+### Fixed
+- **Path traversal in the local UI file route.** `/files/<rel>` was contained with a
+  string prefix, so a sibling directory named `<workspace>-evil` could be served. The
+  check is now a component-wise `Path.relative_to` on the resolved path, applied to
+  `/files/` and `/api/soundfonts/`, with a raw-request regression test covering `..`,
+  `%2e%2e` and `..%2f`.
+- **Library reset no longer runs unscoped SQL.** `POST /api/library/reset` now calls
+  `LibraryStore.reset(confirm=True)`: one transaction, an id-scoped delete per song
+  (children cascade), plus song-less scenes. Same response shape and semantics.
+- **Release workflow could not be validated.** `release.yml` used the `secrets` context
+  inside `if`, which GitHub Actions does not support; the signing key's presence is now
+  resolved into a job-level `env.HAS_SIGNING_KEY`.
+- Library scene listing goes through `LibraryStore.list_scenes()` instead of the HTTP
+  layer reaching into a private connection.
+
+### Changed
+- CI pins `ruff==0.17.1`; an unpinned formatter turned the lint job red without a code
+  change. `THIRD_PARTY_NOTICES.txt` documents the packaging tool, `smplr`, the MPL-2.0
+  build-time packages and that no copyleft code ships.
+- Machine-local paths removed from `GOAL.md`, `HANDOFF.md`, `desk.gate.json`,
+  `docs/AUDIT.md`, `docs/CONVENTIONS.md` and `docs/evidence/*`.
+
 ## 1.2.1 — DAW shell + pipeline matrix (2026-07-18)
 
 ### Added

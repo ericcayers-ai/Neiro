@@ -1,37 +1,42 @@
 # music-assistant — state
 
-Updated 2026-11-07 (orchestrated run). Keep under 60 lines.
+Updated 2026-11-08 (public-release audit). Keep under 60 lines.
 
 ## Verified at update time
 
-- branch `main`, HEAD `00f9373` feat(practice): PianoVision legs A-C, 60 uncommitted paths.
+- branch `main`, tree clean after the release-audit commits.
 - stack: python (`pyproject`, `.venv`), node/React/Vite (`frontend`), Tauri (`src-tauri`).
-- Frontend gate (whole suite, run 2026-11-07):
-  `cd frontend && npx --no-install vitest run` → **13 files / 141 tests passed**.
-  `vitest run src/practice` alone is 7 files / 114 tests — the 13/141 figure in
-  `tasks/WORKLIST.md` is the full suite, not the practice subtree.
 - Python gate: `.venv\Scripts\python.exe -m pytest -q -m "not slow" --basetemp C:\np`
-  (the `--basetemp` is mandatory on Windows; see `HANDOFF.md` §14).
+  → **299 passed, 3 skipped** (the `--basetemp` is mandatory on Windows; see `HANDOFF.md` §14).
+- Frontend gate: `cd frontend && npx --no-install vitest run` → **153 tests passed**;
+  `tsc -b` + `vite build` pass; `npx oxlint` clean.
+- Goal gate: `python scripts/verify_goal.py --full` → **22/23**, C23 (Rust) blocked by
+  disk space, not by code. Receipts: `docs/evidence/security-release-audit-2026-11-08.md`.
 
-## In flight
+## Public-release audit (2026-11-08)
 
-- PianoVision legs D/E/F/G are written but uncommitted (HEAD carries A–C only).
-  Untracked: `frontend/src/practice/{PianoVisionVRView.tsx,acousticPitch.ts,fingering.ts,
-  library.ts,library.test.ts,memory.ts,memory.test.ts,pianovisionVr.test.tsx,vrCalibration.ts}`
-  plus modified `PianoRoll.tsx`.
-- MIDI-target practice had no transport of its own: the roll was driven only by
-  `PlayerSurface`, so a target with no audio open had nothing to fall. Fixed in this
-  run with `frontend/src/modules/midi/MidiTargetTransport.tsx`.
+- `cybersafe_scan.py` → 0 findings; secret/private-data scan over the tree **and full
+  history** → 0 tree hits.
+- Licence audit of 24 installed Python distributions, 93 frontend packages and every
+  model manifest → permissive throughout shipped code; GPL-3.0 appears only as an
+  optional model/extra, labelled.
+- Fixed: `/files/` traversal prefix collision (`server.py`, with a raw-request
+  regression test), library reset unscoped SQL → `LibraryStore.reset()`, `secrets` in a
+  workflow `if`, unpinned `ruff` in CI, machine-local paths in 9 tracked files.
+- `THIRD_PARTY_NOTICES.txt` now lists the packaging tool, `smplr` and the MPL-2.0
+  build-time packages, and states that no copyleft code ships.
 
 ## Blocked
 
-- P3-3 ONNX chord/beat adapters: no weights can be downloaded here (7.3 GB free, no
-  torch/onnx). Owner-only download decision.
+- **Gate C23** (cargo clippy/check/test): `C:` has 3.6 GB free, every volume ≤3.6 GB.
+  `src-tauri/` is unchanged since the 2026-10-21 gate that recorded 23/23 and
+  `cargo fmt --check` passes. Re-run on a machine with ≥10 GB free.
+- P3-3 ONNX chord/beat adapters: no weights can be downloaded here. Owner-only decision.
 - A3 learning-studio plugin thread: named in the ledger, no code and no contract change
   requested — not started.
 
 ## Next action
 
-Read `docs/evidence/orchestrate-2026-11-07.md` for the receipts, then pick the next open
-row in `tasks/WORKLIST.md` (P3-3 is the only unchecked one) or the owner decisions listed
-in `docs/REEL-ADOPTION-2026-10-27.md` §prior-backlog.
+Re-run gate C23 where disk allows, then pick the next open row in `tasks/WORKLIST.md`
+(P3-3 is the only unchecked one) or the owner decisions listed in
+`docs/REEL-ADOPTION-2026-10-27.md` §prior-backlog.

@@ -89,7 +89,7 @@ quality evidence. Do **not** start by porting the extension UI.
 
 | Item | Value | Evidence |
 |---|---|---|
-| Repo | `C:\Users\ericc\OneDrive\Desktop\Programs\music-assistant` | path |
+| Repo | `<repo>` | path |
 | Branch / commit | `main` / `c3cc5c0` (merge of release 1.2.1) | `git log` |
 | Tag | `v1.2.1` | `git tag` |
 | Package / API | `neiro 1.2.1`, API version 1 | `/api/version` `[live]` |
@@ -227,7 +227,7 @@ Operational facts:
 
 - `graft` is **not on PATH** in this environment. The cards under `graft/` are
   still useful and can be read directly.
-- `graphify` **is** installed (`C:\Users\ericc\AppData\Local\Programs\Python\Python310\scripts\graphify.exe`),
+- `graphify` **is** installed (`graphify.exe`),
   but the package is 0.9.36 while the installed skill is 0.17.1. The graph uses
   the pre-#1504 node-ID scheme. `graphify query` works with
   `--graph .graphify/graph.json`; it defaults to a non-existent
@@ -1556,8 +1556,8 @@ A phase is done only with a receipt, not a checklist:
 | Packaging/launchers | `packaging/neiro.spec`, `packaging/launchers/`, `packaging/build_release.py` |
 | VST2/CLAP | `plugins/neiro-vst/`, `plugins/neiro-clap/` |
 | CI | `.github/workflows/ci.yml`, `.github/workflows/release.yml` |
-| Bridge contract evidence | `C:\Users\ericc\OneDrive\Desktop\Programs\learning-studio\docs\NEIRO-BRIDGE.md` |
-| Extension source | `C:\Users\ericc\AppData\Local\Google\Chrome\User Data\Profile 1\Extensions\ioimlbgefgadofblnajllknopjboejda\6.5.4_0` |
+| Bridge contract evidence | `a private sibling repository's NEIRO-BRIDGE.md` |
+| Extension source | `the Chrome profile's extension directory (ioimlbgefgadofblnajllknopjboejda)` |
 | This audit / handoff | `docs/AUDIT.md`, `HANDOFF.md` |
 
 ---

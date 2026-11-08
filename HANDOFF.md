@@ -20,7 +20,7 @@
 ## 1. Objective and role
 
 Act as the senior audio-app engineer/architect for **Neiro**
-(`C:\Users\ericc\OneDrive\Desktop\Programs\music-assistant`), not Neutral and
+(`<repo>`), not Neutral and
 not the `learning-studio` bridge.
 
 The owner wants:
@@ -87,7 +87,7 @@ A perfect addon on top of false claims is worse than a smaller, honest app.
 
 ### 3.1 Repo, release, worktree
 
-- Repo: `C:\Users\ericc\OneDrive\Desktop\Programs\music-assistant`
+- Repo: `<repo>`
 - Branch/commit: `main` / `c3cc5c0` (merge release/1.2.1)
 - Tag: `v1.2.1`; package/API: `neiro 1.2.1`, API 1
 - Python: `.venv` 3.13.14; `pyproject >=3.10`; README 3.10-3.12; CI
@@ -237,8 +237,8 @@ evidence.
 | Tauri shell | `src-tauri/src/lib.rs`, `src-tauri/tauri.conf.json` |
 | Packaging | `packaging/neiro.spec`, `packaging/launchers/`, `packaging/build_release.py` |
 | VST2/CLAP | `plugins/neiro-vst/`, `plugins/neiro-clap/` |
-| Extension | `C:\Users\ericc\AppData\Local\Google\Chrome\User Data\Profile 1\Extensions\ioimlbgefgadofblnajllknopjboejda\6.5.4_0` |
-| Bridge contract | `C:\Users\ericc\OneDrive\Desktop\Programs\learning-studio\docs\NEIRO-BRIDGE.md` |
+| Extension | `the Chrome profile's extension directory (ioimlbgefgadofblnajllknopjboejda)` |
+| Bridge contract | `a private sibling repository's NEIRO-BRIDGE.md` |
 
 ### Lookup-when-stuck rule
 
@@ -257,7 +257,7 @@ evidence.
 ## 6. Working environment
 
 ```powershell
-$repo = 'C:\Users\ericc\OneDrive\Desktop\Programs\music-assistant'
+$repo = '<repo>'
 Set-Location $repo
 
 # Health / version
@@ -476,7 +476,7 @@ listening note is not acceptance.
 ## 12. First 30 minutes (literal commands)
 
 ```powershell
-$repo = 'C:\Users\ericc\OneDrive\Desktop\Programs\music-assistant'
+$repo = '<repo>'
 Set-Location $repo
 
 git status --short

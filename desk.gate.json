@@ -2,7 +2,7 @@
   "app": "neiro.exe",
   "label": "Neiro desktop shell + live webview (music-assistant)",
   "launch": {
-    "app": "C:\\Users\\ericc\\OneDrive\\Desktop\\Programs\\music-assistant\\src-tauri\\target\\release\\neiro.exe",
+    "app": "src-tauri/target/release/neiro.exe",
     "activate": true,
     "timeout_ms": 45000,
     "settle_ms": 3000

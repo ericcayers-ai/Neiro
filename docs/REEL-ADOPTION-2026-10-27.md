@@ -1,8 +1,8 @@
 # Reel adoption notes - 2026-10-27
 
 Sources: four Instagram reels digested 2026-10-27 plus the WASCAPE request. Full rationale:
-`C:\Users\ericc\.dsh\handoffs\2026-10-27-reel-widescope\HANDOFF.md` and `PROJECT-DECISIONS.md`.
-Owner-approved browser default: `obscura` v0.2.5 (see `~/.pi/agent/AGENTS.md`).
+`the private handoff packet's HANDOFF.md` and `PROJECT-DECISIONS.md`.
+Owner-approved browser default: `obscura` v0.2.5 (per the maintainer's agent instructions).
 
 Status: notes only. Nothing below is implemented yet. Owner rule for this repo: agents never commit.
 
@@ -59,7 +59,7 @@ nothing was committed.
 ## Prior backlog, consolidated (2026-10-27)
 
 Older owner requests that belong to this project, with the status the reconciled ledger recorded.
-Source: `C:\Users\ericc\.dsh\handoffs\2026-10-27-reel-widescope\PRIOR-BACKLOG-BY-PROJECT.md`
+Source: `the private handoff packet's PRIOR-BACKLOG-BY-PROJECT.md`
 (derived from `dm-context-ledger.md`, the 2026-10-26 run reports and `fullinstadmNOTES.md`).
 Statuses are 2026-10-26/27 receipts, not re-verified today: re-run this repo's gate before calling
 anything done.

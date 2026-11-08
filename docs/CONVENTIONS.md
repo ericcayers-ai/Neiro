@@ -2,7 +2,7 @@
 
 ## Inherited
 
-Global rules come from `~/.pi/agent/AGENTS.md` and `~/.dsh/policy/CORE.md`; they are not
+Global rules come from the maintainer's own agent instructions and harness policy; they are not
 repeated here. Project workflow comes from this repo's `AGENTS.md`.
 
 ## Local

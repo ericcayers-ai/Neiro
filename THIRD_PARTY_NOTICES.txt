@@ -34,11 +34,27 @@ file is a notice index, not legal advice.
 
 Runtime and build dependencies
 ------------------------------
-- Python standard library; NumPy (BSD-3-Clause); soundfile/librosa and other
-  optional extras per `pyproject.toml`.
-- React / React DOM (MIT), Vite (MIT), TypeScript (Apache-2.0), oxlint (MIT),
-  IBM Plex Sans / Mono via @fontsource (SIL Open Font License 1.1).
-- Tauri (MIT/Apache-2.0) for the desktop shell.
+Audited 2026-11-08 against the installed venv and `frontend/node_modules`: every
+dependency of the shipped app is permissive. No GPL/AGPL/SSPL/NC-licensed code is
+linked into the core, the frontend bundle, the companion addon, or the desktop shell.
+
+- **Python runtime:** standard library; NumPy (BSD-3-Clause), SciPy (BSD-3-Clause),
+  soundfile (BSD-3-Clause). Optional extras are listed in `pyproject.toml` and are
+  never installed by the core (`pip install neiro` pulls only those three).
+- **Frontend runtime:** React / React DOM (MIT), `smplr` (MIT, soundfont sampling),
+  `@tauri-apps/plugin-process` and `plugin-updater` (MIT OR Apache-2.0), IBM Plex
+  Sans / Mono via @fontsource (SIL Open Font License 1.1).
+- **Build and test only (not shipped as code):** Vite (MIT), TypeScript
+  (Apache-2.0), oxlint (MIT), vitest (MIT), jsdom (MIT), Playwright
+  (Apache-2.0), axe-core (MPL-2.0), lightningcss (MPL-2.0, produces the minified
+  CSS in the bundle). MPL-2.0 is file-level copyleft: those packages stay under
+  MPL-2.0 and Neiro's own MIT code is unaffected.
+- **Desktop shell:** Tauri and its Rust dependencies (MIT / Apache-2.0), with
+  `Cargo.lock` pinning the exact crate set.
+- **Packaging only:** PyInstaller (GPLv2 **with the standard bootloader exception**,
+  which explicitly permits building and distributing non-free and commercial
+  applications) builds the optional model-free sidecar; it is a build tool and no
+  PyInstaller code is part of the shipped application logic beyond its bootloader.
 
 If you redistribute a build, include this file and the upstream licence texts for
 every optional dependency and model weight you ship.
