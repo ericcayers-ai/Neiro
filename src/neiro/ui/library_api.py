@@ -21,9 +21,7 @@ def _store() -> LibraryStore:
     return LibraryStore()
 
 
-def _import_midi_target(
-    store: LibraryStore, state: Any, body: dict
-) -> tuple[int, dict]:
+def _import_midi_target(store: LibraryStore, state: Any, body: dict) -> tuple[int, dict]:
     """Store a user's ``.mid`` as a practice target (PianoVision adoption leg F).
 
     Bytes arrive base64-encoded in the JSON body rather than as a multipart upload: the
@@ -204,9 +202,7 @@ def handle_library(
             return 200, {"ok": store.delete_clip(rest[0])}
         if resource == "scenes":
             if method == "GET" and not rest:
-                with store._connect() as conn:  # read-only helper: all scenes
-                    rows = conn.execute("SELECT * FROM scenes ORDER BY created").fetchall()
-                return 200, {"scenes": [store._scene_row(row) for row in rows]}
+                return 200, {"scenes": store.list_scenes()}
             if method == "POST" and not rest:
                 scene = store.add_scene(
                     name=str(body.get("name") or "Scene"),
@@ -230,12 +226,7 @@ def handle_library(
         if resource == "reset" and method == "POST":
             if body.get("confirm") is not True:
                 return 400, {"error": "library reset requires {'confirm': true}"}
-            with store._connect() as conn:
-                songs = conn.execute("SELECT COUNT(*) FROM songs").fetchone()[0]
-                conn.execute("DELETE FROM songs")
-                conn.execute("DELETE FROM playlist_items")
-                conn.execute("DELETE FROM scenes")
-            return 200, {"ok": True, "removed_songs": songs}
+            return 200, {"ok": True, "removed_songs": store.reset(confirm=True)}
         if resource == "midi-targets":
             if method == "GET" and not rest:
                 return 200, {"targets": store.list_midi_targets()}

@@ -258,6 +258,38 @@ def test_api_saves_a_song_version(server):
     assert detail["song"]["versions"][0]["label"] == "mix v2"
 
 
+def test_store_reset_requires_confirm_and_cascades_children(library):
+    song = library.upsert_song(title="Reset me")
+    song_id = song["id"]
+    library.add_marker(song_id, 1.0, label="intro")
+    library.add_clip(song_id, name="loop", start=0.0, end=2.0)
+    library.add_version(song_id, label="v1")
+    playlist = library.create_playlist("Mix")
+    library.add_to_playlist(playlist["id"], song_id)
+    library.add_scene(name="Scene with a song", song_id=song_id)
+    library.add_scene(name="Scene without a song")
+
+    with pytest.raises(ValueError):
+        library.reset(confirm=False)
+    assert len(library.list_songs()) == 1
+
+    assert library.reset(confirm=True) == 1
+    assert library.list_songs() == []
+    assert library.list_playlists()[0]["songs"] == []
+
+
+def test_api_library_reset_leaves_no_song_less_scenes(server):
+    base, state = server
+    token = _token(base)
+    LibraryStore().add_scene(name="Song-less scene")
+    status, _ = _request(
+        base, "/api/library/reset", method="POST", body={"confirm": True}, token=token
+    )
+    assert status == 200
+    _, scenes = _request(base, "/api/library/scenes", token=token)
+    assert scenes["scenes"] == []
+
+
 def test_api_library_reset_requires_confirm_and_clears_songs(server):
     base, _ = server
     token = _token(base)

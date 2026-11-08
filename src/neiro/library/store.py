@@ -165,7 +165,9 @@ class LibraryStore:
                     "INSERT INTO playlists (id, name, is_default, created) VALUES (?, ?, 1, ?)",
                     (_new_id("pl"), "Favorites", _now()),
                 )
-            conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+            # PRAGMA does not accept bound parameters, so the int is stringified
+            # rather than interpolated as arbitrary text.
+            conn.execute("PRAGMA user_version = " + str(int(SCHEMA_VERSION)))
 
     # -- songs -------------------------------------------------------------
     def upsert_song(
@@ -271,6 +273,25 @@ class LibraryStore:
         with self._connect() as conn:
             cursor = conn.execute("DELETE FROM songs WHERE id = ?", (song_id,))
             return cursor.rowcount > 0
+
+    def reset(self, *, confirm: bool) -> int:
+        """Empty the library (songs, their cascaded rows, and song-less scenes).
+
+        ``confirm`` must be ``True``; the HTTP layer checks it too so a stray call
+        from another caller cannot wipe a library. Each row is deleted by its id in
+        one transaction, so this never runs an unscoped ``DELETE FROM`` and the
+        child rows (markers, clips, versions, playlist items) go with their song
+        through the foreign-key cascade. Returns the number of songs removed.
+        """
+        if confirm is not True:
+            raise ValueError("library reset requires confirm=True")
+        with self._connect() as conn:
+            song_ids = [row[0] for row in conn.execute("SELECT id FROM songs")]
+            for song_id in song_ids:
+                conn.execute("DELETE FROM songs WHERE id = ?", (song_id,))
+            # A scene may have no song; the cascade cannot reach those rows.
+            conn.execute("DELETE FROM scenes WHERE song_id IS NULL")
+        return len(song_ids)
 
     def set_notes(self, song_id: str, notes: str) -> dict[str, Any]:
         if not isinstance(notes, str):
@@ -399,6 +420,11 @@ class LibraryStore:
             "kind": kind,
             "layout": layout or {},
         }
+
+    def list_scenes(self) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute("SELECT * FROM scenes ORDER BY created").fetchall()
+        return [self._scene_row(row) for row in rows]
 
     def delete_scene(self, scene_id: str) -> bool:
         with self._connect() as conn:

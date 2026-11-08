@@ -16,7 +16,6 @@ practise) is deliberately NOT computed here: it has one implementation, in
 from __future__ import annotations
 
 import base64
-import io
 import json
 import threading
 import urllib.error
@@ -140,9 +139,7 @@ def test_store_keeps_one_row_per_file_and_can_delete_it(state):
     assert second["id"] == first["id"]
     assert len(handle_library(state, "GET", "/api/library/midi-targets")[1]["targets"]) == 1
 
-    status, payload = handle_library(
-        state, "DELETE", f"/api/library/midi-targets/{first['id']}"
-    )
+    status, payload = handle_library(state, "DELETE", f"/api/library/midi-targets/{first['id']}")
     assert (status, payload["ok"]) == (200, True)
     assert handle_library(state, "GET", "/api/library/midi-targets")[1]["targets"] == []
 
@@ -189,9 +186,7 @@ def test_http_surface_imports_and_serves_the_midi_bytes(server):
         assert resp.status == 200
         target = json.load(resp)["target"]
 
-    with urllib.request.urlopen(
-        server + f"/api/library/midi-file/{target['id']}"
-    ) as resp:
+    with urllib.request.urlopen(server + f"/api/library/midi-file/{target['id']}") as resp:
         assert resp.status == 200
         assert resp.headers.get_content_type() == "audio/midi"
         # Byte-identical to what was imported: the download link is the user's file.
