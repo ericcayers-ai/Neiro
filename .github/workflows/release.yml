@@ -54,6 +54,10 @@ jobs:
             bundle_glob: "src-tauri/target/release/bundle/**/*.AppImage"
             extra_glob: "src-tauri/target/release/bundle/**/*.deb"
     runs-on: ${{ matrix.os }}
+    # `secrets` is not available inside `if`, so the presence of the signing key is
+    # resolved once here (where the env context does allow it) and tested via env.
+    env:
+      HAS_SIGNING_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -87,16 +91,16 @@ jobs:
           pip install pyinstaller
           python scripts/build_sidecar.py --install
       - name: Build Tauri bundle (signed updater artifacts)
-        if: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
+        if: env.HAS_SIGNING_KEY == 'true'
         run: npm run tauri:build -- --config src-tauri/tauri.release.conf.json
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
       - name: Build Tauri bundle (unsigned)
-        if: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY == '' }}
+        if: env.HAS_SIGNING_KEY != 'true'
         run: npm run tauri:build
       - name: Updater manifest (Windows, signed builds)
-        if: matrix.os == 'windows-latest' && secrets.TAURI_SIGNING_PRIVATE_KEY != ''
+        if: matrix.os == 'windows-latest' && env.HAS_SIGNING_KEY == 'true'
         shell: bash
         run: |
           python scripts/updater_manifest.py \
