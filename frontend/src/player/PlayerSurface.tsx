@@ -484,7 +484,7 @@ export function PlayerSurface({
     setMessage(t('player.sceneSaved'))
   }
 
-  const useSceneNow = (scene: SceneSnapshot) => {
+  const applySceneNow = (scene: SceneSnapshot) => {
     const state = applyScene(scene)
     setParams(normalizeParams(state.params))
     setLoopA(state.loop.start)
@@ -1176,7 +1176,7 @@ export function PlayerSurface({
             <ul className="player-list">
               {scenes.map((scene) => (
                 <li key={scene.id}>
-                  <button type="button" className="link" onClick={() => useSceneNow(scene)}>
+                  <button type="button" className="link" onClick={() => applySceneNow(scene)}>
                     {scene.name}
                   </button>
                   <span className="intent">{scene.kind}</span>

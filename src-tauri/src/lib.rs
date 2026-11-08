@@ -366,8 +366,7 @@ mod updater_tests {
             .expect("pubkey utf8");
         let key_line = key_text
             .lines()
-            .filter(|line| !line.trim().is_empty() && !line.starts_with("untrusted comment"))
-            .next_back()
+            .rfind(|line| !line.trim().is_empty() && !line.starts_with("untrusted comment"))
             .expect("minisign key line");
         let key = minisign_verify::PublicKey::from_base64(key_line.trim())
             .expect("decode minisign public key");
