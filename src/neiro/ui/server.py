@@ -1400,7 +1400,12 @@ def _make_handler(state: _State):
                     return
                 target = (default_neiro_home() / "soundfonts" / name).resolve()
                 sf_root = (default_neiro_home() / "soundfonts").resolve()
-                if not str(target).startswith(str(sf_root)) or not target.is_file():
+                try:
+                    target.relative_to(sf_root)
+                except ValueError:
+                    self._error(404, "soundfont not found")
+                    return
+                if not target.is_file():
                     self._error(404, "soundfont not found")
                     return
                 self._send(200, target.read_bytes(), "application/octet-stream")
@@ -1565,11 +1570,18 @@ def _make_handler(state: _State):
                 return
             if path.startswith("/files/"):
                 rel = path[len("/files/") :]
-                target = (state.workspace / rel).resolve()
-                if (
-                    not str(target).startswith(str(state.workspace.resolve()))
-                    or not target.is_file()
-                ):
+                workspace = state.workspace.resolve()
+                target = (workspace / rel).resolve()
+                try:
+                    # Component-wise containment check: a plain string prefix would
+                    # accept a sibling directory whose name starts with the
+                    # workspace's (``workspace-evil``), which resolve() alone does
+                    # not catch.
+                    target.relative_to(workspace)
+                except ValueError:
+                    self._error(404, "not found")
+                    return
+                if not target.is_file():
                     self._error(404, "not found")
                     return
                 ctype = _MIME.get(target.suffix.lower(), "application/octet-stream")

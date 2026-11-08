@@ -7,6 +7,8 @@ uses, so the request routing, job lifecycle, and path-safety checks are exercise
 import io
 import json
 import math
+import shutil
+import socket
 import struct
 import threading
 import time
@@ -242,6 +244,46 @@ def test_path_traversal_blocked(server):
     with pytest.raises(urllib.error.HTTPError) as exc:
         _get(base + "/files/../../../../etc/passwd")
     assert exc.value.code == 404
+
+
+def _raw_status(base: str, raw_path: str) -> int:
+    """Send a request verbatim: urllib normalises ``..`` before it leaves the client."""
+    host, port = base.split("//", 1)[1].split(":")
+    with socket.create_connection((host, int(port)), timeout=5) as sock:
+        sock.sendall(
+            (f"GET {raw_path} HTTP/1.1\r\nHost: {host}:{port}\r\nConnection: close\r\n\r\n").encode(
+                "ascii"
+            )
+        )
+        received = b""
+        while True:
+            chunk = sock.recv(4096)
+            if not chunk:
+                break
+            received += chunk
+    return int(received.split(b" ", 2)[1])
+
+
+def test_file_route_rejects_a_sibling_sharing_the_workspace_prefix(server):
+    """A string-prefix containment check accepts ``<workspace>-evil``; a path check must not."""
+    base, state = server
+    workspace = state.workspace.resolve()
+    sibling = workspace.parent / f"{workspace.name}-evil"
+    sibling.mkdir(parents=True, exist_ok=True)
+    (sibling / "secret.txt").write_text("leak", encoding="utf-8")
+    try:
+        for attack in (
+            f"/files/../{sibling.name}/secret.txt",
+            f"/files/%2e%2e/{sibling.name}/secret.txt",
+            f"/files/..%2f{sibling.name}%2fsecret.txt",
+        ):
+            assert _raw_status(base, attack) == 404, attack
+    finally:
+        shutil.rmtree(sibling, ignore_errors=True)
+
+    # Control: the same raw GET still serves a file that really is in the workspace.
+    audio_url = _upload(base)["audio_url"]
+    assert _raw_status(base, audio_url) == 200
 
 
 def test_unknown_job_is_404(server):
