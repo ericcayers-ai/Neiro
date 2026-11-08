@@ -16,6 +16,14 @@
   resolved into a job-level `env.HAS_SIGNING_KEY`.
 - Library scene listing goes through `LibraryStore.list_scenes()` instead of the HTTP
   layer reaching into a private connection.
+- `PlayerSurface`: a plain function named `useSceneNow` was called inside a click
+  callback, which oxlint reports as a `rules-of-hooks` error; renamed `applySceneNow`.
+- `src-tauri/src/lib.rs`: `filter(..).next_back()` → `rfind(..)`
+  (`clippy::filter_next`, denied under `-D warnings`).
+- `tests/test_dynamic_port.py`: the child's startup output was left in an unread pipe,
+  so a failure showed up as a bare assertion on slow runners. The test now runs the
+  child unbuffered, stops polling when it exits, allows 60 s and reports the child's
+  output, exit code and platform.
 
 ### Changed
 - CI pins `ruff==0.17.1`; an unpinned formatter turned the lint job red without a code

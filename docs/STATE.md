@@ -10,8 +10,11 @@ Updated 2026-11-08 (public-release audit). Keep under 60 lines.
   → **299 passed, 3 skipped** (the `--basetemp` is mandatory on Windows; see `HANDOFF.md` §14).
 - Frontend gate: `cd frontend && npx --no-install vitest run` → **153 tests passed**;
   `tsc -b` + `vite build` pass; `npx oxlint` clean.
-- Goal gate: `python scripts/verify_goal.py --full` → **22/23**, C23 (Rust) blocked by
-  disk space, not by code. Receipts: `docs/evidence/security-release-audit-2026-11-08.md`.
+- Goal gate: `python scripts/verify_goal.py --full` → **22/23 locally**, C23 (Rust) only
+  because the disk guard blocks the build here; **CI's Rust job is green** on the
+  published commit, as are all 14 CI jobs (Python 3.10-3.12 × Windows/Ubuntu/macOS,
+  frontend, addon, packaging). Receipts:
+  `docs/evidence/security-release-audit-2026-11-08.md`.
 
 ## Public-release audit (2026-11-08)
 
@@ -23,14 +26,19 @@ Updated 2026-11-08 (public-release audit). Keep under 60 lines.
 - Fixed: `/files/` traversal prefix collision (`server.py`, with a raw-request
   regression test), library reset unscoped SQL → `LibraryStore.reset()`, `secrets` in a
   workflow `if`, unpinned `ruff` in CI, machine-local paths in 9 tracked files.
+- Fixed after the first public CI run: a `rules-of-hooks` oxlint error (`useSceneNow`
+  renamed), `clippy::filter_next` in `src-tauri/src/lib.rs`, and a `test_dynamic_port`
+  timeout that discarded the child's diagnostics.
+- Repo settings: public, private vulnerability reporting on, Dependabot alerts on
+  (0 open), Dependabot security updates on, secret scanning + push protection on.
 - `THIRD_PARTY_NOTICES.txt` now lists the packaging tool, `smplr` and the MPL-2.0
   build-time packages, and states that no copyleft code ships.
 
 ## Blocked
 
-- **Gate C23** (cargo clippy/check/test): `C:` has 3.6 GB free, every volume ≤3.6 GB.
-  `src-tauri/` is unchanged since the 2026-10-21 gate that recorded 23/23 and
-  `cargo fmt --check` passes. Re-run on a machine with ≥10 GB free.
+- **Gate C23 locally** (cargo clippy/check/test): `C:` has 3.6 GB free, every volume
+  ≤3.6 GB, and the build guard refuses below 10 GB. CI runs the same job and it is
+  green; re-run locally when disk allows.
 - P3-3 ONNX chord/beat adapters: no weights can be downloaded here. Owner-only decision.
 - A3 learning-studio plugin thread: named in the ledger, no code and no contract change
   requested — not started.

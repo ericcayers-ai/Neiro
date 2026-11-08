@@ -46,13 +46,28 @@ build-time packages and the explicit "no copyleft in shipped code" statement.
 - **C3 FAIL** — `ruff` 0.17.1 reported an unused import and two unformatted files.
   Fixed (§4); `ruff check .` and `ruff format --check .` are both clean now.
 - **C23 FAIL** — `cargo clippy/test` died with `os error 112` (disk full) after writing
-  2.83 GB of debug artifacts. This is environmental, not a code failure: `src-tauri/` is
-  untouched since the 2026-10-21 gate that recorded **23/23**, and `cargo fmt --check`
-  passes on the current tree. Re-run C23 on a machine with ≥10 GB free.
+  2.83 GB of debug artifacts. `C:` has 3.6 GB free and no volume has more, so the Rust
+  gate cannot run on this machine at all (the build guard refuses below 10 GB).
+  `cargo fmt --check` passes locally, and **CI ran the full Rust job — `cargo fmt`,
+  `clippy -D warnings`, `cargo test --lib`, `cargo check` — green on ubuntu-latest for
+  commit `7208fdf`**, which closes C23 with an independent runner.
 
-Post-fix run of every other criterion (`--full --only C1…C22`): **22/22 PASS**, including
-299 Python tests (3 skipped), the frontend `tsc -b` + Vite build, 153 vitest tests, 49
-addon checks, static a11y 0 findings.
+Local run of every other criterion (`--full --only C1…C22`) after the fixes: **22/22 PASS**,
+including 300 Python tests (3 skipped), the frontend `tsc -b` + Vite build, 153 vitest
+tests, 49 addon checks, static a11y 0 findings.
+
+### CI on the first public commit (`5fdf0ca` → fixed in `7208fdf`)
+
+14 jobs, 3 failed, and every failure was a real defect the local gate could not see:
+
+| Job | Failure | Fix |
+|---|---|---|
+| Frontend lint, typecheck, build | oxlint **error** `rules-of-hooks`: `useSceneNow` is a plain function called inside a callback (`PlayerSurface.tsx:1179`) | renamed to `applySceneNow`; `oxlint` now exits 0 (17 warnings remain, none fatal) |
+| Rust fmt, clippy, check | `clippy::filter_next` under `-D warnings` (`src-tauri/src/lib.rs:367`) | `filter(..).next_back()` → `rfind(..)` |
+| Test ×3 (macOS) | `test_dynamic_port` timed out at 30 s and, because the child's output sat in an unread pipe, reported nothing | the test now runs the child unbuffered, stops polling on exit, allows 60 s and raises with the child's output, exit code and platform |
+
+Re-run on `7208fdf`: **14/14 jobs green** (Python lint, Windows/Ubuntu/macOS × py3.10-3.12,
+frontend, addon, Rust, packaging smoke).
 
 ## 4. Defects found and fixed
 
@@ -89,19 +104,35 @@ addon checks, static a11y 0 findings.
 
 ## 5. Open, and why
 
-- **Gate C23** (Rust clippy/check/test) cannot run on this machine: `C:` has 3.6 GB free
-  and every volume is ≤3.6 GB. Nothing in `src-tauri/` changed in this pass, and
-  `cargo fmt --check` passes, so the Rust tree is exactly the one that last passed 23/23.
+- **Gate C23** cannot run on this machine (`C:` has 3.6 GB free; the build guard refuses
+  below 10 GB). It is verified by CI instead — see §3. Re-run locally when disk allows.
 - **No secret was found in history**, but history contains the maintainer's own contact
   address in superseded `SECURITY.md`/`CODE_OF_CONDUCT.md` revisions and in signed tags.
   Rewriting history was not done; the current files carry no address.
 - The desktop installer remains **unsigned** and the shell still needs a system Python
   unless the optional PyInstaller sidecar is installed. That is a known release gap
   recorded in `HANDOFF.md`, not a defect introduced here.
+- oxlint reports 17 `exhaustive-deps` / `only-export-components` **warnings**. They are
+  advisory, they do not fail CI, and several encode deliberate effect scoping; rewriting
+  them changes runtime behaviour and belongs in its own change.
 
-## 6. Verdict
+## 6. Repository settings (public)
+
+| Setting | Before | Now |
+|---|---|---|
+| Visibility | private | **public** |
+| Default branch | `main` @ `c3cc5c0` (177 commits behind local) | `main` @ `7208fdf` |
+| Secret scanning | enabled | enabled |
+| Secret scanning push protection | enabled | enabled |
+| Non-provider patterns / validity checks | disabled | disabled (API refuses to enable on this account; base scanning is on) |
+| Private vulnerability reporting | **disabled** (while `SECURITY.md` told reporters to use it) | **enabled** |
+| Dependabot alerts | disabled | **enabled**, 0 open alerts |
+| Dependabot security updates | disabled | **enabled** |
+| Discussions / issues / wiki | on | on (`CONTRIBUTING.md` links Discussions) |
+
+## 7. Verdict
 
 The tree is safe to publish: no secrets, no private data, no copyleft in shipped code,
-all dependency and model licences permissive or honestly labelled, and the one scanner
-finding class fixed at the source rather than suppressed. The only unverified row is gate
-C23, blocked by disk space, with the unchanged-tree evidence recorded above.
+all dependency and model licences permissive or honestly labelled, the one scanner
+finding class fixed at the source rather than suppressed, and a green 14-job CI matrix on
+the published commit.
