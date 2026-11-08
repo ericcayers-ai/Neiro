@@ -36,6 +36,20 @@ Measured from the installed `.venv` (24 distributions) and `frontend/node_module
 | Third-party code | no vendored library, no `rb.wasm`, no Transpose assets/locales. Only two tracked files exceed 200 kB: the built SPA bundle and the macOS icon |
 | Lockfiles | `frontend/package-lock.json` and root lockfile are byte-consistent with their `package.json` (0 mismatches), so CI `npm ci` resolves deterministically |
 
+### Known-vulnerability scan (Dependabot, after the repo went public)
+
+`npm audit` (frontend) reported 4 (nanoid, postcss, source-map-js, vite) — all
+development-scope and all fixable in-range: `npm audit fix` → **0 vulnerabilities**, and
+the frontend build, 153 vitest tests and oxlint still pass on the new lockfile.
+
+Dependabot opened 11 alerts against `src-tauri/Cargo.lock` and `frontend/package-lock.json`:
+
+| Package | Scope | Action |
+|---|---|---|
+| `zip` 4.6.1 (critical Zip-Cloaking RCE, high symlink-exhaustion, medium HMAC bypass) | runtime, via `tauri-plugin-updater` | `cargo update -p tauri-plugin-updater` → plugin 2.14.1 → **zip 9.4.2**, above every patched threshold (9.0.0 / 9.0.5) |
+| `vite` 8.1.5, `launch-editor`, `source-map-js`, `postcss` | development only | fixed by the `npm audit fix` lockfile update |
+| `glib` 0.18.5 (unsound `Iterator` impl, Linux GTK binding) | runtime on Linux | **cannot be fixed in this repo**: glib 0.20 ships in the next gtk-rs generation, which `wry`/`tao` do not use yet. The alert is dismissed as `tolerable_risk` with the reason written into it, not silently ignored. |
+
 `THIRD_PARTY_NOTICES.txt` was extended with the packaging tool, `smplr`, the MPL-2.0
 build-time packages and the explicit "no copyleft in shipped code" statement.
 

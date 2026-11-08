@@ -25,6 +25,14 @@
   child unbuffered, stops polling when it exits, allows 60 s and reports the child's
   output, exit code and platform.
 
+### Security
+- `tauri-plugin-updater` 2.12.0 → 2.14.1 pulls `zip` 4.6.1 → 9.4.2, clearing three
+  Dependabot advisories against the updater's archive parser (critical Zip-Cloaking
+  RCE, symlink memory exhaustion, AES-HMAC bypass).
+- `npm audit fix` in `frontend/` clears four development-scope advisories
+  (`vite`, `launch-editor`, `source-map-js`, `postcss`, `nanoid`); `npm audit` is
+  now clean and the frontend build and test suite are unchanged.
+
 ### Changed
 - CI pins `ruff==0.17.1`; an unpinned formatter turned the lint job red without a code
   change. `THIRD_PARTY_NOTICES.txt` documents the packaging tool, `smplr`, the MPL-2.0
